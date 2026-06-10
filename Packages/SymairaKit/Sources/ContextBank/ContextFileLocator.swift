@@ -8,9 +8,14 @@ public enum ContextFileKind: String, CaseIterable, Sendable {
     case cursorRules = ".cursorrules"
 }
 
-public struct ContextFile: Equatable, Sendable {
+public struct ContextFile: Equatable, Hashable, Sendable {
     public let kind: ContextFileKind
     public let url: URL
+
+    public init(kind: ContextFileKind, url: URL) {
+        self.kind = kind
+        self.url = url
+    }
 }
 
 /// Finds agent instruction files for a working directory, walking up to the
