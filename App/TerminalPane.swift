@@ -17,13 +17,15 @@ final class TerminalPane: PaneContainer {
     var view: NSView { surface?.view ?? emptyView }
     private let emptyView = NSView()
     nonisolated(unsafe) let scrollbackBuffer = ScrollbackBuffer()
+    let configuration: TerminalSurfaceConfiguration
     var outputTap: (@Sendable ([UInt8]) -> Void)? {
         get { surface?.outputTap }
         set { surface?.outputTap = newValue }
     }
 
-    init(surface: (any TerminalSurface)?) {
+    init(surface: (any TerminalSurface)?, configuration: TerminalSurfaceConfiguration = .init()) {
         self.surface = surface
+        self.configuration = configuration
     }
 
     func close() {

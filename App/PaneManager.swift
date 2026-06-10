@@ -26,7 +26,7 @@ final class PaneManager {
 
     func createPane(at configuration: TerminalSurfaceConfiguration = .init()) -> TerminalPane {
         let surface = try? engine.makeSurface(configuration: configuration)
-        let pane = TerminalPane(surface: surface)
+        let pane = TerminalPane(surface: surface, configuration: configuration)
         panes.append(pane)
         oscParsers[pane.paneID] = OSCStreamParser()
 
@@ -205,10 +205,15 @@ final class PaneManager {
 
     var stateForPersistence: SessionState {
         let paneStates = panes.map { pane -> PaneState in
-            var config = PaneState()
-            config.columns = 80
-            config.rows = 24
-            return config
+            let config = pane.configuration
+            return PaneState(
+                executablePath: "/bin/zsh",
+                arguments: ["-l"],
+                workingDirectory: config.workingDirectory?.path,
+                environment: config.environment,
+                columns: 80,
+                rows: 24
+            )
         }
         var layout: SplitNode = .pane(index: 0)
         if panes.count > 1 {
