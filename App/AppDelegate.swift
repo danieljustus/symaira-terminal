@@ -345,7 +345,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func updateStatusRing(paneID: UUID, status: AgentStatus) {
-        NSLog("symaira status: \(paneID) → \(status.rawValue)")
+        guard let pane = paneManager?.panes.first(where: { $0.paneID == paneID }) else { return }
+        pane.updateStatus(status)
     }
 }
 
