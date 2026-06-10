@@ -1,5 +1,6 @@
 import SwiftUI
 import AgentKit
+import SymairaUI
 
 struct PaneListItem: Identifiable {
     let id: UUID
