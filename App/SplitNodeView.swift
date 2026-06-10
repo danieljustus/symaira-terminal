@@ -1,4 +1,5 @@
 import AppKit
+import TerminalCore
 
 @MainActor
 protocol SplitNodeDelegate: AnyObject {
@@ -7,7 +8,7 @@ protocol SplitNodeDelegate: AnyObject {
 }
 
 @MainActor
-enum SplitNodeView {
+indirect enum SplitNodeView {
     case pane(TerminalPane)
     case split(orientation: SplitOrientation, ratio: Double, left: SplitNodeView, right: SplitNodeView)
 

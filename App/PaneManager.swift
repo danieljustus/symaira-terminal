@@ -1,4 +1,6 @@
 import AppKit
+import GhosttyBridge
+import TerminalCore
 
 @MainActor
 final class PaneManager {
