@@ -16,6 +16,7 @@ final class TerminalPane: PaneContainer {
     private(set) var surface: (any TerminalSurface)?
     var view: NSView { surface?.view ?? emptyView }
     private let emptyView = NSView()
+    nonisolated(unsafe) let scrollbackBuffer = ScrollbackBuffer()
     var outputTap: (@Sendable ([UInt8]) -> Void)? {
         get { surface?.outputTap }
         set { surface?.outputTap = newValue }

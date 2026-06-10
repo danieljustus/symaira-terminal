@@ -6,15 +6,16 @@ import TerminalCore
 final class ScrollbackSearchOverlay: NSObject {
     private var panel: NSPanel?
     private var searchField: NSSearchField?
-    private weak var targetSurface: (any TerminalSurface)?
-    private var matchCount = 0
-    private var currentMatch = 0
+    private var matchLabel: NSTextField?
+    private weak var targetPane: TerminalPane?
+    private var matches: [SearchMatch] = []
+    private var currentMatchIndex = 0
 
-    func show(for surface: any TerminalSurface) {
-        targetSurface = surface
+    func show(for pane: TerminalPane) {
+        targetPane = pane
 
         let panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 320, height: 52),
+            contentRect: NSRect(x: 0, y: 0, width: 360, height: 52),
             styleMask: [.titled, .nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -24,20 +25,43 @@ final class ScrollbackSearchOverlay: NSObject {
         panel.title = "Search Scrollback"
         panel.hidesOnDeactivate = false
 
-        let searchField = NSSearchField(frame: panel.contentView!.bounds)
-        searchField.autoresizingMask = [.width, .height]
+        let searchField = NSSearchField(frame: NSRect(x: 0, y: 0, width: 280, height: 32))
+        searchField.translatesAutoresizingMaskIntoConstraints = false
         searchField.target = self
         searchField.action = #selector(searchDidChange(_:))
         searchField.placeholderString = "Find in scrollback..."
         searchField.sendsSearchStringImmediately = true
         panel.contentView?.addSubview(searchField)
-        panel.initialFirstResponder = searchField
+
+        let matchLabel = NSTextField(labelWithString: "")
+        matchLabel.translatesAutoresizingMaskIntoConstraints = false
+        matchLabel.font = .monospacedSystemFont(ofSize: 11, weight: .regular)
+        matchLabel.textColor = .secondaryLabelColor
+        matchLabel.alignment = .right
+        panel.contentView?.addSubview(matchLabel)
+
+        NSLayoutConstraint.activate([
+            searchField.leadingAnchor.constraint(equalTo: panel.contentView!.leadingAnchor, constant: 12),
+            searchField.centerYAnchor.constraint(equalTo: panel.contentView!.centerYAnchor),
+            searchField.widthAnchor.constraint(equalToConstant: 280),
+
+            matchLabel.leadingAnchor.constraint(equalTo: searchField.trailingAnchor, constant: 8),
+            matchLabel.trailingAnchor.constraint(equalTo: panel.contentView!.trailingAnchor, constant: -12),
+            matchLabel.centerYAnchor.constraint(equalTo: panel.contentView!.centerYAnchor),
+            matchLabel.widthAnchor.constraint(greaterThanOrEqualToConstant: 60),
+        ])
 
         self.panel = panel
         self.searchField = searchField
+        self.matchLabel = matchLabel
 
-        if let window = surface.view.window {
-            let rect = window.convertToScreen(NSRect(x: window.contentView!.bounds.midX - 160, y: window.contentView!.bounds.height - 60, width: 320, height: 52))
+        if let window = pane.view.window {
+            let rect = window.convertToScreen(NSRect(
+                x: window.contentView!.bounds.midX - 180,
+                y: window.contentView!.bounds.height - 60,
+                width: 360,
+                height: 52
+            ))
             panel.setFrameOrigin(rect.origin)
         }
 
@@ -49,25 +73,34 @@ final class ScrollbackSearchOverlay: NSObject {
         panel?.orderOut(nil)
         panel = nil
         searchField = nil
-        targetSurface = nil
+        matchLabel = nil
+        targetPane = nil
+        matches = []
+        currentMatchIndex = 0
     }
 
     var isVisible: Bool { panel?.isVisible ?? false }
 
     @objc private func searchDidChange(_ sender: NSSearchField) {
         let query = sender.stringValue
-        guard !query.isEmpty else {
-            matchCount = 0
-            currentMatch = 0
+        guard !query.isEmpty, let pane = targetPane else {
+            matches = []
+            currentMatchIndex = 0
+            updateMatchLabel()
             return
         }
-        guard let surface = targetSurface as? GhosttySurfaceController,
-              let viewportText = surface.readViewportText()
-        else { return }
 
-        let matches = viewportText.lowercased().components(separatedBy: query.lowercased()).count - 1
-        matchCount = max(0, matches)
-        currentMatch = matchCount > 0 ? 1 : 0
+        matches = pane.scrollbackBuffer.searchText(query)
+        currentMatchIndex = matches.isEmpty ? 0 : 1
+        updateMatchLabel()
+    }
+
+    private func updateMatchLabel() {
+        if matches.isEmpty {
+            matchLabel?.stringValue = searchField?.stringValue.isEmpty ?? true ? "" : "No matches"
+        } else {
+            matchLabel?.stringValue = "\(currentMatchIndex)/\(matches.count)"
+        }
     }
 
     func handleKeyEquivalent(_ event: NSEvent) -> Bool {
@@ -86,7 +119,8 @@ final class ScrollbackSearchOverlay: NSObject {
     }
 
     private func cycleMatch(direction: Int) {
-        guard matchCount > 0 else { return }
-        currentMatch = ((currentMatch - 1 + direction) % matchCount + matchCount) % matchCount + 1
+        guard !matches.isEmpty else { return }
+        currentMatchIndex = ((currentMatchIndex - 1 + direction) % matches.count + matches.count) % matches.count + 1
+        updateMatchLabel()
     }
 }

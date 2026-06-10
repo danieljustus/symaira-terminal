@@ -249,8 +249,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func toggleSearch() {
         if searchOverlay.isVisible {
             searchOverlay.hide()
-        } else if let surface = paneManager?.currentPane?.surface {
-            searchOverlay.show(for: surface)
+        } else if let pane = paneManager?.currentPane {
+            searchOverlay.show(for: pane)
         }
     }
 

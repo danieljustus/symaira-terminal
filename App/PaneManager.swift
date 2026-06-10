@@ -32,6 +32,7 @@ final class PaneManager {
 
         surface?.outputTap = { [weak self, weak pane] bytes in
             guard let self, let pane else { return }
+            pane.scrollbackBuffer.append(bytes)
             Task { @MainActor in
                 guard var parser = self.oscParsers[pane.paneID] else { return }
                 for event in parser.feed(bytes) {
