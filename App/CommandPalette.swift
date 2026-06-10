@@ -17,10 +17,24 @@ struct CommandPalette: View {
     private var filteredItems: [CommandPaletteItem] {
         if searchText.isEmpty { return items }
         let query = searchText.lowercased()
-        return items.filter {
-            $0.name.lowercased().contains(query) ||
-            $0.category.lowercased().contains(query)
+        return items.filter { item in
+            fuzzyMatch(query: query, against: item.name.lowercased()) ||
+            fuzzyMatch(query: query, against: item.category.lowercased())
         }
+    }
+
+    private func fuzzyMatch(query: String, against text: String) -> Bool {
+        var queryIndex = query.startIndex
+        var textIndex = text.startIndex
+
+        while queryIndex < query.endIndex && textIndex < text.endIndex {
+            if query[queryIndex] == text[textIndex] {
+                queryIndex = query.index(after: queryIndex)
+            }
+            textIndex = text.index(after: textIndex)
+        }
+
+        return queryIndex == query.endIndex
     }
 
     var body: some View {
