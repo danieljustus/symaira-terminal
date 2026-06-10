@@ -84,6 +84,14 @@ final class PaneManager {
         prev.view.window?.makeFirstResponder(prev.view)
     }
 
+    func selectPane(at index: Int) {
+        guard index >= 0, index < panes.count else { return }
+        let pane = panes[index]
+        currentPane = pane
+        onPaneChanged?(pane)
+        pane.view.window?.makeFirstResponder(pane.view)
+    }
+
     func focusLongestBlocked() {
         let blocked = panes.filter { pane in
             guard let surface = pane.surface as? GhosttySurfaceController else { return false }
