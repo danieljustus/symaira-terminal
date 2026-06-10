@@ -159,7 +159,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         clearScrollbackItem.target = self
         fileMenu.addItem(clearScrollbackItem)
 
-        mainMenu.addItem(fileMenu)
+        let fileMenuItem = NSMenuItem(title: "File", action: nil, keyEquivalent: "")
+        fileMenuItem.submenu = fileMenu
+        mainMenu.addItem(fileMenuItem)
 
         let viewMenu = NSMenu(title: "View")
         let sidebarItem = NSMenuItem(title: "Toggle Sidebar", action: #selector(toggleSidebar), keyEquivalent: "s")
@@ -189,7 +191,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         focusBlockedItem.target = self
         viewMenu.addItem(focusBlockedItem)
 
-        mainMenu.addItem(viewMenu)
+        let viewMenuItem = NSMenuItem(title: "View", action: nil, keyEquivalent: "")
+        viewMenuItem.submenu = viewMenu
+        mainMenu.addItem(viewMenuItem)
     }
 
     @objc private func newTab() {
