@@ -118,7 +118,7 @@ final class PaneManager {
             newSplit.autosaveName = nil
 
             if let parentIdx = existingSplit.subviews.firstIndex(where: { $0 === cur.view }) {
-                existingSplit.insertArrangedSubview(newSplit.view, at: parentIdx + 1)
+                existingSplit.insertArrangedSubview(newSplit, at: parentIdx + 1)
                 newSplit.addArrangedSubview(cur.view)
                 newSplit.addArrangedSubview(newPane.view)
             }

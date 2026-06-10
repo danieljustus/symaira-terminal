@@ -79,7 +79,7 @@ final class ScrollbackSearchOverlay: NSObject {
             return true
         }
         if key == "g" && mods.contains(.command) {
-            cycleMatch(direction: event.shiftModifier ? -1 : 1)
+            cycleMatch(direction: event.modifierFlags.contains(.shift) ? -1 : 1)
             return true
         }
         return false

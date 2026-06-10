@@ -40,21 +40,21 @@ indirect enum SplitNodeView {
     func removePane(_ target: TerminalPane) -> SplitNodeView? {
         switch self {
         case .pane(let p) where p === target:
-            nil
+            return nil
         case .pane:
-            self
+            return self
         case .split(_, _, let left, let right):
             let newLeft = left.removePane(target)
             let newRight = right.removePane(target)
             switch (newLeft, newRight) {
             case (.some(let l), .some(let r)):
-                .split(orientation: .horizontal, ratio: 0.5, left: l, right: r)
+                return .split(orientation: .horizontal, ratio: 0.5, left: l, right: r)
             case (.some(let l), .none):
-                l
+                return l
             case (.none, .some(let r)):
-                r
+                return r
             case (.none, .none):
-                nil
+                return nil
             }
         }
     }
