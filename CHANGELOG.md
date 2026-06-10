@@ -7,7 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### M1 — Terminal Infrastructure (in progress)
+### M4 — Polish & Launch (in progress)
+
+#### Added
+- Blocks-lite shell integration (zsh/bash/fish OSC 133 snippets)
+- Multi-Account-Routing with workspace config (.symaira/config.json)
+- Onboarding-Flow with 3-step setup (API key, shell integration, ready)
+- Settings UI with General, Providers, Workspace, Advanced tabs
+- Release script with archive, notarize, DMG, GitHub release flow
+- Sparkle appcast template for auto-updates
+- Homebrew Cask formula
+
+### M3 — Agent-Aware Features (completed)
+
+#### Added
+- Worktree-Manager UI with create, list, remove, dirty indicator
+- Diff-Review-Panel with syntax-highlighted unified diff
+- Context Bank UI with file list, editor, and role templates
+- ProviderKit / BYOK UI with profile management
+- "Fehler beheben" button with AI error analysis
+- NL→Command in Command Palette
+- ACP-Client for OpenCode integration
+- Gemini CLI ACP adapter with tool name normalization
+
+### M1 — Terminal Infrastructure (completed)
 
 #### Added
 - Multi-pane window management (NSSplitView + PaneManager)
@@ -17,7 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - LatencyBench harness for M1 performance gate
 - GhosttyTheme catalog integration (theme/font/ligature parsing from ~/.config/ghostty/config)
 - ScrollbackBuffer with full-text search (⌘F)
-- WorkspaceSidebar (SwiftUI, not yet embedded in app window)
+- WorkspaceSidebar with worktree section
 
 #### Fixed
 - App target import wiring (4 fix commits)
