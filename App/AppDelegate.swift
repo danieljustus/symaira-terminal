@@ -11,12 +11,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var oscEventHandler = OSCEventHandler()
     private var searchOverlay = ScrollbackSearchOverlay()
     private var tabBar: TabBarView?
+    private var ghosttyConfig: GhosttyAppConfig?
     private var showSidebar = false
     private var showPalette = false
     private var sidebarItem: NSSplitViewItem?
     private var sidebarViewController: NSViewController?
 
     func applicationDidFinishLaunching(_: Notification) {
+        let config = GhosttyAppConfig.parse()
+        self.ghosttyConfig = config
+
         let engine = GhosttyEngine()
         self.engine = engine
 
