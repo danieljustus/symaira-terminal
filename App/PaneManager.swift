@@ -93,15 +93,36 @@ final class PaneManager {
         pane.view.window?.makeFirstResponder(pane.view)
     }
 
+    func focusNextActive() {
+        guard let cur = currentPane, let idx = panes.firstIndex(where: { $0 === cur }) else { return }
+        let activePanes = panes.enumerated().filter { $0.element.agentStatus != .idle && $0.element.agentStatus != .done }
+        guard !activePanes.isEmpty else { return }
+
+        if let nextActive = activePanes.first(where: { $0.offset > idx }) {
+            selectPane(at: nextActive.offset)
+        } else if let firstActive = activePanes.first {
+            selectPane(at: firstActive.offset)
+        }
+    }
+
+    func focusPreviousActive() {
+        guard let cur = currentPane, let idx = panes.firstIndex(where: { $0 === cur }) else { return }
+        let activePanes = panes.enumerated().filter { $0.element.agentStatus != .idle && $0.element.agentStatus != .done }
+        guard !activePanes.isEmpty else { return }
+
+        if let prevActive = activePanes.last(where: { $0.offset < idx }) {
+            selectPane(at: prevActive.offset)
+        } else if let lastActive = activePanes.last {
+            selectPane(at: lastActive.offset)
+        }
+    }
+
     func focusLongestBlocked() {
         let blocked = panes.filter { pane in
-            guard let surface = pane.surface as? GhosttySurfaceController else { return false }
-            return surface.readViewportText()?.contains("_approval") ?? false
+            pane.agentStatus == .awaitingApproval || pane.agentStatus == .error
         }
-        if let target = blocked.first {
-            currentPane = target
-            onPaneChanged?(target)
-            target.view.window?.makeFirstResponder(target.view)
+        if let target = blocked.first, let idx = panes.firstIndex(where: { $0 === target }) {
+            selectPane(at: idx)
         } else {
             focusNext()
         }

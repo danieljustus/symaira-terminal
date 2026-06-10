@@ -218,10 +218,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         focusPrevItem.target = self
         viewMenu.addItem(focusPrevItem)
 
-        let focusBlockedItem = NSMenuItem(title: "Focus Blocked Agent", action: #selector(focusBlocked), keyEquivalent: "u")
-        focusBlockedItem.keyEquivalentModifierMask = [.command, .shift]
-        focusBlockedItem.target = self
-        viewMenu.addItem(focusBlockedItem)
+        let focusNextActiveItem = NSMenuItem(title: "Focus Next Active Agent", action: #selector(focusNextActive), keyEquivalent: "u")
+        focusNextActiveItem.keyEquivalentModifierMask = [.command, .shift]
+        focusNextActiveItem.target = self
+        viewMenu.addItem(focusNextActiveItem)
+
+        let focusPrevActiveItem = NSMenuItem(title: "Focus Previous Active Agent", action: #selector(focusPreviousActive), keyEquivalent: "i")
+        focusPrevActiveItem.keyEquivalentModifierMask = [.command, .shift]
+        focusPrevActiveItem.target = self
+        viewMenu.addItem(focusPrevActiveItem)
 
         let viewMenuItem = NSMenuItem(title: "View", action: nil, keyEquivalent: "")
         viewMenuItem.submenu = viewMenu
@@ -278,6 +283,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func focusPrevious() {
         paneManager?.focusPrevious()
+    }
+
+    @objc private func focusNextActive() {
+        paneManager?.focusNextActive()
+    }
+
+    @objc private func focusPreviousActive() {
+        paneManager?.focusPreviousActive()
     }
 
     @objc private func focusBlocked() {
