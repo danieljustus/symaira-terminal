@@ -1,0 +1,46 @@
+name: SymairaTerminal
+options:
+  bundleIdPrefix: com.symaira
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+
+packages:
+  SymairaKit:
+    path: Packages/SymairaKit
+
+targets:
+  SymairaTerminal:
+    type: application
+    platform: macOS
+    sources:
+      - App
+    dependencies:
+      - package: SymairaKit
+        product: GhosttyBridge
+      - package: SymairaKit
+        product: TerminalCore
+      - package: SymairaKit
+        product: AgentKit
+      - package: SymairaKit
+        product: SymairaUI
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.symaira.terminal
+        MARKETING_VERSION: "0.0.1"
+        CURRENT_PROJECT_VERSION: "1"
+        SWIFT_VERSION: "6.0"
+        SWIFT_STRICT_CONCURRENCY: complete
+        ENABLE_HARDENED_RUNTIME: true
+        # Ad-hoc signing for local development; real signing happens in release CI.
+        CODE_SIGN_IDENTITY: "-"
+        CODE_SIGN_STYLE: Manual
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: Symaira Terminal
+        CFBundleName: Symaira Terminal
+        NSHighResolutionCapable: true
+        NSPrincipalClass: NSApplication
+        NSHumanReadableCopyright: "© 2026 Symaira — AGPLv3"
+        LSApplicationCategoryType: public.app-category.developer-tools

@@ -1,0 +1,21 @@
+# macOS
+.DS_Store
+
+# Xcode / Swift
+.build/
+DerivedData/
+*.xcodeproj
+!project.yml
+xcuserdata/
+*.xcuserstate
+.swiftpm/
+Package.resolved.lock
+
+# Build artifacts
+build/
+dist/
+*.dSYM
+
+# Secrets / local config
+.env
+*.local.json

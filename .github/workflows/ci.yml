@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: Build & Test (SymairaKit)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_16.4.app || sudo xcode-select -s "$(ls -d /Applications/Xcode*.app | sort -V | tail -1)"
+      - name: Build
+        working-directory: Packages/SymairaKit
+        run: swift build
+      - name: Test
+        working-directory: Packages/SymairaKit
+        run: swift test
+
+  app:
+    name: Build App (boundary check)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_16.4.app || sudo xcode-select -s "$(ls -d /Applications/Xcode*.app | sort -V | tail -1)"
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate project
+        run: xcodegen generate
+      # The public repo must build with zero private/cloud dependencies —
+      # this job IS the commercial-boundary check.
+      - name: Build app (unsigned)
+        run: |
+          xcodebuild -project SymairaTerminal.xcodeproj \
+            -scheme SymairaTerminal -configuration Debug \
+            CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO \
+            build
