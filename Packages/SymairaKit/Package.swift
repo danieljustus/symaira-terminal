@@ -46,6 +46,10 @@ let package = Package(
         // `swift run TerminalSmoke`
         .executableTarget(name: "TerminalSmoke", dependencies: ["GhosttyBridge"]),
 
+        // M1 latency/throughput benchmark harness:
+        // `swift run LatencyBench`
+        .executableTarget(name: "LatencyBench", dependencies: ["GhosttyBridge", "TerminalCore"]),
+
         .testTarget(name: "TerminalCoreTests", dependencies: ["TerminalCore"]),
         .testTarget(name: "AgentKitTests", dependencies: ["AgentKit"]),
         .testTarget(name: "WorktreeKitTests", dependencies: ["WorktreeKit"]),
