@@ -1,0 +1,31 @@
+<?xml version="1.0" standalone="no"?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/" version="2.0">
+    <channel>
+        <title>Symaira Terminal</title>
+        <link>https://github.com/danieljustus/symaira-terminal</link>
+        <description>Most recent changes with links to updates.</description>
+        <language>en</language>
+        <item>
+            <title>Version 1.0.0</title>
+            <sparkle:version>1</sparkle:version>
+            <sparkle:shortVersionString>1.0.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[
+                <h3>Symaira Terminal 1.0.0</h3>
+                <ul>
+                    <li>Initial release</li>
+                    <li>Agent-aware terminal with status rings</li>
+                    <li>BYOK for all providers</li>
+                    <li>Git worktree isolation</li>
+                </ul>
+            ]]></description>
+            <pubDate>Mon, 01 Jan 2026 00:00:00 +0000</pubDate>
+            <enclosure
+                url="https://github.com/danieljustus/symaira-terminal/releases/download/v1.0.0/SymairaTerminal-1.0.0.dmg"
+                length="0"
+                type="application/octet-stream"
+                sparkle:edSignature=""
+            />
+        </item>
+    </channel>
+</rss>

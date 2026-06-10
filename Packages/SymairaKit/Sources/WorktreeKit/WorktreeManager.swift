@@ -1,6 +1,6 @@
 import Foundation
 
-public struct Worktree: Equatable, Sendable {
+public struct Worktree: Equatable, Hashable, Sendable {
     public let taskID: String
     public let path: URL
     public let branch: String

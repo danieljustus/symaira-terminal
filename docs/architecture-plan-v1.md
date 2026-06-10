@@ -93,7 +93,7 @@ Abhängigkeitsrichtung: `App → SymairaUI → {AgentKit, WorktreeKit, ProviderK
 
 ## Meilensteine (v1 ≈ 4 Monate)
 
-- **M0 (Woche 1–2)**: Repo-Setup nach Symaira-Konvention (AGENTS.md, commercial-boundary.md, CI), Xcode-Workspace + SPM-Skelett, **Spike: ein GhosttyKit-Surface rendert zsh in SwiftUI-Fenster**. ADR-001: Engine-Wahl + Pin-Strategie.
+- **M0 (Woche 1–2)**: Repo-Setup nach Symaira-Konvention (AGENTS.md, commercial-boundary.md, CI), Xcode-Workspace + SPM-Skelett, **Spike: ein GhosttyKit-Surface rendert zsh in SwiftUI-Fenster**. ADR-001: Engine-Wahl + Pin-Strategie. ✅ Abgeschlossen (Commit `446ad0f`, 10.06.2026).
 - **M1 (Monat 1)**: Terminal solide — Tabs/Splits (AppKit), Übernahme von `~/.config/ghostty/config` (Themes/Fonts/Keybindings), Scrollback, Basis-Session-Persistenz. **Gate: Eingabelatenz + Durchsatz-Benchmark ≥ iTerm2-Niveau.**
 - **M2 (Monat 2)**: Agent-Awareness — OSC-Parser (133/7/8/777/99), Status-Engine, animierte Pane-Ringe, Workspace-Sidebar (Branch, Ports, Changed Files, letzte Aktivität), Cmd+Shift+U-Fokussprung, Shift-Shift-Palette mit Agent-Presets.
 - **M3 (Monat 3)**: Worktree-Manager + Review-Panel, Context Bank (Seitenpanel-Editor für CLAUDE.md/AGENTS.md + Rollen-Templates), **ProviderKit/BYOK** (Keychain, Fix-Error, NL→Command), **ACP-Client** mit OpenCode + Gemini CLI.
@@ -113,3 +113,29 @@ Abhängigkeitsrichtung: `App → SymairaUI → {AgentKit, WorktreeKit, ProviderK
 1. **libghostty-API-Drift** → Pin + GhosttyBridge-Isolation + SwiftTerm-Fallback-Pfad.
 2. **ACP-Verhalten variiert je Agent** → v1 nur 2 Referenz-Integrationen, PTY-Modus bleibt immer der Fallback.
 3. **Solo-Dev + 4 Monate ist sportlich** → Meilensteine sind so geschnitten, dass nach M2 bereits ein nutzbares „agent-aware Terminal" existiert (notfalls früherer Beta-Launch ohne M3/M4-Features).
+
+## M0 → M1 Übergang (10.06.2026)
+
+M0 wurde mit Commit `446ad0f` abgeschlossen. Alle Lieferungen sind vorhanden:
+- ✅ Repo-Setup (AGPLv3, AGENTS.md, commercial-boundary.md, CI)
+- ✅ XcodeGen project.yml + App-Target-Skelett
+- ✅ SPM-Package SymairaKit mit 7 Modul-Targets
+- ✅ GhosttyKit-Spike (TerminalSmoke rendert zsh in SwiftUI)
+- ✅ ADR-001 (Engine-Wahl + Pin-Strategie)
+- ✅ libghostty-spm exakt gepinnt (1.2.4)
+- ✅ 26 Unit-Tests über alle Module
+
+**Übergang zu M1**: M1-Arbeit begann unmittelbar nach M0 und ist bereits teilweise im `main`-Branch enthalten (Commits `63a89df`, `bd374ca`). Die folgenden M1-Komponenten sind implementiert:
+- Multi-Pane-Management (NSSplitView + PaneManager, TabBarView)
+- SessionState/SessionPersistence (atomare Writes)
+- OSC-Event-Handler (Parser → AgentStatusEngine)
+- LatencyBench-Harness (M1-Benchmark-Vorlage)
+- GhosttyTheme-Katalog (Theme/Font/Keybinding-Übernahme)
+- ScrollbackBuffer mit Volltext-Suche
+- WorkspaceSidebar (SwiftUI, noch nicht in App-Fenster eingebettet)
+
+**Nächste Schritte für M1**:
+1. WorkspaceSidebar in App-Fenster einbetten (NSHostingView + NSSplitViewItem)
+2. GhosttyAppConfig in TerminalEngine-Pipeline integrieren
+3. `swift run LatencyBench` ausführen und Ergebnisse in `docs/benchmarks/m1-results.md` dokumentieren
+4. Gate: Eingabelatenz + Durchsatz ≥ iTerm2-Niveau

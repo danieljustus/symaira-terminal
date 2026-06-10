@@ -1,6 +1,7 @@
 import SwiftUI
 import AgentKit
 import SymairaUI
+import WorktreeKit
 
 struct PaneListItem: Identifiable {
     let id: UUID
@@ -42,6 +43,11 @@ struct WorkspaceSidebar: View {
     let listeningPorts: [ListeningPort]
     let onSelectPane: (UUID) -> Void
     let onOpenPort: (UInt16) -> Void
+
+    @ObservedObject var worktreeStore: WorktreeStore
+    let onSelectWorktree: (Worktree) -> Void
+    let onCreateWorktree: () -> Void
+    let onRemoveWorktree: (Worktree) -> Void
 
     var body: some View {
         List {
@@ -85,6 +91,13 @@ struct WorkspaceSidebar: View {
                     Text("Changed Files (\(changedFiles.count))")
                 }
             }
+
+            WorktreeListView(
+                store: worktreeStore,
+                onSelect: onSelectWorktree,
+                onCreate: onCreateWorktree,
+                onRemove: onRemoveWorktree
+            )
 
             if !listeningPorts.isEmpty {
                 Section {
