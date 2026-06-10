@@ -8,8 +8,9 @@ cask "symaira-terminal" do
   homepage "https://github.com/danieljustus/symaira-terminal"
 
   livecheck do
-    url :url
-    strategy :github_latest
+    url "https://github.com/danieljustus/symaira-terminal/releases/latest"
+    strategy :header_match
+    regex(/SymairaTerminal-(\d+(?:\.\d+)*)\.dmg/i)
   end
 
   depends_on macos: ">= :sonoma"

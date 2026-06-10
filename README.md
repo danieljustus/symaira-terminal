@@ -28,6 +28,19 @@ scrollback are not enough. Symaira Terminal is agent-aware by design:
   Keys live in the macOS Keychain only. No account, no cloud middleman, no telemetry.
 - **Local-first** — configuration, prompt history, and transcripts stay on your Mac.
 
+## Installation
+
+### Homebrew (recommended)
+
+```bash
+brew tap danieljustus/tap
+brew install --cask symaira-terminal
+```
+
+### Manual
+
+Download the latest `.dmg` from [GitHub Releases](https://github.com/danieljustus/symaira-terminal/releases), mount it, and drag `SymairaTerminal.app` to your Applications folder.
+
 ## License
 
 AGPLv3 — see [LICENSE](LICENSE). Unlike the other Symaira cores (MIT), the terminal

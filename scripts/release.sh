@@ -16,14 +16,11 @@ DMG_PATH="${BUILD_DIR}/${APP_NAME}-${VERSION}.dmg"
 
 echo "=== Building ${APP_NAME} ${VERSION} ==="
 
-# Clean
 rm -rf "${BUILD_DIR}"
 mkdir -p "${BUILD_DIR}"
 
-# Generate project
 xcodegen generate
 
-# Archive
 echo "Archiving..."
 xcodebuild archive \
     -project "${APP_NAME}.xcodeproj" \
@@ -33,7 +30,6 @@ xcodebuild archive \
     CODE_SIGN_IDENTITY="-" \
     CODE_SIGNING_REQUIRED=NO
 
-# Export
 echo "Exporting..."
 cat > "${BUILD_DIR}/ExportOptions.plist" << EOF
 <?xml version="1.0" encoding="UTF-8"?>
@@ -55,7 +51,6 @@ xcodebuild -exportArchive \
     -exportOptionsPlist "${BUILD_DIR}/ExportOptions.plist" \
     -exportPath "${EXPORT_PATH}"
 
-# Notarize
 echo "Notarizing..."
 APP_PATH=$(find "${EXPORT_PATH}" -name "*.app" -type d | head -1)
 if [ -z "${APP_PATH}" ]; then
@@ -69,18 +64,23 @@ xcrun notarytool submit "${APP_PATH}" \
 
 xcrun stapler staple "${APP_PATH}"
 
-# Create DMG
 echo "Creating DMG..."
 hdiutil create -volname "${APP_NAME}" \
     -srcfolder "${APP_PATH}" \
     -ov -format UDZO \
     "${DMG_PATH}"
 
-# Upload to GitHub Release
 echo "Uploading to GitHub..."
 gh release create "v${VERSION}" \
     "${DMG_PATH}#${APP_NAME}-${VERSION}.dmg" \
     --title "v${VERSION}" \
     --notes "Release ${VERSION}"
+
+echo "Updating Homebrew tap..."
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+"${SCRIPT_DIR}/update-homebrew-tap.sh" "${VERSION}" "${DMG_PATH}" || {
+    echo "Warning: Homebrew tap update failed. Run manually:"
+    echo "  ${SCRIPT_DIR}/update-homebrew-tap.sh ${VERSION} ${DMG_PATH}"
+}
 
 echo "=== Release ${VERSION} complete ==="

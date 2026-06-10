@@ -1,0 +1,85 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (e.g. 1.0.0)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Determine version
+        id: version
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then
+            echo "version=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Build and archive
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          xcodebuild archive \
+            -project SymairaTerminal.xcodeproj \
+            -scheme SymairaTerminal \
+            -archivePath build/release/SymairaTerminal.xcarchive \
+            -configuration Release \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_REQUIRED=NO
+
+      - name: Create DMG
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          APP_PATH=$(find build/release/export -name "*.app" -type d | head -1)
+          if [ -z "$APP_PATH" ]; then
+            hdiutil create -volname "SymairaTerminal" \
+              -srcfolder "build/release/export/SymairaTerminal.app" \
+              -ov -format UDZO \
+              "build/release/SymairaTerminal-${VERSION}.dmg"
+          else
+            hdiutil create -volname "SymairaTerminal" \
+              -srcfolder "$APP_PATH" \
+              -ov -format UDZO \
+              "build/release/SymairaTerminal-${VERSION}.dmg"
+          fi
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          gh release create "v${VERSION}" \
+            "build/release/SymairaTerminal-${VERSION}.dmg#SymairaTerminal-${VERSION}.dmg" \
+            --title "v${VERSION}" \
+            --generate-notes
+
+      - name: Update Homebrew tap
+        env:
+          TAP_REPO_TOKEN: ${{ secrets.TAP_REPO_TOKEN }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          DMG_PATH="build/release/SymairaTerminal-${VERSION}.dmg"
+          if [ -f "$DMG_PATH" ] && [ -n "${TAP_REPO_TOKEN:-}" ]; then
+            ./scripts/update-homebrew-tap.sh "$VERSION" "$DMG_PATH"
+          else
+            echo "Skipping tap update: DMG not found or TAP_REPO_TOKEN not set"
+          fi
