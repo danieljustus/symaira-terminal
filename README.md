@@ -4,7 +4,9 @@ A native macOS terminal built for the Human-AI era — designed for running mult
 CLI coding agents (Claude Code, OpenCode, Aider, Gemini CLI, …) in parallel without
 losing track of what they are doing.
 
-**Status: pre-alpha (M0).** Nothing here is usable yet.
+**Status: alpha (M1 in progress).** Core terminal rendering works; multi-pane,
+session persistence, and agent status rings are functional. M3 features
+(worktrees, BYOK, ACP) are in development.
 
 ## Why another terminal?
 
