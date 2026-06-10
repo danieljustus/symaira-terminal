@@ -26,12 +26,13 @@ final class PaneManager {
 
     func createPane(at configuration: TerminalSurfaceConfiguration = .init()) -> TerminalPane {
         let surface = try? engine.makeSurface(configuration: configuration)
-        let pane = TerminalPane(surface: surface)
+        let pane = TerminalPane(surface: surface, configuration: configuration)
         panes.append(pane)
         oscParsers[pane.paneID] = OSCStreamParser()
 
         surface?.outputTap = { [weak self, weak pane] bytes in
             guard let self, let pane else { return }
+            pane.scrollbackBuffer.append(bytes)
             Task { @MainActor in
                 guard var parser = self.oscParsers[pane.paneID] else { return }
                 for event in parser.feed(bytes) {
@@ -84,15 +85,44 @@ final class PaneManager {
         prev.view.window?.makeFirstResponder(prev.view)
     }
 
+    func selectPane(at index: Int) {
+        guard index >= 0, index < panes.count else { return }
+        let pane = panes[index]
+        currentPane = pane
+        onPaneChanged?(pane)
+        pane.view.window?.makeFirstResponder(pane.view)
+    }
+
+    func focusNextActive() {
+        guard let cur = currentPane, let idx = panes.firstIndex(where: { $0 === cur }) else { return }
+        let activePanes = panes.enumerated().filter { $0.element.agentStatus != .idle && $0.element.agentStatus != .done }
+        guard !activePanes.isEmpty else { return }
+
+        if let nextActive = activePanes.first(where: { $0.offset > idx }) {
+            selectPane(at: nextActive.offset)
+        } else if let firstActive = activePanes.first {
+            selectPane(at: firstActive.offset)
+        }
+    }
+
+    func focusPreviousActive() {
+        guard let cur = currentPane, let idx = panes.firstIndex(where: { $0 === cur }) else { return }
+        let activePanes = panes.enumerated().filter { $0.element.agentStatus != .idle && $0.element.agentStatus != .done }
+        guard !activePanes.isEmpty else { return }
+
+        if let prevActive = activePanes.last(where: { $0.offset < idx }) {
+            selectPane(at: prevActive.offset)
+        } else if let lastActive = activePanes.last {
+            selectPane(at: lastActive.offset)
+        }
+    }
+
     func focusLongestBlocked() {
         let blocked = panes.filter { pane in
-            guard let surface = pane.surface as? GhosttySurfaceController else { return false }
-            return surface.readViewportText()?.contains("_approval") ?? false
+            pane.agentStatus == .awaitingApproval || pane.agentStatus == .error
         }
-        if let target = blocked.first {
-            currentPane = target
-            onPaneChanged?(target)
-            target.view.window?.makeFirstResponder(target.view)
+        if let target = blocked.first, let idx = panes.firstIndex(where: { $0 === target }) {
+            selectPane(at: idx)
         } else {
             focusNext()
         }
@@ -196,10 +226,15 @@ final class PaneManager {
 
     var stateForPersistence: SessionState {
         let paneStates = panes.map { pane -> PaneState in
-            var config = PaneState()
-            config.columns = 80
-            config.rows = 24
-            return config
+            let config = pane.configuration
+            return PaneState(
+                executablePath: "/bin/zsh",
+                arguments: ["-l"],
+                workingDirectory: config.workingDirectory?.path,
+                environment: config.environment,
+                columns: 80,
+                rows: 24
+            )
         }
         var layout: SplitNode = .pane(index: 0)
         if panes.count > 1 {

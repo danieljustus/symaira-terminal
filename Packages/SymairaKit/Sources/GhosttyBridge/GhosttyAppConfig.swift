@@ -1,4 +1,5 @@
 import Foundation
+import GhosttyTheme
 import TerminalCore
 
 /// Ghostty configuration values that the app surfaces to the user.
@@ -66,5 +67,18 @@ public struct GhosttyAppConfig: Equatable, Sendable {
             }
         }
         return config
+    }
+
+    public func resolvedTheme() -> GhosttyThemeDefinition? {
+        guard let themeName = theme else { return nil }
+        return GhosttyThemeCatalog.theme(named: themeName)
+    }
+
+    public static func availableThemes() -> [GhosttyThemeDefinition] {
+        GhosttyThemeCatalog.allThemes
+    }
+
+    public static func searchThemes(query: String) -> [GhosttyThemeDefinition] {
+        GhosttyThemeCatalog.search(query)
     }
 }

@@ -10,12 +10,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var paneManager: PaneManager?
     private var oscEventHandler = OSCEventHandler()
     private var searchOverlay = ScrollbackSearchOverlay()
+    private var tabBar: TabBarView?
+    private var ghosttyConfig: GhosttyAppConfig?
     private var showSidebar = false
     private var showPalette = false
     private var sidebarItem: NSSplitViewItem?
     private var sidebarViewController: NSViewController?
 
     func applicationDidFinishLaunching(_: Notification) {
+        let config = GhosttyAppConfig.parse()
+        self.ghosttyConfig = config
+
         let engine = GhosttyEngine()
         self.engine = engine
 
@@ -24,6 +29,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         manager.onPaneChanged = { [weak self] pane in
             self?.updateTitle(pane: pane)
+            if let panes = self?.paneManager?.panes {
+                self?.updateTabBar(panes: panes)
+            }
         }
         manager.onPanesChanged = { [weak self] panes in
             self?.updateTabBar(panes: panes)
@@ -49,11 +57,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.contentMinSize = NSSize(width: 480, height: 320)
         window.center()
 
+        let tabBar = TabBarView()
+        tabBar.translatesAutoresizingMaskIntoConstraints = false
+        tabBar.delegate = nil
+        self.tabBar = tabBar
+
         let contentView = NSView(frame: window.contentLayoutRect)
         contentView.translatesAutoresizingMaskIntoConstraints = false
         window.contentView = contentView
 
-        manager.attach(to: contentView)
+        contentView.addSubview(tabBar)
+        NSLayoutConstraint.activate([
+            tabBar.topAnchor.constraint(equalTo: contentView.topAnchor),
+            tabBar.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            tabBar.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            tabBar.heightAnchor.constraint(equalToConstant: 28),
+        ])
+
+        let paneContainer = NSView()
+        paneContainer.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(paneContainer)
+        NSLayoutConstraint.activate([
+            paneContainer.topAnchor.constraint(equalTo: tabBar.bottomAnchor),
+            paneContainer.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            paneContainer.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            paneContainer.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
+        ])
+
+        manager.attach(to: paneContainer)
+        tabBar.delegate = self
 
         setupKeyboardShortcuts(window: window)
 
@@ -186,10 +218,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         focusPrevItem.target = self
         viewMenu.addItem(focusPrevItem)
 
-        let focusBlockedItem = NSMenuItem(title: "Focus Blocked Agent", action: #selector(focusBlocked), keyEquivalent: "u")
-        focusBlockedItem.keyEquivalentModifierMask = [.command, .shift]
-        focusBlockedItem.target = self
-        viewMenu.addItem(focusBlockedItem)
+        let focusNextActiveItem = NSMenuItem(title: "Focus Next Active Agent", action: #selector(focusNextActive), keyEquivalent: "u")
+        focusNextActiveItem.keyEquivalentModifierMask = [.command, .shift]
+        focusNextActiveItem.target = self
+        viewMenu.addItem(focusNextActiveItem)
+
+        let focusPrevActiveItem = NSMenuItem(title: "Focus Previous Active Agent", action: #selector(focusPreviousActive), keyEquivalent: "i")
+        focusPrevActiveItem.keyEquivalentModifierMask = [.command, .shift]
+        focusPrevActiveItem.target = self
+        viewMenu.addItem(focusPrevActiveItem)
 
         let viewMenuItem = NSMenuItem(title: "View", action: nil, keyEquivalent: "")
         viewMenuItem.submenu = viewMenu
@@ -217,8 +254,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func toggleSearch() {
         if searchOverlay.isVisible {
             searchOverlay.hide()
-        } else if let surface = paneManager?.currentPane?.surface {
-            searchOverlay.show(for: surface)
+        } else if let pane = paneManager?.currentPane {
+            searchOverlay.show(for: pane)
         }
     }
 
@@ -246,6 +283,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func focusPrevious() {
         paneManager?.focusPrevious()
+    }
+
+    @objc private func focusNextActive() {
+        paneManager?.focusNextActive()
+    }
+
+    @objc private func focusPreviousActive() {
+        paneManager?.focusPreviousActive()
     }
 
     @objc private func focusBlocked() {
@@ -304,11 +349,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func updateTabBar(panes: [TerminalPane]) {
-        NSLog("symaira tabs: \(panes.count) pane(s)")
+        let titles = panes.enumerated().map { index, pane in
+            let title = oscEventHandler.title(for: pane.paneID)
+            return title.isEmpty ? "Tab \(index + 1)" : title
+        }
+        let selectedIndex = panes.firstIndex(where: { $0 === paneManager?.currentPane }) ?? 0
+        tabBar?.updateTabs(titles: titles, selectedIndex: selectedIndex)
     }
 
     private func updateStatusRing(paneID: UUID, status: AgentStatus) {
-        NSLog("symaira status: \(paneID) → \(status.rawValue)")
+        guard let pane = paneManager?.panes.first(where: { $0.paneID == paneID }) else { return }
+        pane.updateStatus(status)
+    }
+}
+
+extension AppDelegate: @preconcurrency TabBarDelegate {
+    func tabBarDidSelectTab(_ tabBar: TabBarView, index: Int) {
+        paneManager?.selectPane(at: index)
+    }
+
+    func tabBarDidRequestClose(_ tabBar: TabBarView, index: Int) {
+        guard let paneManager, index < paneManager.panes.count else { return }
+        let pane = paneManager.panes[index]
+        paneManager.closePane(pane)
     }
 }
 
