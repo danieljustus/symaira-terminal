@@ -42,20 +42,20 @@ public final class ProviderStore: ObservableObject {
         }
     }
 
-    public func switchProfile(to profile: String) {
-        configManager.switchProfile(to: profile)
+    public func switchProfile(to profile: String) throws {
+        try configManager.switchProfile(to: profile)
         syncFromConfig()
         storedKeys.removeAll()
         loadKeys()
     }
 
-    public func addProfile(_ name: String) {
-        configManager.addProfile(name)
+    public func addProfile(_ name: String) throws {
+        try configManager.addProfile(name)
         syncFromConfig()
     }
 
-    public func removeProfile(_ name: String) {
-        configManager.removeProfile(name)
+    public func removeProfile(_ name: String) throws {
+        try configManager.removeProfile(name)
         syncFromConfig()
     }
 

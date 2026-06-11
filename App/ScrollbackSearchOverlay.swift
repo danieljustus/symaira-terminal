@@ -10,6 +10,7 @@ final class ScrollbackSearchOverlay: NSObject {
     private weak var targetPane: TerminalPane?
     private var matches: [SearchMatch] = []
     private var currentMatchIndex = 0
+    private var debounceTimer: Timer?
 
     func show(for pane: TerminalPane) {
         targetPane = pane
@@ -70,6 +71,8 @@ final class ScrollbackSearchOverlay: NSObject {
     }
 
     func hide() {
+        debounceTimer?.invalidate()
+        debounceTimer = nil
         panel?.orderOut(nil)
         panel = nil
         searchField = nil
@@ -82,7 +85,15 @@ final class ScrollbackSearchOverlay: NSObject {
     var isVisible: Bool { panel?.isVisible ?? false }
 
     @objc private func searchDidChange(_ sender: NSSearchField) {
-        let query = sender.stringValue
+        debounceTimer?.invalidate()
+        debounceTimer = Timer.scheduledTimer(withTimeInterval: 0.15, repeats: false) { [weak self] _ in
+            Task { @MainActor in
+                self?.performSearch(query: sender.stringValue)
+            }
+        }
+    }
+
+    private func performSearch(query: String) {
         guard !query.isEmpty, let pane = targetPane else {
             matches = []
             currentMatchIndex = 0
