@@ -143,9 +143,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         for paneState in state.panes {
             var config = TerminalSurfaceConfiguration()
             config.workingDirectory = paneState.workingDirectory.map(URL.init(fileURLWithPath:))
-            config.environment = paneState.environment.isEmpty
-                ? EnvironmentSanitizer.sanitizedProcessEnvironment()
-                : paneState.environment
             _ = manager.createPane(at: config)
         }
     }

@@ -9,8 +9,6 @@ public struct PaneState: Codable, Equatable, Sendable {
     public var arguments: [String]
     /// Working directory at the time of save.
     public var workingDirectory: String?
-    /// Sanitized environment snapshot (secrets stripped).
-    public var environment: [String: String]
     /// Initial terminal dimensions.
     public var columns: UInt16
     public var rows: UInt16
@@ -19,14 +17,12 @@ public struct PaneState: Codable, Equatable, Sendable {
         executablePath: String = "/bin/zsh",
         arguments: [String] = ["-l"],
         workingDirectory: String? = nil,
-        environment: [String: String] = [:],
         columns: UInt16 = 80,
         rows: UInt16 = 24
     ) {
         self.executablePath = executablePath
         self.arguments = arguments
         self.workingDirectory = workingDirectory
-        self.environment = environment
         self.columns = columns
         self.rows = rows
     }

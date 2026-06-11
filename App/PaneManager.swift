@@ -226,12 +226,10 @@ final class PaneManager {
 
     var stateForPersistence: SessionState {
         let paneStates = panes.map { pane -> PaneState in
-            let config = pane.configuration
-            return PaneState(
+            PaneState(
                 executablePath: "/bin/zsh",
                 arguments: ["-l"],
-                workingDirectory: config.workingDirectory?.path,
-                environment: config.environment,
+                workingDirectory: pane.configuration.workingDirectory?.path,
                 columns: 80,
                 rows: 24
             )
