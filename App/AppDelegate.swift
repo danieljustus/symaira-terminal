@@ -200,10 +200,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         mainMenu.addItem(fileMenuItem)
 
         let viewMenu = NSMenu(title: "View")
-        let sidebarItem = NSMenuItem(title: "Toggle Sidebar", action: #selector(toggleSidebar), keyEquivalent: "s")
-        sidebarItem.keyEquivalentModifierMask = [.command, .control]
-        sidebarItem.target = self
-        viewMenu.addItem(sidebarItem)
 
         let paletteItem = NSMenuItem(title: "Command Palette", action: #selector(togglePalette), keyEquivalent: "p")
         paletteItem.keyEquivalentModifierMask = [.command, .shift]
