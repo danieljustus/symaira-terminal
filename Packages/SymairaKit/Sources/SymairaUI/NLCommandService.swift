@@ -63,8 +63,11 @@ public struct NLCommandService: Sendable {
                 "content-type": "application/json"
             ]
         case .google:
-            url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=\(apiKey)")!
-            headers = ["content-type": "application/json"]
+            url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent")!
+            headers = [
+                "x-goog-api-key": apiKey,
+                "content-type": "application/json"
+            ]
         case .ollama:
             url = URL(string: "http://localhost:11434/api/generate")!
             headers = ["content-type": "application/json"]
