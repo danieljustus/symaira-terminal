@@ -9,6 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### M4 — Polish & Launch (in progress)
 
+## [0.2.0] — 2026-06-11
+
+### Fixed
+- Prevent SIGSEGV crash in saveSession() during app termination
+- Use configured baseURL for openai-compatible provider instead of hardcoding api.openai.com
+- Add 30s timeout to AI requests with proper error handling
+- Update stale default models (claude-sonnet-4, gemini-2.5-flash, llama3.1, etc.)
+- Make WorkspaceConfigManager.save() throwing for proper error propagation
+
+### Added
+- Community files (CONTRIBUTING.md, CODE_OF_CONDUCT.md, SECURITY.md, CODEOWNERS, issue/PR templates)
+- Rename Homebrew cask from symaira-terminal to symterminal
+
+### Security
+- Pin CI actions to SHA for supply-chain security
+- Add Dependabot config for github-actions ecosystem
+
+### Performance
+- Optimize scrollback search with debounce and caching
+
+### Refactored
+- Consolidate provider definitions into ProviderDescriptor pattern
+
 #### Added
 - Blocks-lite shell integration (zsh/bash/fish OSC 133 snippets)
 - Multi-Account-Routing with workspace config (.symaira/config.json)
@@ -67,5 +90,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 26 unit tests across all modules
 - ADR-001: Terminal engine choice + pin strategy
 
-[Unreleased]: https://github.com/danieljustus/symaira-terminal/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/danieljustus/symaira-terminal/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/danieljustus/symaira-terminal/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/danieljustus/symaira-terminal/releases/tag/v0.1.0

@@ -22,3 +22,5 @@ dist/
 
 # Sisyphus orchestration
 .sisyphus/
+.github/audit/
+.github/review/
