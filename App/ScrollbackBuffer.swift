@@ -5,6 +5,9 @@ final class ScrollbackBuffer: @unchecked Sendable {
     private var lineOffsets: [Int] = [0]
     private let maxLines: Int
     private let lock = NSLock()
+    private var cachedText: String?
+    private var cachedTextLowered: String?
+    private var cachedBufferCount: Int = 0
 
     init(maxLines: Int = 10_000) {
         self.maxLines = maxLines
@@ -21,22 +24,31 @@ final class ScrollbackBuffer: @unchecked Sendable {
             }
         }
         pruneIfNeeded()
+        cachedText = nil
+        cachedTextLowered = nil
+        cachedBufferCount = buffer.count
     }
 
     func searchText(_ query: String) -> [SearchMatch] {
         lock.lock()
         defer { lock.unlock() }
-        guard !query.isEmpty, let text = String(data: buffer, encoding: .utf8) else { return [] }
+        guard !query.isEmpty else { return [] }
+
+        if cachedText == nil || cachedBufferCount != buffer.count {
+            cachedText = String(data: buffer, encoding: .utf8)
+            cachedTextLowered = cachedText?.lowercased()
+        }
+
+        guard let text = cachedText, let textLowered = cachedTextLowered else { return [] }
 
         let lowered = query.lowercased()
-        let textLowered = text.lowercased()
         var matches: [SearchMatch] = []
         var searchStart = textLowered.startIndex
 
         while let range = textLowered.range(of: lowered, range: searchStart..<textLowered.endIndex) {
-            let prefix = text[..<range.lowerBound]
-            let lineNum = prefix.components(separatedBy: "\n").count
-            let lineStart = prefix.lastIndex(of: "\n").map { text.index(after: $0) } ?? text.startIndex
+            let prefixOffset = text[..<range.lowerBound].utf8.count
+            let lineNum = lineNumber(for: prefixOffset)
+            let lineStart = text[..<range.lowerBound].lastIndex(of: "\n").map { text.index(after: $0) } ?? text.startIndex
             let lineEnd = text[range.upperBound...].firstIndex(of: "\n") ?? text.endIndex
             let line = String(text[lineStart..<lineEnd]).trimmingCharacters(in: .whitespaces)
 
@@ -54,11 +66,28 @@ final class ScrollbackBuffer: @unchecked Sendable {
         return matches
     }
 
+    private func lineNumber(for byteOffset: Int) -> Int {
+        var lo = 0
+        var hi = lineOffsets.count - 1
+        while lo <= hi {
+            let mid = (lo + hi) / 2
+            if lineOffsets[mid] <= byteOffset {
+                lo = mid + 1
+            } else {
+                hi = mid - 1
+            }
+        }
+        return lo
+    }
+
     func clear() {
         lock.lock()
         defer { lock.unlock() }
         buffer = Data()
         lineOffsets = [0]
+        cachedText = nil
+        cachedTextLowered = nil
+        cachedBufferCount = 0
     }
 
     var currentText: String? {
