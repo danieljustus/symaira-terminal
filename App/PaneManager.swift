@@ -25,7 +25,13 @@ final class PaneManager {
     }
 
     func createPane(at configuration: TerminalSurfaceConfiguration = .init()) -> TerminalPane {
-        let surface = try? engine.makeSurface(configuration: configuration)
+        let surface: (any TerminalSurface)?
+        do {
+            surface = try engine.makeSurface(configuration: configuration)
+        } catch {
+            NSLog("symaira: failed to create terminal surface: %@", String(describing: error))
+            surface = nil
+        }
         let pane = TerminalPane(surface: surface, configuration: configuration)
         panes.append(pane)
         oscParsers[pane.paneID] = OSCStreamParser()

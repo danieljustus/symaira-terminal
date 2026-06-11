@@ -17,6 +17,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var sidebarItem: NSSplitViewItem?
     private var sidebarViewController: NSViewController?
 
+    // Saved at launch — self.window must not be accessed during termination
+    // (use-after-free crash in objc_retain when AppKit tears down the window).
+    private var savedWindowFrame: CodableRect?
+
     func applicationDidFinishLaunching(_: Notification) {
         let config = GhosttyAppConfig.parse()
         self.ghosttyConfig = config
@@ -98,6 +102,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         self.window = window
+
+        if let screen = window.screen {
+            let frame = window.frame
+            let sf = screen.frame
+            savedWindowFrame = CodableRect(NSRect(
+                x: frame.origin.x - sf.origin.x,
+                y: frame.origin.y - sf.origin.y,
+                width: frame.width,
+                height: frame.height
+            ))
+        }
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_: NSApplication) -> Bool {
@@ -110,22 +125,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        saveSession()
-        return .terminateNow
+        .terminateNow
     }
 
     private func saveSession() {
         guard let manager = paneManager else { return }
         var state = manager.stateForPersistence
-        if let window, let screen = window.screen {
-            let frame = window.frame
-            let screenFrame = screen.frame
-            state.windowFrame = CodableRect(NSRect(
-                x: frame.origin.x - screenFrame.origin.x,
-                y: frame.origin.y - screenFrame.origin.y,
-                width: frame.width,
-                height: frame.height
-            ))
+        if let frame = savedWindowFrame {
+            state.windowFrame = frame
         }
         try? SessionPersistence.shared.save(state)
     }
