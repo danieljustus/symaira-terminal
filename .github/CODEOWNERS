@@ -1,0 +1,8 @@
+# Default owner for everything in the repo
+* @danieljustus
+
+# Specific ownership rules
+/packages/SymairaKit/ @danieljustus
+/App/ @danieljustus
+/.github/ @danieljustus
+/docs/ @danieljustus
