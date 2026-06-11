@@ -1,0 +1,107 @@
+name: Bug Report
+description: Report a bug or unexpected behavior
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting a bug! Please fill out the information below to help us investigate and fix the issue.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the bug
+      description: A clear and concise description of what the bug is.
+      placeholder: Tell us what happened...
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      description: Steps to reproduce the behavior.
+      placeholder: |
+        1. Open the app
+        2. Create a new pane
+        3. Run an agent command
+        4. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What you expected to happen.
+      placeholder: Tell us what you expected...
+    validations:
+      required: false
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What actually happened.
+      placeholder: Tell us what actually happened...
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: App version
+      description: The version of Symaira Terminal you're using.
+      placeholder: "0.1.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: macos
+    attributes:
+      label: macOS version
+      description: Which version of macOS are you running?
+      options:
+        - macOS 14 (Sonoma)
+        - macOS 15 (Sequoia)
+        - macOS 16 (Tahoe)
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: xcode
+    attributes:
+      label: Xcode version
+      description: If building from source, which Xcode version?
+      placeholder: "16.4"
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: |
+        If applicable, paste relevant log output or console messages.
+        This will be automatically formatted as code.
+      render: shell
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Any other context about the problem (screenshots, etc.).
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Checklist
+      options:
+        - label: I have searched the [existing issues](https://github.com/danieljustus/symaira-terminal/issues) to make sure this bug has not already been reported.
+          required: true

@@ -1,5 +1,9 @@
 # Symaira Terminal
 
+[![CI](https://github.com/danieljustus/symaira-terminal/actions/workflows/ci.yml/badge.svg)](https://github.com/danieljustus/symaira-terminal/actions/workflows/ci.yml)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
+[![Release](https://img.shields.io/github/v/release/danieljustus/symaira-terminal)](https://github.com/danieljustus/symaira-terminal/releases)
+
 A native macOS terminal built for the Human-AI era — designed for running multiple
 CLI coding agents (Claude Code, OpenCode, Aider, Gemini CLI, …) in parallel without
 losing track of what they are doing.
@@ -28,6 +32,9 @@ scrollback are not enough. Symaira Terminal is agent-aware by design:
   Keys live in the macOS Keychain only. No account, no cloud middleman, no telemetry.
 - **Local-first** — configuration, prompt history, and transcripts stay on your Mac.
 
+<!-- TODO: Add screenshot showing multi-pane layout with agent status rings -->
+<!-- ![Symaira Terminal Screenshot](docs/screenshot.png) -->
+
 ## Installation
 
 ### Homebrew (recommended)
@@ -48,6 +55,51 @@ xattr -cr /Applications/SymairaTerminal.app
 ```
 
 Or right-click the app → "Open" → "Open" to bypass Gatekeeper.
+
+## Usage
+
+Once installed, launch Symaira Terminal from your Applications folder or via Spotlight.
+
+### Basic Workflow
+
+1. **Open a pane** — Click the `+` button or use `Cmd+T` to create a new terminal pane
+2. **Run an agent** — Execute your CLI agent as usual:
+   ```bash
+   claude "implement the login feature"
+   ```
+3. **Monitor status** — Watch the status ring around each pane:
+   - 🟢 **Running** — Agent is actively working
+   - 🟡 **Awaiting approval** — Agent needs your input
+   - 🔴 **Error** — Agent encountered a problem
+4. **Jump to blocked agent** — Use `Cmd+Shift+U` to focus the longest-blocked agent
+
+### Multi-Agent Example
+
+```bash
+# Pane 1: Feature implementation
+claude "add user authentication"
+
+# Pane 2: Test writing
+aider --test-only "write tests for auth module"
+
+# Pane 3: Documentation
+gemini "update README with new auth flow"
+```
+
+Each agent runs in its own pane with independent status tracking. The workspace sidebar shows all active agents at a glance.
+
+### BYOK (Bring Your Own Key)
+
+Configure your API providers in Settings (`Cmd+,`):
+
+- **Anthropic** — Use your Anthropic API key
+- **OpenAI** — Use your OpenAI API key
+- **OpenRouter** — Access multiple providers through one key
+- **Google** — Use Gemini API key
+- **Ollama** — Local models, no key needed
+- **Custom** — Any OpenAI-compatible endpoint
+
+Keys are stored securely in the macOS Keychain — never sent to Symaira servers.
 
 ## License
 
