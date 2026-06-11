@@ -138,7 +138,7 @@ public struct ProviderChatClient: Sendable {
                 "content-type": "application/json"
             ]
         case .google:
-            url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent")!
+            url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent")!
             headers = [
                 "x-goog-api-key": apiKey ?? "",
                 "content-type": "application/json"
@@ -226,11 +226,11 @@ public struct ProviderChatClient: Sendable {
 
     private func defaultModel(for provider: ProviderID) -> String {
         switch provider {
-        case .anthropic: return "claude-3-5-sonnet-20241022"
+        case .anthropic: return "claude-sonnet-4-20250514"
         case .openai: return "gpt-4o"
-        case .openrouter: return "anthropic/claude-3-5-sonnet"
-        case .google: return "gemini-pro"
-        case .ollama: return "llama3"
+        case .openrouter: return "anthropic/claude-sonnet-4"
+        case .google: return "gemini-2.5-flash"
+        case .ollama: return "llama3.1"
         case .openAICompatible: return "default"
         }
     }
