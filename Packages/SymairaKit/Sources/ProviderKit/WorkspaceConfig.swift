@@ -7,11 +7,9 @@ public struct WorkspaceConfig: Codable, Equatable, Sendable {
 
     public struct ProfileConfig: Codable, Equatable, Sendable {
         public let name: String
-        public var providerKeys: [ProviderID: String]
 
-        public init(name: String, providerKeys: [ProviderID: String] = [:]) {
+        public init(name: String) {
             self.name = name
-            self.providerKeys = providerKeys
         }
     }
 
@@ -24,10 +22,6 @@ public struct WorkspaceConfig: Codable, Equatable, Sendable {
 
     public func profile(named name: String) -> ProfileConfig? {
         profiles.first { $0.name == name }
-    }
-
-    public func key(for provider: ProviderID) -> String? {
-        profile(named: activeProfile)?.providerKeys[provider]
     }
 }
 
@@ -74,8 +68,22 @@ public final class WorkspaceConfigManager: ObservableObject {
     }
 
     private static func load(from url: URL) -> WorkspaceConfig {
-        guard let data = try? Data(contentsOf: url),
-              let config = try? JSONDecoder().decode(WorkspaceConfig.self, from: data) else {
+        guard let data = try? Data(contentsOf: url) else {
+            return .default
+        }
+        // Migration: strip providerKeys from any existing config file.
+        // Keys must never be persisted — they live in the macOS Keychain only.
+        guard var json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return .default
+        }
+        if var profiles = json["profiles"] as? [[String: Any]] {
+            for i in profiles.indices {
+                profiles[i].removeValue(forKey: "providerKeys")
+            }
+            json["profiles"] = profiles
+        }
+        guard let sanitizedData = try? JSONSerialization.data(withJSONObject: json),
+              let config = try? JSONDecoder().decode(WorkspaceConfig.self, from: sanitizedData) else {
             return .default
         }
         return config

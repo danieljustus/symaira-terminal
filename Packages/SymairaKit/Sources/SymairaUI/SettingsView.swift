@@ -8,7 +8,6 @@ public struct SettingsView: View {
 
     @AppStorage("defaultShell") private var defaultShell = "/bin/zsh"
     @AppStorage("scrollbackLines") private var scrollbackLines = 10000
-    @AppStorage("enableSparkle") private var enableSparkle = true
 
     public init(
         providerStore: ProviderStore,
@@ -24,8 +23,7 @@ public struct SettingsView: View {
         TabView {
             GeneralSettingsView(
                 defaultShell: $defaultShell,
-                scrollbackLines: $scrollbackLines,
-                enableSparkle: $enableSparkle
+                scrollbackLines: $scrollbackLines
             )
             .tabItem {
                 Label("General", systemImage: "gear")
@@ -54,7 +52,6 @@ public struct SettingsView: View {
 struct GeneralSettingsView: View {
     @Binding var defaultShell: String
     @Binding var scrollbackLines: Int
-    @Binding var enableSparkle: Bool
 
     var body: some View {
         Form {
@@ -75,10 +72,6 @@ struct GeneralSettingsView: View {
                         .textFieldStyle(.roundedBorder)
                         .frame(width: 80)
                 }
-            }
-
-            Section("Updates") {
-                Toggle("Check for updates automatically", isOn: $enableSparkle)
             }
         }
         .formStyle(.grouped)

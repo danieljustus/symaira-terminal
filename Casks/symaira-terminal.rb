@@ -13,7 +13,7 @@ cask "symaira-terminal" do
     regex(/SymairaTerminal-(\d+(?:\.\d+)*)\.dmg/i)
   end
 
-  depends_on macos: ">= :sonoma"
+  depends_on macos: :sonoma
 
   app "SymairaTerminal.app"
 

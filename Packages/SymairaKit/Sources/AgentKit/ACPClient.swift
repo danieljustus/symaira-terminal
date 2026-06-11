@@ -96,6 +96,13 @@ public final class ACPClient: @unchecked Sendable {
     }
 
     public func stop() {
+        lock.lock()
+        let pending = pendingRequests
+        pendingRequests.removeAll()
+        lock.unlock()
+        for (_, handler) in pending {
+            handler(.failure(CancellationError()))
+        }
         process.terminate()
     }
 
@@ -167,39 +174,46 @@ public final class ACPClient: @unchecked Sendable {
     }
 
     private func readLoop() {
+        var buffer = Data()
         while process.isRunning {
-            guard let message = readMessage() else { continue }
+            let chunk = stdout.fileHandleForReading.readData(ofLength: 4096)
+            guard !chunk.isEmpty else { break }
+            buffer.append(chunk)
+            while let message = extractMessage(from: &buffer) {
+                processMessage(message)
+            }
+        }
+        while let message = extractMessage(from: &buffer) {
             processMessage(message)
         }
     }
 
-    private func readMessage() -> [String: Any]? {
-        var headerBuffer = Data()
-        while true {
-            let byte = stdout.fileHandleForReading.readData(ofLength: 1)
-            guard !byte.isEmpty else { return nil }
-            headerBuffer.append(byte)
-            if headerBuffer.range(of: "\r\n\r\n".data(using: .utf8)!) != nil {
-                break
-            }
-        }
-
-        guard let header = String(data: headerBuffer, encoding: .utf8),
-              let range = header.range(of: "Content-Length: "),
-              let endRange = header.range(of: "\r\n\r\n") else {
+    private func extractMessage(from buffer: inout Data) -> [String: Any]? {
+        guard let headerEndRange = buffer.range(of: "\r\n\r\n".data(using: .utf8)!) else {
             return nil
         }
-
-        let lengthString = String(header[range.upperBound..<endRange.lowerBound])
-        guard let contentLength = Int(lengthString.trimmingCharacters(in: .whitespaces)) else {
+        let headerData = buffer[buffer.startIndex..<headerEndRange.upperBound]
+        guard let header = String(data: headerData, encoding: .utf8),
+              let contentLengthMarker = header.range(of: "Content-Length: ") else {
+            buffer.removeSubrange(buffer.startIndex...headerEndRange.upperBound)
             return nil
         }
-
-        let bodyData = stdout.fileHandleForReading.readData(ofLength: contentLength)
+        let headerStr = header[contentLengthMarker.upperBound...]
+        guard let endOfHeader = headerStr.range(of: "\r\n\r\n") else {
+            return nil
+        }
+        let lengthString = String(headerStr[headerStr.startIndex..<endOfHeader.lowerBound])
+        guard let contentLength = Int(lengthString.trimmingCharacters(in: CharacterSet.whitespaces)) else {
+            buffer.removeSubrange(buffer.startIndex...headerEndRange.upperBound)
+            return nil
+        }
+        let bodyStart = buffer.index(headerEndRange.upperBound, offsetBy: contentLength, limitedBy: buffer.endIndex)
+        guard let bodyEnd = bodyStart else { return nil }
+        let bodyData = buffer[headerEndRange.upperBound..<bodyEnd]
+        buffer.removeSubrange(buffer.startIndex...bodyEnd)
         guard let json = try? JSONSerialization.jsonObject(with: bodyData) as? [String: Any] else {
             return nil
         }
-
         return json
     }
 

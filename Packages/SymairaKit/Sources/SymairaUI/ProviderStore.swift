@@ -8,9 +8,12 @@ public final class ProviderStore: ObservableObject {
     @Published public var storedKeys: [ProviderID: String] = [:]
 
     private let keyStore: KeyStore
+    private let configManager: WorkspaceConfigManager
 
-    public init(keyStore: KeyStore = KeychainKeyStore()) {
+    public init(keyStore: KeyStore = KeychainKeyStore(), configManager: WorkspaceConfigManager? = nil) {
         self.keyStore = keyStore
+        self.configManager = configManager ?? WorkspaceConfigManager(workspaceURL: URL(fileURLWithPath: NSHomeDirectory()))
+        syncFromConfig()
     }
 
     public func key(for provider: ProviderID) -> String? {
@@ -40,22 +43,25 @@ public final class ProviderStore: ObservableObject {
     }
 
     public func switchProfile(to profile: String) {
-        activeProfile = profile
+        configManager.switchProfile(to: profile)
+        syncFromConfig()
         storedKeys.removeAll()
         loadKeys()
     }
 
     public func addProfile(_ name: String) {
-        guard !profiles.contains(name) else { return }
-        profiles.append(name)
+        configManager.addProfile(name)
+        syncFromConfig()
     }
 
     public func removeProfile(_ name: String) {
-        guard name != "default", let index = profiles.firstIndex(of: name) else { return }
-        profiles.remove(at: index)
-        if activeProfile == name {
-            activeProfile = "default"
-        }
+        configManager.removeProfile(name)
+        syncFromConfig()
+    }
+
+    private func syncFromConfig() {
+        activeProfile = configManager.config.activeProfile
+        profiles = configManager.config.profiles.map(\.name)
     }
 }
 

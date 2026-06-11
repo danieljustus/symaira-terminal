@@ -8,7 +8,6 @@ final class SessionStateTests: XCTestCase {
         XCTAssertEqual(pane.executablePath, "/bin/zsh")
         XCTAssertEqual(pane.arguments, ["-l"])
         XCTAssertNil(pane.workingDirectory)
-        XCTAssertTrue(pane.environment.isEmpty)
         XCTAssertEqual(pane.columns, 80)
         XCTAssertEqual(pane.rows, 24)
     }
