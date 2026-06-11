@@ -150,8 +150,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Keyboard Shortcuts
 
     private func setupKeyboardShortcuts(window: NSWindow) {
-        let mainMenu = window.menu ?? NSMenu()
-        window.menu = mainMenu
+        let mainMenu = NSMenu()
+
+        let appMenu = NSMenu()
+        appMenu.addItem(NSMenuItem(title: "About Symaira Terminal", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: ""))
+        appMenu.addItem(.separator())
+        appMenu.addItem(NSMenuItem(title: "Quit Symaira Terminal", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+        let appMenuItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+        appMenuItem.submenu = appMenu
+        mainMenu.addItem(appMenuItem)
 
         let fileMenu = NSMenu(title: "File")
         let newTabItem = NSMenuItem(title: "New Tab", action: #selector(newTab), keyEquivalent: "t")
@@ -228,6 +235,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let viewMenuItem = NSMenuItem(title: "View", action: nil, keyEquivalent: "")
         viewMenuItem.submenu = viewMenu
         mainMenu.addItem(viewMenuItem)
+
+        NSApp.mainMenu = mainMenu
     }
 
     @objc private func newTab() {
