@@ -143,9 +143,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         for paneState in state.panes {
             var config = TerminalSurfaceConfiguration()
             config.workingDirectory = paneState.workingDirectory.map(URL.init(fileURLWithPath:))
-            config.environment = paneState.environment.isEmpty
-                ? EnvironmentSanitizer.sanitizedProcessEnvironment()
-                : paneState.environment
             _ = manager.createPane(at: config)
         }
     }
@@ -153,8 +150,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Keyboard Shortcuts
 
     private func setupKeyboardShortcuts(window: NSWindow) {
-        let mainMenu = window.menu ?? NSMenu()
-        window.menu = mainMenu
+        let mainMenu = NSMenu()
+
+        let appMenu = NSMenu()
+        appMenu.addItem(NSMenuItem(title: "About Symaira Terminal", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: ""))
+        appMenu.addItem(.separator())
+        appMenu.addItem(NSMenuItem(title: "Quit Symaira Terminal", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+        let appMenuItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+        appMenuItem.submenu = appMenu
+        mainMenu.addItem(appMenuItem)
 
         let fileMenu = NSMenu(title: "File")
         let newTabItem = NSMenuItem(title: "New Tab", action: #selector(newTab), keyEquivalent: "t")
@@ -196,10 +200,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         mainMenu.addItem(fileMenuItem)
 
         let viewMenu = NSMenu(title: "View")
-        let sidebarItem = NSMenuItem(title: "Toggle Sidebar", action: #selector(toggleSidebar), keyEquivalent: "s")
-        sidebarItem.keyEquivalentModifierMask = [.command, .control]
-        sidebarItem.target = self
-        viewMenu.addItem(sidebarItem)
 
         let paletteItem = NSMenuItem(title: "Command Palette", action: #selector(togglePalette), keyEquivalent: "p")
         paletteItem.keyEquivalentModifierMask = [.command, .shift]
@@ -231,6 +231,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let viewMenuItem = NSMenuItem(title: "View", action: nil, keyEquivalent: "")
         viewMenuItem.submenu = viewMenu
         mainMenu.addItem(viewMenuItem)
+
+        NSApp.mainMenu = mainMenu
     }
 
     @objc private func newTab() {
