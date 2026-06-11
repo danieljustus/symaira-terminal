@@ -41,7 +41,7 @@ scrollback are not enough. Symaira Terminal is agent-aware by design:
 
 ```bash
 brew tap danieljustus/tap
-brew install --cask symaira-terminal
+brew install --cask symterminal
 ```
 
 ### Manual

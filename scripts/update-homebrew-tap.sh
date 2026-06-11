@@ -13,7 +13,7 @@ DMG_PATH="${2:?Usage: $0 <version> <dmg-path>}"
 
 TAP_REPO="danieljustus/homebrew-tap"
 TAP_REPO_URL="https://github.com/${TAP_REPO}.git"
-CASK_NAME="symaira-terminal"
+CASK_NAME="symterminal"
 CASK_FILE="Casks/${CASK_NAME}.rb"
 
 if [ ! -f "${DMG_PATH}" ]; then
