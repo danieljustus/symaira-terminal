@@ -150,6 +150,7 @@ public struct ProviderChatClient: Sendable {
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
+        request.timeoutInterval = 30
         for (key, value) in headers {
             request.setValue(value, forHTTPHeaderField: key)
         }
