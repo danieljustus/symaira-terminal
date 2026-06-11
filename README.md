@@ -41,6 +41,14 @@ brew install --cask symaira-terminal
 
 Download the latest `.dmg` from [GitHub Releases](https://github.com/danieljustus/symaira-terminal/releases), mount it, and drag `SymairaTerminal.app` to your Applications folder.
 
+**Note:** The app is currently unsigned (no Apple Developer account). macOS will block it by default. To allow it, run this once after installing:
+
+```bash
+xattr -cr /Applications/SymairaTerminal.app
+```
+
+Or right-click the app → "Open" → "Open" to bypass Gatekeeper.
+
 ## License
 
 AGPLv3 — see [LICENSE](LICENSE). Unlike the other Symaira cores (MIT), the terminal

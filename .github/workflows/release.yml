@@ -36,15 +36,18 @@ jobs:
         run: xcodegen generate
 
       - name: Import signing certificate
+        id: signing
         env:
           CERTIFICATE_P12: ${{ secrets.CERTIFICATE_P12 }}
           CERTIFICATE_PASSWORD: ${{ secrets.CERTIFICATE_PASSWORD }}
           KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
         run: |
           if [ -z "${CERTIFICATE_P12:-}" ]; then
-            echo "::error::CERTIFICATE_P12 secret is not set. Cannot sign the app."
-            exit 1
+            echo "::warning::CERTIFICATE_P12 secret is not set. Building unsigned."
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
+          echo "signed=true" >> "$GITHUB_OUTPUT"
           KEYCHAIN_PATH="$RUNNER_TEMP/signing.keychain-db"
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
@@ -57,6 +60,7 @@ jobs:
           echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
 
       - name: Build and archive
+        if: steps.signing.outputs.signed == 'true'
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           xcodebuild archive \
@@ -66,8 +70,8 @@ jobs:
             -configuration Release
 
       - name: Export archive
+        if: steps.signing.outputs.signed == 'true'
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
           cat > build/release/ExportOptions.plist << 'EOF'
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -87,7 +91,25 @@ jobs:
             -exportOptionsPlist build/release/ExportOptions.plist \
             -exportPath build/release/export
 
+      - name: Build (unsigned)
+        if: steps.signing.outputs.signed == 'false'
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          xcodebuild build \
+            -project SymairaTerminal.xcodeproj \
+            -scheme SymairaTerminal \
+            -configuration Release \
+            -derivedDataPath build/release/DerivedData \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+          # Find the .app
+          APP_PATH=$(find build/release/DerivedData -name "SymairaTerminal.app" -type d | head -1)
+          mkdir -p build/release/export
+          cp -R "$APP_PATH" build/release/export/
+
       - name: Notarize and staple
+        if: steps.signing.outputs.signed == 'true'
         env:
           NOTARY_API_KEY: ${{ secrets.NOTARY_API_KEY }}
           NOTARY_API_ISSUER: ${{ secrets.NOTARY_API_ISSUER }}
@@ -99,8 +121,8 @@ jobs:
             exit 1
           fi
           if [ -z "${NOTARY_API_KEY:-}" ]; then
-            echo "::error::NOTARY_API_KEY secret is not set. Cannot notarize."
-            exit 1
+            echo "::warning::NOTARY_API_KEY secret is not set. Skipping notarization."
+            exit 0
           fi
           KEY_PATH="$RUNNER_TEMP/notary-api.json"
           cat > "$KEY_PATH" << EOF
