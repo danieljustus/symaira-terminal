@@ -1,5 +1,5 @@
 cask "symaira-terminal" do
-  version "1.0.0"
+  version "0.1.0"
   sha256 "PLACEHOLDER_SHA256"
 
   url "https://github.com/danieljustus/symaira-terminal/releases/download/v#{version}/SymairaTerminal-#{version}.dmg"
