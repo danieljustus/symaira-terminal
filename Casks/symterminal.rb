@@ -1,4 +1,4 @@
-cask "symaira-terminal" do
+cask "symterminal" do
   version "0.1.0"
   sha256 "PLACEHOLDER_SHA256"
 
