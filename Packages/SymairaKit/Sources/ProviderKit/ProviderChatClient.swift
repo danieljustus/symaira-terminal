@@ -6,6 +6,10 @@ public enum ProviderError: Error, LocalizedError {
     case serverError(Int)
     case decodingFailed
     case networkError(Error)
+    case missingKey
+    case timeout
+    case missingBaseURL
+    case invalidBaseURL
 
     public var errorDescription: String? {
         switch self {
@@ -14,6 +18,10 @@ public enum ProviderError: Error, LocalizedError {
         case .serverError(let code): return "Server error (HTTP \(code))."
         case .decodingFailed: return "Unexpected response from provider."
         case .networkError(let error): return error.localizedDescription
+        case .missingKey: return "No API key configured. Go to Settings → Providers to add one."
+        case .timeout: return "Request timed out. The provider may be slow or unavailable."
+        case .missingBaseURL: return "No base URL configured for OpenAI-compatible provider. Go to Settings → Providers to set one."
+        case .invalidBaseURL: return "Invalid base URL. Use https:// (or http:// for localhost only)."
         }
     }
 }
@@ -30,21 +38,46 @@ public struct ProviderChatClient: Sendable {
         user userMessage: String,
         provider: ProviderID,
         profile: String,
-        maxTokens: Int = 256
+        maxTokens: Int = 256,
+        profileConfig: WorkspaceConfig.ProfileConfig? = nil
     ) async throws -> String {
+        // Fail fast if no key configured (except Ollama which doesn't need one)
+        if provider != .ollama {
+            let apiKey = try keyStore.key(provider: provider, profile: profile)
+            guard let key = apiKey, !key.isEmpty else {
+                throw ProviderError.missingKey
+            }
+        }
+
+        // Validate baseURL for openAICompatible
+        if provider == .openAICompatible {
+            guard let baseURLString = profileConfig?.baseURL, !baseURLString.isEmpty else {
+                throw ProviderError.missingBaseURL
+            }
+            guard let url = URL(string: baseURLString),
+                  let scheme = url.scheme?.lowercased(),
+                  (scheme == "https" || (scheme == "http" && url.host == "localhost")) else {
+                throw ProviderError.invalidBaseURL
+            }
+        }
+
         let apiKey = try keyStore.key(provider: provider, profile: profile)
         let request = try buildRequest(
             provider: provider,
             apiKey: apiKey,
             systemPrompt: systemPrompt,
             userMessage: userMessage,
-            maxTokens: maxTokens
+            maxTokens: maxTokens,
+            profileConfig: profileConfig
         )
 
         let data: Data
         let response: URLResponse
         do {
-            (data, response) = try await URLSession.shared.data(for: request)
+            let urlRequest = request
+            (data, response) = try await URLSession.shared.data(for: urlRequest)
+        } catch let error as URLError where error.code == .timedOut {
+            throw ProviderError.timeout
         } catch {
             throw ProviderError.networkError(error)
         }
@@ -70,7 +103,8 @@ public struct ProviderChatClient: Sendable {
         apiKey: String?,
         systemPrompt: String,
         userMessage: String,
-        maxTokens: Int
+        maxTokens: Int,
+        profileConfig: WorkspaceConfig.ProfileConfig? = nil
     ) throws -> URLRequest {
         let url: URL
         var headers: [String: String]
@@ -83,8 +117,16 @@ public struct ProviderChatClient: Sendable {
                 "anthropic-version": "2023-06-01",
                 "content-type": "application/json"
             ]
-        case .openai, .openAICompatible:
+        case .openai:
             url = URL(string: "https://api.openai.com/v1/chat/completions")!
+            headers = [
+                "Authorization": "Bearer \(apiKey ?? "")",
+                "content-type": "application/json"
+            ]
+        case .openAICompatible:
+            let baseURL = profileConfig?.baseURL ?? "https://api.openai.com/v1"
+            let baseURLString = baseURL.hasSuffix("/") ? String(baseURL.dropLast()) : baseURL
+            url = URL(string: "\(baseURLString)/chat/completions")!
             headers = [
                 "Authorization": "Bearer \(apiKey ?? "")",
                 "content-type": "application/json"
@@ -116,7 +158,8 @@ public struct ProviderChatClient: Sendable {
             provider: provider,
             systemPrompt: systemPrompt,
             userMessage: userMessage,
-            maxTokens: maxTokens
+            maxTokens: maxTokens,
+            profileConfig: profileConfig
         )
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
@@ -127,12 +170,14 @@ public struct ProviderChatClient: Sendable {
         provider: ProviderID,
         systemPrompt: String,
         userMessage: String,
-        maxTokens: Int
+        maxTokens: Int,
+        profileConfig: WorkspaceConfig.ProfileConfig? = nil
     ) -> [String: Any] {
+        let model = profileConfig?.model ?? defaultModel(for: provider)
         switch provider {
         case .anthropic:
             return [
-                "model": defaultModel(for: provider),
+                "model": model,
                 "system": systemPrompt,
                 "messages": [["role": "user", "content": userMessage]],
                 "max_tokens": maxTokens
@@ -143,13 +188,13 @@ public struct ProviderChatClient: Sendable {
             ]
         case .ollama:
             return [
-                "model": defaultModel(for: provider),
+                "model": model,
                 "prompt": systemPrompt + "\n\n" + userMessage,
                 "stream": false
             ]
         case .openai, .openAICompatible, .openrouter:
             return [
-                "model": defaultModel(for: provider),
+                "model": model,
                 "messages": [
                     ["role": "system", "content": systemPrompt],
                     ["role": "user", "content": userMessage]

@@ -7,9 +7,13 @@ public struct WorkspaceConfig: Codable, Equatable, Sendable {
 
     public struct ProfileConfig: Codable, Equatable, Sendable {
         public let name: String
+        public var baseURL: String?
+        public var model: String?
 
-        public init(name: String) {
+        public init(name: String, baseURL: String? = nil, model: String? = nil) {
             self.name = name
+            self.baseURL = baseURL
+            self.model = model
         }
     }
 
