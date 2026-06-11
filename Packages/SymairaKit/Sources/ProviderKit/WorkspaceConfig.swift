@@ -39,36 +39,36 @@ public final class WorkspaceConfigManager: ObservableObject {
         self.config = Self.load(from: configURL)
     }
 
-    public func save() {
+    public func save() throws {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        guard let data = try? encoder.encode(config) else { return }
-        try? FileManager.default.createDirectory(
+        let data = try encoder.encode(config)
+        try FileManager.default.createDirectory(
             at: configURL.deletingLastPathComponent(),
             withIntermediateDirectories: true
         )
-        try? data.write(to: configURL, options: .atomic)
+        try data.write(to: configURL, options: .atomic)
     }
 
-    public func switchProfile(to name: String) {
+    public func switchProfile(to name: String) throws {
         guard config.profiles.contains(where: { $0.name == name }) else { return }
         config.activeProfile = name
-        save()
+        try save()
     }
 
-    public func addProfile(_ name: String) {
+    public func addProfile(_ name: String) throws {
         guard !config.profiles.contains(where: { $0.name == name }) else { return }
         config.profiles.append(WorkspaceConfig.ProfileConfig(name: name))
-        save()
+        try save()
     }
 
-    public func removeProfile(_ name: String) {
+    public func removeProfile(_ name: String) throws {
         guard name != "default", let index = config.profiles.firstIndex(where: { $0.name == name }) else { return }
         config.profiles.remove(at: index)
         if config.activeProfile == name {
             config.activeProfile = "default"
         }
-        save()
+        try save()
     }
 
     private static func load(from url: URL) -> WorkspaceConfig {

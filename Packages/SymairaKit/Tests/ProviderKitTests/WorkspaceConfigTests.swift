@@ -33,8 +33,8 @@ import Testing
             .appendingPathComponent(UUID().uuidString)
         let manager = WorkspaceConfigManager(workspaceURL: tmp)
 
-        manager.addProfile("work")
-        manager.switchProfile(to: "work")
+        try manager.addProfile("work")
+        try manager.switchProfile(to: "work")
 
         let loaded = WorkspaceConfigManager(workspaceURL: tmp)
         #expect(loaded.config.activeProfile == "work")
@@ -77,7 +77,7 @@ import Testing
         let tmp = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
         let manager = WorkspaceConfigManager(workspaceURL: tmp)
-        manager.save()
+        try manager.save()
 
         let configFile = tmp.appendingPathComponent(".symaira/config.json")
         let data = try Data(contentsOf: configFile)

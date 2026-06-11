@@ -91,16 +91,16 @@ struct WorkspaceSettingsView: View {
                 }
                 .pickerStyle(.menu)
                 .onChange(of: workspaceConfigManager.config.activeProfile) {
-                    workspaceConfigManager.save()
+                    try? workspaceConfigManager.save()
                 }
 
                 HStack {
                     Button("Add Profile") {
                         let name = "Profile \(workspaceConfigManager.config.profiles.count + 1)"
-                        workspaceConfigManager.addProfile(name)
+                        try? workspaceConfigManager.addProfile(name)
                     }
                     Button("Remove Profile", role: .destructive) {
-                        workspaceConfigManager.removeProfile(workspaceConfigManager.config.activeProfile)
+                        try? workspaceConfigManager.removeProfile(workspaceConfigManager.config.activeProfile)
                     }
                     .disabled(workspaceConfigManager.config.activeProfile == "default")
                 }
