@@ -2,6 +2,7 @@ import AppKit
 import GhosttyBridge
 import TerminalCore
 import AgentKit
+import SymairaUI
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -16,6 +17,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var showPalette = false
     private var sidebarItem: NSSplitViewItem?
     private var sidebarViewController: NSViewController?
+    private lazy var providerStore = ProviderStore()
+    private lazy var workspaceConfigManager = WorkspaceConfigManager(workspaceURL: URL(fileURLWithPath: NSHomeDirectory()))
+    private var settingsWindow: NSWindow?
+    private var onboardingWindow: NSWindow?
 
     // Saved at launch — self.window must not be accessed during termination
     // (use-after-free crash in objc_retain when AppKit tears down the window).
@@ -99,6 +104,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             _ = manager.createPane()
         }
 
+        if !UserDefaults.standard.bool(forKey: "onboardingCompleted") {
+            showOnboarding()
+        }
+
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         self.window = window
@@ -162,6 +171,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let appMenu = NSMenu()
         appMenu.addItem(NSMenuItem(title: "About Symaira Terminal", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: ""))
         appMenu.addItem(.separator())
+        let settingsItem = NSMenuItem(title: "Settings…", action: #selector(showSettings), keyEquivalent: ",")
+        settingsItem.target = self
+        appMenu.addItem(settingsItem)
         appMenu.addItem(NSMenuItem(title: "Quit Symaira Terminal", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         let appMenuItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
         appMenuItem.submenu = appMenu
@@ -349,6 +361,75 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         panel.orderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    @objc private func showSettings() {
+        if let existing = settingsWindow {
+            existing.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+
+        var isPresented = true
+        let settingsView = SettingsView(
+            providerStore: providerStore,
+            workspaceConfigManager: workspaceConfigManager,
+            isPresented: Binding(
+                get: { isPresented },
+                set: { newValue in
+                    isPresented = newValue
+                    if !newValue {
+                        settingsWindow?.close()
+                    }
+                }
+            )
+        )
+        let hostingController = NSHostingController(rootView: settingsView)
+
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 500, height: 400),
+            styleMask: [.titled, .closable, .resizable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "Settings"
+        window.contentViewController = hostingController
+        window.isReleasedWhenClosed = false
+        window.center()
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        settingsWindow = window
+    }
+
+    private func showOnboarding() {
+        var isPresented = true
+        let onboardingView = OnboardingView(
+            providerStore: providerStore,
+            isPresented: Binding(
+                get: { isPresented },
+                set: { newValue in
+                    isPresented = newValue
+                    if !newValue {
+                        onboardingWindow?.close()
+                    }
+                }
+            )
+        )
+        let hostingController = NSHostingController(rootView: onboardingView)
+
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 500, height: 400),
+            styleMask: [.titled, .closable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "Welcome to Symaira Terminal"
+        window.contentViewController = hostingController
+        window.isReleasedWhenClosed = false
+        window.center()
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        onboardingWindow = window
     }
 
     private func updateTitle(pane: TerminalPane?) {
