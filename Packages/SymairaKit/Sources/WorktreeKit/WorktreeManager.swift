@@ -9,31 +9,37 @@ public struct Worktree: Equatable, Hashable, Sendable {
 public enum WorktreeError: Error, Equatable {
     case gitFailed(arguments: [String], exitCode: Int32, stderr: String)
     case notARepository(URL)
+    case invalidTaskID(TaskIDError)
 }
 
-/// Manages transient git worktrees so each agent task gets an isolated working
-/// directory. Branch naming: `symaira/task-<id>`; directories live under the
-/// container (default: Application Support) and are removed on task completion.
 public struct WorktreeManager: Sendable {
     public static let branchPrefix = "symaira/task-"
 
     public let repositoryURL: URL
     public let containerURL: URL
+    private let validator: TaskIDValidator
 
-    public init(repositoryURL: URL, containerURL: URL? = nil) {
+    public init(repositoryURL: URL, containerURL: URL? = nil, validator: TaskIDValidator = TaskIDValidator()) {
         self.repositoryURL = repositoryURL
         self.containerURL = containerURL
             ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
                 .appendingPathComponent("SymairaTerminal/worktrees", isDirectory: true)
+        self.validator = validator
     }
 
     @discardableResult
     public func create(taskID: String, baseRef: String = "HEAD") throws -> Worktree {
+        let safePath: URL
+        do {
+            safePath = try validator.sanitizedPath(for: taskID, under: containerURL)
+        } catch let error as TaskIDError {
+            throw WorktreeError.invalidTaskID(error)
+        }
+
         let branch = Self.branchPrefix + taskID
-        let path = containerURL.appendingPathComponent(taskID, isDirectory: true)
         try FileManager.default.createDirectory(at: containerURL, withIntermediateDirectories: true)
-        try git(["worktree", "add", "-b", branch, path.path, baseRef])
-        return Worktree(taskID: taskID, path: path, branch: branch)
+        try git(["worktree", "add", "-b", branch, safePath.path, baseRef])
+        return Worktree(taskID: taskID, path: safePath, branch: branch)
     }
 
     public func remove(_ worktree: Worktree, deleteBranch: Bool = true, force: Bool = false) throws {
