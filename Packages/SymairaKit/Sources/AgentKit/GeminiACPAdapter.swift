@@ -1,25 +1,39 @@
 import Foundation
-import AgentKit
+import TerminalCore
 import ProviderKit
 
 public struct GeminiACPAdapter {
+    private let configuration: ACPConfiguration
     private let client: ACPClient
-    private let keyStore: KeyStore
 
-    public init(client: ACPClient, keyStore: KeyStore = KeychainKeyStore()) {
-        self.client = client
-        self.keyStore = keyStore
+    public init(
+        executable: URL,
+        arguments: [String] = [],
+        apiKey: String,
+        workingDirectory: URL? = nil
+    ) {
+        let config = ACPConfiguration.withProviderKey(
+            executable: executable,
+            arguments: arguments,
+            keyName: "GOOGLE_API_KEY",
+            keyValue: apiKey,
+            workingDirectory: workingDirectory
+        )
+        self.configuration = config
+        self.client = ACPClient(configuration: config)
     }
 
-    public func start(profile: String) throws {
-        guard let apiKey = try keyStore.key(provider: .google, profile: profile) else {
-            throw GeminiError.missingAPIKey
-        }
+    public init(client: ACPClient, configuration: ACPConfiguration) {
+        self.client = client
+        self.configuration = configuration
+    }
 
-        var env = ProcessInfo.processInfo.environment
-        env["GOOGLE_API_KEY"] = apiKey
-
+    public func start() throws {
         try client.start()
+    }
+
+    public var processEnvironment: [String: String] {
+        configuration.environment
     }
 
     public func handleEvent(_ event: ACPEvent, completion: @escaping (ACPEvent) -> Void) {

@@ -1,4 +1,5 @@
 import Foundation
+import TerminalCore
 
 public struct ACPMessage: Codable {
     public let jsonrpc: String
@@ -67,6 +68,42 @@ public enum ACPEvent {
     case error(code: Int, message: String)
 }
 
+public struct ACPConfiguration: Sendable {
+    public let executable: URL
+    public let arguments: [String]
+    public let environment: [String: String]
+    public let workingDirectory: URL?
+
+    public init(
+        executable: URL,
+        arguments: [String] = [],
+        environment: [String: String]? = nil,
+        workingDirectory: URL? = nil
+    ) {
+        self.executable = executable
+        self.arguments = arguments
+        self.environment = environment ?? EnvironmentSanitizer.sanitizedProcessEnvironment()
+        self.workingDirectory = workingDirectory
+    }
+
+    public static func withProviderKey(
+        executable: URL,
+        arguments: [String] = [],
+        keyName: String,
+        keyValue: String,
+        workingDirectory: URL? = nil
+    ) -> ACPConfiguration {
+        var env = EnvironmentSanitizer.sanitizedProcessEnvironment()
+        env[keyName] = keyValue
+        return ACPConfiguration(
+            executable: executable,
+            arguments: arguments,
+            environment: env,
+            workingDirectory: workingDirectory
+        )
+    }
+}
+
 public final class ACPClient: @unchecked Sendable {
     private let process: Process
     private let stdin: Pipe
@@ -77,17 +114,25 @@ public final class ACPClient: @unchecked Sendable {
     private var pendingRequests: [Int: (Result<Any?, Error>) -> Void] = [:]
     private var eventHandler: ((ACPEvent) -> Void)?
 
-    public init(executable: URL, arguments: [String] = []) {
+    public init(configuration: ACPConfiguration) {
         self.process = Process()
         self.stdin = Pipe()
         self.stdout = Pipe()
         self.stderr = Pipe()
 
-        process.executableURL = executable
-        process.arguments = arguments
+        process.executableURL = configuration.executable
+        process.arguments = configuration.arguments
+        process.environment = configuration.environment
+        if let cwd = configuration.workingDirectory {
+            process.currentDirectoryURL = cwd
+        }
         process.standardInput = stdin
         process.standardOutput = stdout
         process.standardError = stderr
+    }
+
+    public convenience init(executable: URL, arguments: [String] = []) {
+        self.init(configuration: ACPConfiguration(executable: executable, arguments: arguments))
     }
 
     public func start() throws {
