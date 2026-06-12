@@ -64,7 +64,7 @@ struct WorktreeRow: View {
     var body: some View {
         HStack(spacing: 8) {
             Circle()
-                .fill(store.isDirty(worktree) ? Color.orange : Color.green)
+                .fill(store.isDirtyCached(worktree) ? Color.orange : Color.green)
                 .frame(width: 8, height: 8)
             VStack(alignment: .leading, spacing: 2) {
                 Text(worktree.taskID)

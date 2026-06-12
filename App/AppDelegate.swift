@@ -21,6 +21,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private lazy var workspaceConfigManager = WorkspaceConfigManager(workspaceURL: URL(fileURLWithPath: NSHomeDirectory()))
     private var settingsWindow: NSWindow?
     private var onboardingWindow: NSWindow?
+    private var serviceProvider: TerminalServiceProvider?
 
     // Saved at launch — self.window must not be accessed during termination
     // (use-after-free crash in objc_retain when AppKit tears down the window).
@@ -55,6 +56,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         oscEventHandler.onNotification = { title, body in
             NSLog("symaira notification: \(title) — \(body)")
         }
+
+        let serviceProvider = TerminalServiceProvider(paneManager: manager)
+        self.serviceProvider = serviceProvider
+        NSApp.servicesProvider = serviceProvider
 
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 960, height: 600),

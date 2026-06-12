@@ -68,6 +68,12 @@ final class PaneManager {
         return pane
     }
 
+    func createPane(inDirectory directory: URL) -> TerminalPane {
+        var config = defaultConfiguration()
+        config.workingDirectory = directory
+        return createPane(at: config)
+    }
+
     func closePane(_ pane: TerminalPane) {
         guard panes.count > 1, let idx = panes.firstIndex(where: { $0 === pane }) else {
             if panes.count == 1 { pane.close() }

@@ -6,7 +6,13 @@ public final class WorktreeStore: ObservableObject {
     @Published public var worktrees: [Worktree] = []
     @Published public var error: WorktreeError?
 
-    private let manager: WorktreeManager
+    // nonisolated(unsafe): WorktreeManager uses Process per call (thread-safe in practice)
+    // but is not formally Sendable. Captured in detached tasks for background git work.
+    nonisolated(unsafe) private let manager: WorktreeManager
+
+    private var dirtyCache: [URL: Bool] = [:]
+    private var dirtyTask: Task<Void, Never>?
+    private var diffTask: Task<String?, Never>?
 
     public init(repositoryURL: URL, containerURL: URL? = nil) {
         self.manager = WorktreeManager(repositoryURL: repositoryURL, containerURL: containerURL)
@@ -16,6 +22,7 @@ public final class WorktreeStore: ObservableObject {
         do {
             worktrees = try manager.list()
             error = nil
+            refreshDirtyState(for: worktrees)
         } catch let err as WorktreeError {
             error = err
         } catch {
@@ -35,15 +42,79 @@ public final class WorktreeStore: ObservableObject {
         refresh()
     }
 
+    // MARK: - Async dirty state
+
+    /// Cancels any in-flight dirty check and spawns a background task that runs
+    /// `git status --porcelain` for each worktree off the main actor, then updates
+    /// `dirtyCache` on the main actor when complete.
+    public func refreshDirtyState(for worktrees: [Worktree]) {
+        dirtyTask?.cancel()
+        let paths = worktrees.map(\.path)
+        dirtyTask = Task.detached { [weak self] in
+            var results: [URL: Bool] = [:]
+            for path in paths {
+                if Task.isCancelled { return }
+                results[path] = checkDirty(path: path)
+            }
+            if Task.isCancelled { return }
+            await MainActor.run {
+                guard let self else { return }
+                self.dirtyCache = results
+            }
+        }
+    }
+
+    /// Returns the cached dirty state for a worktree. Safe to call during view
+    /// rendering — never blocks. Returns `false` if the cache has not been
+    /// populated yet (call `refreshDirtyState(for:)` first).
+    public func isDirtyCached(_ worktree: Worktree) -> Bool {
+        dirtyCache[worktree.path] ?? false
+    }
+
+    // MARK: - Async diff
+
+    /// Loads a diff asynchronously with automatic cancellation of the previous
+    /// request. Ideal for rapid selection changes — only the most recent call
+    /// returns a non-nil result; earlier calls return `nil` when cancelled.
+    public func loadDiff(_ worktree: Worktree, against baseRef: String = "HEAD") async -> String? {
+        diffTask?.cancel()
+        let task = Task<String?, Never>.detached { [manager] in
+            if Task.isCancelled { return nil }
+            return try? manager.diff(worktree, against: baseRef)
+        }
+        diffTask = task
+        return await task.value
+    }
+
+    // MARK: - Cleanup
+
+    /// Cancels all in-flight background tasks (dirty checks and diffs).
+    public func cancelPendingTasks() {
+        dirtyTask?.cancel()
+        dirtyTask = nil
+        diffTask?.cancel()
+        diffTask = nil
+    }
+
+    // MARK: - Synchronous (legacy)
+
+    @available(*, deprecated, message: "Use isDirtyCached(_:) for UI; refreshDirtyState(for:) populates the cache off the main actor.")
+    public func isDirty(_ worktree: Worktree) -> Bool {
+        Self.checkDirty(path: worktree.path)
+    }
+
+    @available(*, deprecated, message: "Use loadDiff(_:against:) for async diff loading with cancellation.")
     public func diff(_ worktree: Worktree, against baseRef: String = "HEAD") throws -> String {
         try manager.diff(worktree, against: baseRef)
     }
 
-    public func isDirty(_ worktree: Worktree) -> Bool {
+    // MARK: - Private helpers
+
+    private static func checkDirty(path: URL) -> Bool {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
         process.arguments = ["status", "--porcelain"]
-        process.currentDirectoryURL = worktree.path
+        process.currentDirectoryURL = path
         let stdout = Pipe()
         process.standardOutput = stdout
         do {
