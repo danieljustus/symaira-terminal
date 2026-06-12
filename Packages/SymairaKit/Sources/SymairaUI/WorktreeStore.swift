@@ -54,7 +54,7 @@ public final class WorktreeStore: ObservableObject {
             var results: [URL: Bool] = [:]
             for path in paths {
                 if Task.isCancelled { return }
-                results[path] = checkDirty(path: path)
+                results[path] = WorktreeStore.checkDirty(path: path)
             }
             if Task.isCancelled { return }
             await MainActor.run {
@@ -110,7 +110,7 @@ public final class WorktreeStore: ObservableObject {
 
     // MARK: - Private helpers
 
-    private static func checkDirty(path: URL) -> Bool {
+    private nonisolated static func checkDirty(path: URL) -> Bool {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
         process.arguments = ["status", "--porcelain"]
