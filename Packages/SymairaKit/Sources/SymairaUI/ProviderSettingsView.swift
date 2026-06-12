@@ -86,10 +86,24 @@ struct ProviderRow: View {
                     .buttonStyle(.plain)
 
                     Button {
+                        isEditing = true
+                    } label: {
+                        Image(systemName: "pencil")
+                    }
+                    .buttonStyle(.plain)
+
+                    Button {
                         store.deleteKey(for: provider)
                     } label: {
                         Image(systemName: "trash")
                             .foregroundColor(.red)
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    Button {
+                        isEditing = true
+                    } label: {
+                        Image(systemName: "plus")
                     }
                     .buttonStyle(.plain)
                 }

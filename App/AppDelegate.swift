@@ -2,6 +2,9 @@ import AppKit
 import GhosttyBridge
 import TerminalCore
 import AgentKit
+import ProviderKit
+import StackKit
+import SymairaUI
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -16,6 +19,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var showPalette = false
     private var sidebarItem: NSSplitViewItem?
     private var sidebarViewController: NSViewController?
+    private lazy var providerStore = ProviderStore()
+    private lazy var stackStore = StackStore()
+    private lazy var workspaceConfigManager = WorkspaceConfigManager(workspaceURL: URL(fileURLWithPath: NSHomeDirectory()))
+    private var settingsWindow: NSWindow?
+    private var onboardingWindow: NSWindow?
+    private var serviceProvider: TerminalServiceProvider?
 
     // Saved at launch — self.window must not be accessed during termination
     // (use-after-free crash in objc_retain when AppKit tears down the window).
@@ -50,6 +59,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         oscEventHandler.onNotification = { title, body in
             NSLog("symaira notification: \(title) — \(body)")
         }
+
+        let serviceProvider = TerminalServiceProvider(paneManager: manager)
+        self.serviceProvider = serviceProvider
+        NSApp.servicesProvider = serviceProvider
 
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 960, height: 600),
@@ -99,6 +112,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             _ = manager.createPane()
         }
 
+        if !UserDefaults.standard.bool(forKey: "onboardingCompleted") {
+            showOnboarding()
+        }
+
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         self.window = window
@@ -138,20 +155,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func restoreSession(_ state: SessionState, window: NSWindow, manager: PaneManager) {
-        let frame = state.windowFrame.nsRect
-        if let screen = window.screen {
-            window.setFrameOrigin(NSPoint(
-                x: screen.frame.origin.x + frame.origin.x,
-                y: screen.frame.origin.y + frame.origin.y
-            ))
-        }
-        window.setContentSize(NSSize(width: frame.width, height: frame.height))
-
-        for paneState in state.panes {
-            var config = TerminalSurfaceConfiguration()
-            config.workingDirectory = paneState.workingDirectory.map(URL.init(fileURLWithPath:))
-            _ = manager.createPane(at: config)
-        }
+        manager.restoreFromLayout(state, window: window, manager: manager)
     }
 
     // MARK: - Keyboard Shortcuts
@@ -162,6 +166,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let appMenu = NSMenu()
         appMenu.addItem(NSMenuItem(title: "About Symaira Terminal", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: ""))
         appMenu.addItem(.separator())
+        let settingsItem = NSMenuItem(title: "Settings…", action: #selector(showSettings), keyEquivalent: ",")
+        settingsItem.target = self
+        appMenu.addItem(settingsItem)
         appMenu.addItem(NSMenuItem(title: "Quit Symaira Terminal", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         let appMenuItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
         appMenuItem.submenu = appMenu
@@ -349,6 +356,76 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         panel.orderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    @objc private func showSettings() {
+        if let existing = settingsWindow {
+            existing.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+
+        var isPresented = true
+        let settingsView = SettingsView(
+            providerStore: providerStore,
+            workspaceConfigManager: workspaceConfigManager,
+            stackStore: stackStore,
+            isPresented: Binding(
+                get: { isPresented },
+                set: { newValue in
+                    isPresented = newValue
+                    if !newValue {
+                        self.settingsWindow?.close()
+                    }
+                }
+            )
+        )
+        let hostingController = NSHostingController(rootView: settingsView)
+
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 500, height: 400),
+            styleMask: [.titled, .closable, .resizable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "Settings"
+        window.contentViewController = hostingController
+        window.isReleasedWhenClosed = false
+        window.center()
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        settingsWindow = window
+    }
+
+    private func showOnboarding() {
+        var isPresented = true
+        let onboardingView = OnboardingView(
+            providerStore: providerStore,
+            isPresented: Binding(
+                get: { isPresented },
+                set: { newValue in
+                    isPresented = newValue
+                    if !newValue {
+                        self.onboardingWindow?.close()
+                    }
+                }
+            )
+        )
+        let hostingController = NSHostingController(rootView: onboardingView)
+
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 500, height: 400),
+            styleMask: [.titled, .closable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "Welcome to Symaira Terminal"
+        window.contentViewController = hostingController
+        window.isReleasedWhenClosed = false
+        window.center()
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        onboardingWindow = window
     }
 
     private func updateTitle(pane: TerminalPane?) {

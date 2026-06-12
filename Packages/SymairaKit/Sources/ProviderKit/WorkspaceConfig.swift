@@ -1,5 +1,4 @@
 import Foundation
-import ProviderKit
 
 public struct WorkspaceConfig: Codable, Equatable, Sendable {
     public var activeProfile: String

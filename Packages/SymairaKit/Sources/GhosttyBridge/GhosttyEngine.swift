@@ -79,8 +79,16 @@ public final class GhosttySurfaceController: TerminalCore.TerminalSurface {
             workingDirectory: configuration.workingDirectory?.path
         )
         if let command = configuration.command {
-            ptyConfiguration.executablePath = "/bin/zsh"
+            let shell = configuration.executablePath ?? "/bin/zsh"
+            ptyConfiguration.executablePath = shell
             ptyConfiguration.arguments = ["-lc", command]
+        } else {
+            if let execPath = configuration.executablePath {
+                ptyConfiguration.executablePath = execPath
+            }
+            if !configuration.arguments.isEmpty {
+                ptyConfiguration.arguments = configuration.arguments
+            }
         }
         let pty = PTYSession(configuration: ptyConfiguration)
         self.pty = pty

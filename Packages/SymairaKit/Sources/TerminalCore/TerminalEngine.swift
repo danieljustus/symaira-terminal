@@ -38,21 +38,33 @@ public protocol TerminalSurface: AnyObject {
 }
 
 public struct TerminalSurfaceConfiguration: Sendable {
-    /// Command to execute; `nil` runs the user's default shell as login shell.
+    /// Command to execute; `nil` runs the user's configured shell.
     public var command: String?
+    /// Shell executable path (e.g. "/bin/zsh"). `nil` uses the system default.
+    public var executablePath: String?
+    /// Arguments passed to the shell (e.g. ["-l"] for login shell).
+    public var arguments: [String]
     public var workingDirectory: URL?
     /// Environment for the child. Callers should start from
     /// `EnvironmentSanitizer.sanitizedProcessEnvironment()` and add what the
     /// workspace profile explicitly routes in.
     public var environment: [String: String]
+    /// Maximum scrollback lines for the in-memory buffer.
+    public var scrollbackLines: Int
 
     public init(
         command: String? = nil,
+        executablePath: String? = nil,
+        arguments: [String] = ["-l"],
         workingDirectory: URL? = nil,
-        environment: [String: String] = EnvironmentSanitizer.sanitizedProcessEnvironment()
+        environment: [String: String] = EnvironmentSanitizer.sanitizedProcessEnvironment(),
+        scrollbackLines: Int = 10_000
     ) {
         self.command = command
+        self.executablePath = executablePath
+        self.arguments = arguments
         self.workingDirectory = workingDirectory
         self.environment = environment
+        self.scrollbackLines = scrollbackLines
     }
 }

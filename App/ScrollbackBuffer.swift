@@ -4,13 +4,15 @@ final class ScrollbackBuffer: @unchecked Sendable {
     private var buffer = Data()
     private var lineOffsets: [Int] = [0]
     private let maxLines: Int
+    private let maxBytes: Int
     private let lock = NSLock()
     private var cachedText: String?
     private var cachedTextLowered: String?
     private var cachedBufferCount: Int = 0
 
-    init(maxLines: Int = 10_000) {
+    init(maxLines: Int = 10_000, maxBytes: Int = 5_242_880) {
         self.maxLines = maxLines
+        self.maxBytes = maxBytes
     }
 
     func append(_ data: [UInt8]) {
@@ -44,9 +46,19 @@ final class ScrollbackBuffer: @unchecked Sendable {
         let lowered = query.lowercased()
         var matches: [SearchMatch] = []
         var searchStart = textLowered.startIndex
+        var lastByteOffset = 0
+        var lastIndex = text.startIndex
 
         while let range = textLowered.range(of: lowered, range: searchStart..<textLowered.endIndex) {
-            let prefixOffset = text[..<range.lowerBound].utf8.count
+            let prefixOffset: Int
+            if range.lowerBound == lastIndex {
+                prefixOffset = lastByteOffset
+            } else {
+                prefixOffset = lastByteOffset + text[lastIndex..<range.lowerBound].utf8.count
+                lastIndex = range.lowerBound
+                lastByteOffset = prefixOffset
+            }
+
             let lineNum = lineNumber(for: prefixOffset)
             let lineStart = text[..<range.lowerBound].lastIndex(of: "\n").map { text.index(after: $0) } ?? text.startIndex
             let lineEnd = text[range.upperBound...].firstIndex(of: "\n") ?? text.endIndex
@@ -97,11 +109,40 @@ final class ScrollbackBuffer: @unchecked Sendable {
     }
 
     private func pruneIfNeeded() {
-        guard lineOffsets.count > maxLines else { return }
-        let excess = lineOffsets.count - maxLines
-        let cutoffOffset = lineOffsets[excess]
+        let lineExcess = lineOffsets.count > maxLines
+        let byteExcess = buffer.count > maxBytes
+        guard lineExcess || byteExcess else { return }
+
+        // Determine how many lines to drop to satisfy both constraints.
+        var linesToDrop = 0
+        if lineExcess {
+            linesToDrop = lineOffsets.count - maxLines
+        }
+        if byteExcess {
+            // Find the earliest line boundary that brings us under maxBytes.
+            // We need to drop enough lines so that buffer.count - lineOffsets[dropCount] <= maxBytes,
+            // i.e. lineOffsets[dropCount] >= buffer.count - maxBytes.
+            let targetOffset = buffer.count - maxBytes
+            // Binary search for the first lineOffsets entry >= targetOffset.
+            var lo = 0
+            var hi = lineOffsets.count - 1
+            while lo <= hi {
+                let mid = (lo + hi) / 2
+                if lineOffsets[mid] < targetOffset {
+                    lo = mid + 1
+                } else {
+                    hi = mid - 1
+                }
+            }
+            // lo is now the index of the first offset >= targetOffset.
+            // We need to drop at least `lo` lines (keeping line at index lo as the new first line).
+            linesToDrop = max(linesToDrop, lo)
+        }
+
+        guard linesToDrop > 0, linesToDrop < lineOffsets.count else { return }
+        let cutoffOffset = lineOffsets[linesToDrop]
         buffer = Data(buffer[cutoffOffset...])
-        lineOffsets = Array(lineOffsets.dropFirst(excess))
+        lineOffsets = Array(lineOffsets.dropFirst(linesToDrop))
         for i in lineOffsets.indices {
             lineOffsets[i] -= cutoffOffset
         }

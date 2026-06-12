@@ -35,7 +35,7 @@ targets:
         # Ad-hoc signing for local development; real signing happens in release CI.
         CODE_SIGN_IDENTITY: "-"
         CODE_SIGN_STYLE: Manual
-    info:
+      info:
       path: App/Info.plist
       properties:
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
@@ -46,3 +46,17 @@ targets:
         NSPrincipalClass: NSApplication
         NSHumanReadableCopyright: "© 2026 Symaira — AGPLv3"
         LSApplicationCategoryType: public.app-category.developer-tools
+
+  SymairaTerminalTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - AppTests
+    dependencies:
+      - target: SymairaTerminal
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.symaira.terminal.tests
+        SWIFT_VERSION: "6.0"
+        SWIFT_STRICT_CONCURRENCY: complete
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/SymairaTerminal.app/Contents/MacOS/SymairaTerminal"

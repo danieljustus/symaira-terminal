@@ -11,6 +11,7 @@ let package = Package(
         .library(name: "WorktreeKit", targets: ["WorktreeKit"]),
         .library(name: "ProviderKit", targets: ["ProviderKit"]),
         .library(name: "ContextBank", targets: ["ContextBank"]),
+        .library(name: "StackKit", targets: ["StackKit"]),
         .library(name: "SymairaUI", targets: ["SymairaUI"]),
     ],
     dependencies: [
@@ -37,10 +38,11 @@ let package = Package(
         .target(name: "WorktreeKit"),
         .target(name: "ProviderKit"),
         .target(name: "ContextBank"),
+        .target(name: "StackKit"),
 
         .target(
             name: "SymairaUI",
-            dependencies: ["TerminalCore", "AgentKit", "WorktreeKit", "ProviderKit", "ContextBank"]
+            dependencies: ["TerminalCore", "AgentKit", "WorktreeKit", "ProviderKit", "ContextBank", "StackKit"]
         ),
 
         // Manual GUI smoke check for the engine pipeline (not run in CI):
@@ -56,5 +58,6 @@ let package = Package(
         .testTarget(name: "WorktreeKitTests", dependencies: ["WorktreeKit"]),
         .testTarget(name: "ProviderKitTests", dependencies: ["ProviderKit"]),
         .testTarget(name: "ContextBankTests", dependencies: ["ContextBank"]),
+        .testTarget(name: "StackKitTests", dependencies: ["StackKit"]),
     ]
 )

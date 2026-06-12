@@ -1,9 +1,11 @@
 import SwiftUI
 import ProviderKit
+import StackKit
 
 public struct SettingsView: View {
     @ObservedObject var providerStore: ProviderStore
     @ObservedObject var workspaceConfigManager: WorkspaceConfigManager
+    @ObservedObject var stackStore: StackStore
     @Binding var isPresented: Bool
 
     @AppStorage("defaultShell") private var defaultShell = "/bin/zsh"
@@ -12,10 +14,12 @@ public struct SettingsView: View {
     public init(
         providerStore: ProviderStore,
         workspaceConfigManager: WorkspaceConfigManager,
+        stackStore: StackStore,
         isPresented: Binding<Bool>
     ) {
         self.providerStore = providerStore
         self.workspaceConfigManager = workspaceConfigManager
+        self.stackStore = stackStore
         self._isPresented = isPresented
     }
 
@@ -32,6 +36,11 @@ public struct SettingsView: View {
             ProviderSettingsView(store: providerStore)
                 .tabItem {
                     Label("Providers", systemImage: "key.fill")
+                }
+
+            StackSettingsView(store: stackStore)
+                .tabItem {
+                    Label("MCP Stack", systemImage: "server.rack")
                 }
 
             WorkspaceSettingsView(workspaceConfigManager: workspaceConfigManager)

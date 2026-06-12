@@ -17,7 +17,7 @@ final class TerminalPane: PaneContainer {
     private(set) var surface: (any TerminalSurface)?
     var view: NSView { surface?.view ?? emptyView }
     private let emptyView = NSView()
-    nonisolated(unsafe) let scrollbackBuffer = ScrollbackBuffer()
+    nonisolated(unsafe) let scrollbackBuffer: ScrollbackBuffer
     let configuration: TerminalSurfaceConfiguration
     nonisolated(unsafe) var statusEngine = AgentStatusEngine()
     private(set) var agentStatus: AgentStatus = .idle
@@ -30,6 +30,7 @@ final class TerminalPane: PaneContainer {
     init(surface: (any TerminalSurface)?, configuration: TerminalSurfaceConfiguration = .init()) {
         self.surface = surface
         self.configuration = configuration
+        self.scrollbackBuffer = ScrollbackBuffer(maxLines: configuration.scrollbackLines)
     }
 
     func updateStatus(_ status: AgentStatus) {
