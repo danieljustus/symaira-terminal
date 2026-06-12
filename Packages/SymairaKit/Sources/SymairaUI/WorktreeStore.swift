@@ -57,11 +57,12 @@ public final class WorktreeStore: ObservableObject {
                 results[path] = WorktreeStore.checkDirty(path: path)
             }
             if Task.isCancelled { return }
-            await MainActor.run {
-                guard let self else { return }
-                self.dirtyCache = results
-            }
+            await self?.applyDirtyCache(results)
         }
+    }
+
+    private func applyDirtyCache(_ results: [URL: Bool]) {
+        dirtyCache = results
     }
 
     /// Returns the cached dirty state for a worktree. Safe to call during view
