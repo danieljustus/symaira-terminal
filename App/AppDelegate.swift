@@ -147,20 +147,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func restoreSession(_ state: SessionState, window: NSWindow, manager: PaneManager) {
-        let frame = state.windowFrame.nsRect
-        if let screen = window.screen {
-            window.setFrameOrigin(NSPoint(
-                x: screen.frame.origin.x + frame.origin.x,
-                y: screen.frame.origin.y + frame.origin.y
-            ))
-        }
-        window.setContentSize(NSSize(width: frame.width, height: frame.height))
-
-        for paneState in state.panes {
-            var config = TerminalSurfaceConfiguration()
-            config.workingDirectory = paneState.workingDirectory.map(URL.init(fileURLWithPath:))
-            _ = manager.createPane(at: config)
-        }
+        manager.restoreFromLayout(state, window: window, manager: manager)
     }
 
     // MARK: - Keyboard Shortcuts

@@ -7,6 +7,7 @@ final class PaneManager {
     private(set) var panes: [TerminalPane] = []
     private(set) var currentPane: TerminalPane?
     private var splitViews: [UUID: NSSplitView] = [:]
+    private var currentLayout: SplitNode = .pane(index: 0)
 
     let engine: GhosttyEngine
     private weak var hostView: NSView?
@@ -20,19 +21,31 @@ final class PaneManager {
         self.engine = engine
     }
 
+    private func defaultConfiguration() -> TerminalSurfaceConfiguration {
+        let shell = UserDefaults.standard.string(forKey: "defaultShell") ?? "/bin/zsh"
+        let scrollbackLines = UserDefaults.standard.integer(forKey: "scrollbackLines")
+        let effectiveScrollback = scrollbackLines > 0 ? scrollbackLines : 10_000
+        return TerminalSurfaceConfiguration(
+            executablePath: shell,
+            arguments: ["-l"],
+            scrollbackLines: effectiveScrollback
+        )
+    }
+
     func attach(to view: NSView) {
         self.hostView = view
     }
 
-    func createPane(at configuration: TerminalSurfaceConfiguration = .init()) -> TerminalPane {
+    func createPane(at configuration: TerminalSurfaceConfiguration? = nil) -> TerminalPane {
+        let config = configuration ?? defaultConfiguration()
         let surface: (any TerminalSurface)?
         do {
-            surface = try engine.makeSurface(configuration: configuration)
+            surface = try engine.makeSurface(configuration: config)
         } catch {
             NSLog("symaira: failed to create terminal surface: %@", String(describing: error))
             surface = nil
         }
-        let pane = TerminalPane(surface: surface, configuration: configuration)
+        let pane = TerminalPane(surface: surface, configuration: config)
         panes.append(pane)
         oscParsers[pane.paneID] = OSCStreamParser()
 
@@ -60,6 +73,7 @@ final class PaneManager {
             if panes.count == 1 { pane.close() }
             panes.removeAll()
             currentPane = nil
+            currentLayout = .pane(index: 0)
             onPanesChanged?(panes)
             onPaneChanged?(nil)
             return
@@ -70,6 +84,7 @@ final class PaneManager {
         if currentPane === pane {
             currentPane = panes[min(idx, panes.count - 1)]
         }
+        currentLayout = rebuildLayoutTree()
         onPanesChanged?(panes)
         onPaneChanged?(currentPane)
         rebuildLayout()
@@ -182,6 +197,18 @@ final class PaneManager {
             splitView.addArrangedSubview(newPane.view)
             splitViews[UUID()] = splitView
         }
+
+        if let curIdx = panes.firstIndex(where: { $0 === cur }) {
+            let newIdx = panes.count - 1
+            let splitNode: SplitNode = .split(
+                orientation: orientation,
+                ratio: 0.5,
+                left: .pane(index: curIdx),
+                right: .pane(index: newIdx)
+            )
+            currentLayout = replacePane(at: curIdx, with: splitNode, in: currentLayout)
+        }
+
         currentPane = newPane
         onPaneChanged?(newPane)
         onPanesChanged?(panes)
@@ -215,16 +242,8 @@ final class PaneManager {
         }
 
         guard panes.count >= 2 else { return }
-        let splitView = NSSplitView()
-        splitView.isVertical = true
-        splitView.dividerStyle = .thin
+        let splitView = buildSplitView(from: currentLayout)
         splitView.translatesAutoresizingMaskIntoConstraints = false
-
-        for pane in panes {
-            // NSSplitView manages arranged subviews by frame.
-            pane.view.translatesAutoresizingMaskIntoConstraints = true
-            splitView.addArrangedSubview(pane.view)
-        }
 
         hostView.addSubview(splitView)
         NSLayoutConstraint.activate([
@@ -236,24 +255,141 @@ final class PaneManager {
         splitViews[UUID()] = splitView
     }
 
+    func restoreFromLayout(_ state: SessionState, window: NSWindow, manager: PaneManager) {
+        let frame = state.windowFrame.nsRect
+        if let screen = window.screen {
+            window.setFrameOrigin(NSPoint(
+                x: screen.frame.origin.x + frame.origin.x,
+                y: screen.frame.origin.y + frame.origin.y
+            ))
+        }
+        window.setContentSize(NSSize(width: frame.width, height: frame.height))
+
+        for paneState in state.panes {
+            var config = TerminalSurfaceConfiguration()
+            config.executablePath = paneState.executablePath
+            config.arguments = paneState.arguments
+            config.workingDirectory = paneState.workingDirectory.map(URL.init(fileURLWithPath:))
+            _ = manager.createPane(at: config)
+        }
+        manager.currentLayout = state.layout
+        manager.rebuildLayout()
+    }
+
+    private func buildSplitView(from node: SplitNode) -> NSSplitView {
+        switch node {
+        case .pane(let index):
+            let pane = panes[index]
+            pane.view.translatesAutoresizingMaskIntoConstraints = true
+            let wrapper = NSSplitView()
+            wrapper.isVertical = true
+            wrapper.dividerStyle = .thin
+            wrapper.addSubview(pane.view)
+            return wrapper
+
+        case .split(let orientation, let ratio, let left, let right):
+            let splitView = NSSplitView()
+            splitView.isVertical = orientation == .vertical
+            splitView.dividerStyle = .thin
+
+            let leftView = buildLeafView(from: left)
+            let rightView = buildLeafView(from: right)
+            splitView.addSubview(leftView)
+            splitView.addSubview(rightView)
+
+            DispatchQueue.main.async {
+                let totalWidth = splitView.bounds.width
+                let totalHeight = splitView.bounds.height
+                if orientation == .horizontal {
+                    let leftWidth = totalWidth * ratio
+                    splitView.setPosition(leftWidth, ofDividerAt: 0)
+                } else {
+                    let leftHeight = totalHeight * ratio
+                    splitView.setPosition(leftHeight, ofDividerAt: 0)
+                }
+            }
+
+            return splitView
+        }
+    }
+
+    private func buildLeafView(from node: SplitNode) -> NSView {
+        switch node {
+        case .pane(let index):
+            let pane = panes[index]
+            pane.view.translatesAutoresizingMaskIntoConstraints = true
+            return pane.view
+
+        case .split(let orientation, let ratio, let left, let right):
+            let splitView = NSSplitView()
+            splitView.isVertical = orientation == .vertical
+            splitView.dividerStyle = .thin
+
+            let leftView = buildLeafView(from: left)
+            let rightView = buildLeafView(from: right)
+            splitView.addSubview(leftView)
+            splitView.addSubview(rightView)
+
+            DispatchQueue.main.async {
+                let totalWidth = splitView.bounds.width
+                let totalHeight = splitView.bounds.height
+                if orientation == .horizontal {
+                    let leftWidth = totalWidth * ratio
+                    splitView.setPosition(leftWidth, ofDividerAt: 0)
+                } else {
+                    let leftHeight = totalHeight * ratio
+                    splitView.setPosition(leftHeight, ofDividerAt: 0)
+                }
+            }
+
+            return splitView
+        }
+    }
+
     var stateForPersistence: SessionState {
         let paneStates = panes.map { pane -> PaneState in
-            PaneState(
-                executablePath: "/bin/zsh",
-                arguments: ["-l"],
-                workingDirectory: pane.configuration.workingDirectory?.path,
+            let config = pane.configuration
+            return PaneState(
+                executablePath: config.executablePath ?? "/bin/zsh",
+                arguments: config.arguments,
+                workingDirectory: config.workingDirectory?.path,
                 columns: 80,
                 rows: 24
             )
         }
-        var layout: SplitNode = .pane(index: 0)
-        if panes.count > 1 {
-            layout = .split(orientation: .horizontal, ratio: 0.5,
-                           left: .pane(index: 0),
-                           right: .split(orientation: .horizontal, ratio: 0.5,
-                                        left: .pane(index: 1),
-                                        right: panes.count > 2 ? .pane(index: 2) : .pane(index: 1)))
+        return SessionState(panes: paneStates, layout: currentLayout)
+    }
+
+    private func replacePane(at targetIndex: Int, with replacement: SplitNode, in node: SplitNode) -> SplitNode {
+        switch node {
+        case .pane(let index):
+            if index == targetIndex {
+                return replacement
+            }
+            return node
+        case .split(let orientation, let ratio, let left, let right):
+            return .split(
+                orientation: orientation,
+                ratio: ratio,
+                left: replacePane(at: targetIndex, with: replacement, in: left),
+                right: replacePane(at: targetIndex, with: replacement, in: right)
+            )
         }
-        return SessionState(panes: paneStates, layout: layout)
+    }
+
+    private func rebuildLayoutTree() -> SplitNode {
+        guard !panes.isEmpty else { return .pane(index: 0) }
+        if panes.count == 1 { return .pane(index: 0) }
+
+        var tree: SplitNode = .pane(index: 0)
+        for i in 1..<panes.count {
+            tree = .split(
+                orientation: .horizontal,
+                ratio: 0.5,
+                left: tree,
+                right: .pane(index: i)
+            )
+        }
+        return tree
     }
 }
