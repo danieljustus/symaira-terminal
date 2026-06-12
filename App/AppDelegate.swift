@@ -2,6 +2,8 @@ import AppKit
 import GhosttyBridge
 import TerminalCore
 import AgentKit
+import ProviderKit
+import StackKit
 import SymairaUI
 
 @MainActor
@@ -18,6 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var sidebarItem: NSSplitViewItem?
     private var sidebarViewController: NSViewController?
     private lazy var providerStore = ProviderStore()
+    private lazy var stackStore = StackStore()
     private lazy var workspaceConfigManager = WorkspaceConfigManager(workspaceURL: URL(fileURLWithPath: NSHomeDirectory()))
     private var settingsWindow: NSWindow?
     private var onboardingWindow: NSWindow?
@@ -366,12 +369,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let settingsView = SettingsView(
             providerStore: providerStore,
             workspaceConfigManager: workspaceConfigManager,
+            stackStore: stackStore,
             isPresented: Binding(
                 get: { isPresented },
                 set: { newValue in
                     isPresented = newValue
                     if !newValue {
-                        settingsWindow?.close()
+                        self.settingsWindow?.close()
                     }
                 }
             )
@@ -402,7 +406,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 set: { newValue in
                     isPresented = newValue
                     if !newValue {
-                        onboardingWindow?.close()
+                        self.onboardingWindow?.close()
                     }
                 }
             )

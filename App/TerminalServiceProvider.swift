@@ -4,6 +4,7 @@ import TerminalCore
 /// Handles macOS Services menu requests to open terminal panes at specific directories.
 /// Registered in Info.plist under NSServices; invoked when users right-click a folder
 /// in Finder and select "New symTerminal Tab Here" or "New symTerminal Window Here".
+@MainActor
 @objc class TerminalServiceProvider: NSObject {
     weak var paneManager: PaneManager?
 
