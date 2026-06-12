@@ -113,6 +113,7 @@ public final class ACPClient: @unchecked Sendable {
     private var requestId = 0
     private var pendingRequests: [Int: (Result<Any?, Error>) -> Void] = [:]
     private var eventHandler: ((ACPEvent) -> Void)?
+    private var frameParser = ACPFrameParser()
 
     public init(configuration: ACPConfiguration) {
         self.process = Process()
@@ -219,47 +220,17 @@ public final class ACPClient: @unchecked Sendable {
     }
 
     private func readLoop() {
-        var buffer = Data()
         while process.isRunning {
             let chunk = stdout.fileHandleForReading.readData(ofLength: 4096)
             guard !chunk.isEmpty else { break }
-            buffer.append(chunk)
-            while let message = extractMessage(from: &buffer) {
+            frameParser.feed(chunk)
+            while let message = frameParser.nextMessage() {
                 processMessage(message)
             }
         }
-        while let message = extractMessage(from: &buffer) {
+        while let message = frameParser.nextMessage() {
             processMessage(message)
         }
-    }
-
-    private func extractMessage(from buffer: inout Data) -> [String: Any]? {
-        guard let headerEndRange = buffer.range(of: "\r\n\r\n".data(using: .utf8)!) else {
-            return nil
-        }
-        let headerData = buffer[buffer.startIndex..<headerEndRange.upperBound]
-        guard let header = String(data: headerData, encoding: .utf8),
-              let contentLengthMarker = header.range(of: "Content-Length: ") else {
-            buffer.removeSubrange(buffer.startIndex...headerEndRange.upperBound)
-            return nil
-        }
-        let headerStr = header[contentLengthMarker.upperBound...]
-        guard let endOfHeader = headerStr.range(of: "\r\n\r\n") else {
-            return nil
-        }
-        let lengthString = String(headerStr[headerStr.startIndex..<endOfHeader.lowerBound])
-        guard let contentLength = Int(lengthString.trimmingCharacters(in: CharacterSet.whitespaces)) else {
-            buffer.removeSubrange(buffer.startIndex...headerEndRange.upperBound)
-            return nil
-        }
-        let bodyStart = buffer.index(headerEndRange.upperBound, offsetBy: contentLength, limitedBy: buffer.endIndex)
-        guard let bodyEnd = bodyStart else { return nil }
-        let bodyData = buffer[headerEndRange.upperBound..<bodyEnd]
-        buffer.removeSubrange(buffer.startIndex...bodyEnd)
-        guard let json = try? JSONSerialization.jsonObject(with: bodyData) as? [String: Any] else {
-            return nil
-        }
-        return json
     }
 
     private func processMessage(_ message: [String: Any]) {
