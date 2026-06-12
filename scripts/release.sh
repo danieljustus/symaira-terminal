@@ -22,11 +22,14 @@ mkdir -p "${BUILD_DIR}"
 xcodegen generate
 
 echo "Archiving..."
+BUILD_NUMBER=$(git rev-list --count HEAD)
 xcodebuild archive \
     -project "${APP_NAME}.xcodeproj" \
     -scheme "${SCHEME}" \
     -archivePath "${ARCHIVE_PATH}" \
     -configuration Release \
+    MARKETING_VERSION="${VERSION}" \
+    CURRENT_PROJECT_VERSION="${BUILD_NUMBER}" \
     CODE_SIGN_IDENTITY="-" \
     CODE_SIGNING_REQUIRED=NO
 
@@ -51,18 +54,37 @@ xcodebuild -exportArchive \
     -exportOptionsPlist "${BUILD_DIR}/ExportOptions.plist" \
     -exportPath "${EXPORT_PATH}"
 
-echo "Notarizing..."
 APP_PATH=$(find "${EXPORT_PATH}" -name "*.app" -type d | head -1)
 if [ -z "${APP_PATH}" ]; then
     echo "Error: No .app found in export path"
     exit 1
 fi
 
-xcrun notarytool submit "${APP_PATH}" \
+echo "Verifying signature and version..."
+# Gate: v0.2.0 shipped an ad-hoc signed app with version 1.0 because the
+# archive was packaged directly. Never let that happen again.
+if ! codesign -dvv "${APP_PATH}" 2>&1 | grep -q "Authority=Developer ID Application"; then
+    echo "Error: ${APP_PATH} is not signed with a Developer ID Application certificate."
+    codesign -dvv "${APP_PATH}" 2>&1 | head -5
+    exit 1
+fi
+codesign --verify --strict --deep "${APP_PATH}"
+
+BUNDLE_VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "${APP_PATH}/Contents/Info.plist")
+if [ "${BUNDLE_VERSION}" != "${VERSION}" ]; then
+    echo "Error: bundle CFBundleShortVersionString is ${BUNDLE_VERSION}, expected ${VERSION}."
+    exit 1
+fi
+
+echo "Notarizing..."
+ZIP_PATH="${BUILD_DIR}/${APP_NAME}.zip"
+ditto -c -k --keepParent "${APP_PATH}" "${ZIP_PATH}"
+xcrun notarytool submit "${ZIP_PATH}" \
     --keychain-profile "notarytool" \
     --wait
 
 xcrun stapler staple "${APP_PATH}"
+spctl --assess --type execute "${APP_PATH}"
 
 echo "Creating DMG..."
 hdiutil create -volname "${APP_NAME}" \

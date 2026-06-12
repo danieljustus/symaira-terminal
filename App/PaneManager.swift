@@ -155,6 +155,8 @@ final class PaneManager {
 
             if let parentIdx = existingSplit.subviews.firstIndex(where: { $0 === cur.view }) {
                 existingSplit.insertArrangedSubview(newSplit, at: parentIdx + 1)
+                cur.view.translatesAutoresizingMaskIntoConstraints = true
+                newPane.view.translatesAutoresizingMaskIntoConstraints = true
                 newSplit.addArrangedSubview(cur.view)
                 newSplit.addArrangedSubview(newPane.view)
             }
@@ -162,7 +164,7 @@ final class PaneManager {
             let splitView = NSSplitView()
             splitView.isVertical = orientation == .vertical
             splitView.dividerStyle = .thin
-            splitView.autoresizingMask = [.width, .height]
+            splitView.translatesAutoresizingMaskIntoConstraints = false
 
             hostView.subviews.forEach { $0.removeFromSuperview() }
             hostView.addSubview(splitView)
@@ -174,6 +176,8 @@ final class PaneManager {
                 splitView.bottomAnchor.constraint(equalTo: hostView.bottomAnchor),
             ])
 
+            cur.view.translatesAutoresizingMaskIntoConstraints = true
+            newPane.view.translatesAutoresizingMaskIntoConstraints = true
             splitView.addArrangedSubview(cur.view)
             splitView.addArrangedSubview(newPane.view)
             splitViews[UUID()] = splitView
@@ -199,7 +203,7 @@ final class PaneManager {
 
         if panes.count == 1, let pane = panes.first {
             let view = pane.view
-            view.autoresizingMask = [.width, .height]
+            view.translatesAutoresizingMaskIntoConstraints = false
             hostView.addSubview(view)
             NSLayoutConstraint.activate([
                 view.topAnchor.constraint(equalTo: hostView.topAnchor),
@@ -214,9 +218,11 @@ final class PaneManager {
         let splitView = NSSplitView()
         splitView.isVertical = true
         splitView.dividerStyle = .thin
-        splitView.autoresizingMask = [.width, .height]
+        splitView.translatesAutoresizingMaskIntoConstraints = false
 
         for pane in panes {
+            // NSSplitView manages arranged subviews by frame.
+            pane.view.translatesAutoresizingMaskIntoConstraints = true
             splitView.addArrangedSubview(pane.view)
         }
 

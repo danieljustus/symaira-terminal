@@ -15,6 +15,7 @@ TAP_REPO="danieljustus/homebrew-tap"
 TAP_REPO_URL="https://github.com/${TAP_REPO}.git"
 CASK_NAME="symterminal"
 CASK_FILE="Casks/${CASK_NAME}.rb"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 if [ ! -f "${DMG_PATH}" ]; then
     echo "Error: DMG not found at ${DMG_PATH}"
@@ -66,6 +67,10 @@ EOF
 
 echo "Updated Cask file:"
 cat "${CASK_FILE}"
+
+# Keep the repo's own copy in sync so it never drifts from the tap
+# (it used to carry a PLACEHOLDER_SHA256).
+cp "${CASK_FILE}" "${REPO_ROOT}/Casks/${CASK_NAME}.rb"
 
 git add "${CASK_FILE}"
 git -c user.name="Symaira Bot" -c user.email="bot@symaira.dev" \

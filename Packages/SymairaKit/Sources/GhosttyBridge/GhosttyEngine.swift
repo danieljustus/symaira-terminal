@@ -13,9 +13,26 @@ public final class GhosttyEngine: TerminalEngine {
     private let controller: GhosttyTerminal.TerminalController
 
     public init() {
-        let userConfig = ("~/.config/ghostty/config" as NSString).expandingTildeInPath
-        if FileManager.default.fileExists(atPath: userConfig) {
-            controller = GhosttyTerminal.TerminalController(configFilePath: userConfig)
+        let userConfigPath = ("~/.config/ghostty/config" as NSString).expandingTildeInPath
+        if let contents = try? String(contentsOfFile: userConfigPath, encoding: .utf8) {
+            let prepared = GhosttyUserConfig.prepare(contents: contents)
+            if let theme = prepared.theme {
+                controller = GhosttyTerminal.TerminalController(
+                    configSource: .generated(prepared.contents),
+                    theme: theme
+                )
+            } else {
+                controller = GhosttyTerminal.TerminalController(
+                    configSource: .generated(prepared.contents)
+                )
+            }
+            let issues = GhosttyUserConfig.diagnostics(for: prepared.contents)
+            if !issues.isEmpty {
+                NSLog(
+                    "symaira: ghostty config %@ has issues, engine ignores it and uses defaults: %@",
+                    userConfigPath, issues.joined(separator: " | ")
+                )
+            }
         } else {
             controller = GhosttyTerminal.TerminalController()
         }
