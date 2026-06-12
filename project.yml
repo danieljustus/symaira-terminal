@@ -38,6 +38,8 @@ targets:
     info:
       path: App/Info.plist
       properties:
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         CFBundleDisplayName: Symaira Terminal
         CFBundleName: Symaira Terminal
         NSHighResolutionCapable: true
