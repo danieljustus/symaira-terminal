@@ -19,20 +19,20 @@ struct ACPFrameParser {
             }
             let headerData = buffer[buffer.startIndex..<headerEndRange.lowerBound]
             guard let header = String(data: headerData, encoding: .utf8) else {
-                buffer.removeSubrange(buffer.startIndex...headerEndRange.upperBound)
+                buffer.removeSubrange(buffer.startIndex..<headerEndRange.upperBound)
                 continue
             }
             guard let contentLengthMarker = header.range(of: "Content-Length: ") else {
-                buffer.removeSubrange(buffer.startIndex...headerEndRange.upperBound)
+                buffer.removeSubrange(buffer.startIndex..<headerEndRange.upperBound)
                 continue
             }
             let lengthStr = header[contentLengthMarker.upperBound...]
             guard let contentLength = Int(lengthStr.trimmingCharacters(in: .whitespaces)) else {
-                buffer.removeSubrange(buffer.startIndex...headerEndRange.upperBound)
+                buffer.removeSubrange(buffer.startIndex..<headerEndRange.upperBound)
                 continue
             }
             guard contentLength > 0, contentLength <= maxContentLength else {
-                buffer.removeSubrange(buffer.startIndex...headerEndRange.upperBound)
+                buffer.removeSubrange(buffer.startIndex..<headerEndRange.upperBound)
                 continue
             }
             let bodyStart = buffer.index(headerEndRange.upperBound, offsetBy: contentLength, limitedBy: buffer.endIndex)
