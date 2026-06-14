@@ -15,7 +15,7 @@ public struct CodexReader: UsageReader, Sendable {
     public let provider: UsageProvider = UsageProviders.codex
 
     private let historyDirectory: URL
-    private let fileManager: FileManager
+    nonisolated(unsafe) private let fileManager: FileManager
 
     public init(
         historyDirectory: URL? = nil,

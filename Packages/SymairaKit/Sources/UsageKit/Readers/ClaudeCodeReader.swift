@@ -12,7 +12,7 @@ public struct ClaudeCodeReader: UsageReader, Sendable {
     public let provider: UsageProvider = UsageProviders.claudeCode
 
     private let baseDirectory: URL
-    private let fileManager: FileManager
+    nonisolated(unsafe) private let fileManager: FileManager
 
     public init(
         baseDirectory: URL? = nil,

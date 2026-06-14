@@ -13,7 +13,7 @@ public struct GeminiCLIReader: UsageReader, Sendable {
     public let provider: UsageProvider = UsageProviders.geminiCLI
 
     private let logsDirectory: URL
-    private let fileManager: FileManager
+    nonisolated(unsafe) private let fileManager: FileManager
 
     public init(
         logsDirectory: URL? = nil,
