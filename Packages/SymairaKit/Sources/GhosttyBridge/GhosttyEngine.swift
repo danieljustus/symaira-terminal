@@ -139,6 +139,8 @@ public final class GhosttySurfaceController: TerminalCore.TerminalSurface {
     public func close() {
         pty.terminate()
     }
+
+    public var pid: pid_t { pty.pid }
 }
 
 /// Cross-thread handoff for the output tap: set on the main actor, read on the

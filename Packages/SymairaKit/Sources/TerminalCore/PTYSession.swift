@@ -125,6 +125,8 @@ public final class PTYSession: @unchecked Sendable {
 
     public var isRunning: Bool { childPID > 0 }
 
+    public var pid: pid_t { childPID }
+
     public func write(_ data: Data) {
         queue.async { [weak self] in
             guard let self, self.masterFD >= 0 else { return }

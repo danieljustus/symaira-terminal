@@ -35,6 +35,9 @@ public protocol TerminalSurface: AnyObject {
 
     /// Terminates the child process and releases engine resources.
     func close()
+
+    /// The process ID of the child process (typically the shell).
+    var pid: pid_t { get }
 }
 
 public struct TerminalSurfaceConfiguration: Sendable {

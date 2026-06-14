@@ -6,6 +6,7 @@ import TerminalCore
 final class PaneManager {
     private(set) var panes: [TerminalPane] = []
     private(set) var currentPane: TerminalPane?
+    private(set) var zoomedPane: TerminalPane?
     private var splitViews: [UUID: NSSplitView] = [:]
     private var currentLayout: SplitNode = .pane(index: 0)
 
@@ -75,6 +76,9 @@ final class PaneManager {
     }
 
     func closePane(_ pane: TerminalPane) {
+        if zoomedPane === pane {
+            zoomedPane = nil
+        }
         guard panes.count > 1, let idx = panes.firstIndex(where: { $0 === pane }) else {
             if panes.count == 1 { pane.close() }
             panes.removeAll()
@@ -155,6 +159,87 @@ final class PaneManager {
         }
     }
 
+    // MARK: - Directional Navigation
+    
+    enum FocusDirection {
+        case left, right, up, down
+    }
+    
+    func focus(in direction: FocusDirection) {
+        guard let currentPane = currentPane, panes.count > 1 else { return }
+        
+        let currentFrame = currentPane.view.convert(currentPane.view.bounds, to: nil)
+        let currentCenter = NSPoint(x: currentFrame.midX, y: currentFrame.midY)
+        
+        var bestCandidate: TerminalPane? = nil
+        var minDistance = Double.infinity
+        
+        for pane in panes {
+            if pane === currentPane { continue }
+            let candidateFrame = pane.view.convert(pane.view.bounds, to: nil)
+            let candidateCenter = NSPoint(x: candidateFrame.midX, y: candidateFrame.midY)
+            
+            let dx = candidateCenter.x - currentCenter.x
+            let dy = candidateCenter.y - currentCenter.y
+            
+            var isCandidate = false
+            var primaryDelta: Double = 0
+            var secondaryDelta: Double = 0
+            
+            switch direction {
+            case .left:
+                if dx < -1 {
+                    isCandidate = true
+                    primaryDelta = -dx
+                    secondaryDelta = dy
+                }
+            case .right:
+                if dx > 1 {
+                    isCandidate = true
+                    primaryDelta = dx
+                    secondaryDelta = dy
+                }
+            case .up:
+                if dy > 1 { // In macOS, Y increases upwards
+                    isCandidate = true
+                    primaryDelta = dy
+                    secondaryDelta = dx
+                }
+            case .down:
+                if dy < -1 {
+                    isCandidate = true
+                    primaryDelta = -dy
+                    secondaryDelta = dx
+                }
+            }
+            
+            if isCandidate {
+                // Calculate distance with a penalty for misalignment on the secondary axis
+                let dist = primaryDelta + 4.0 * abs(secondaryDelta)
+                if dist < minDistance {
+                    minDistance = dist
+                    bestCandidate = pane
+                }
+            }
+        }
+        
+        if let target = bestCandidate, let idx = panes.firstIndex(where: { $0 === target }) {
+            selectPane(at: idx)
+        }
+    }
+
+    // MARK: - Zoom (Maximize / Restore)
+    
+    func toggleZoom() {
+        if zoomedPane != nil {
+            zoomedPane = nil
+        } else if let cur = currentPane {
+            zoomedPane = cur
+        }
+        rebuildLayout()
+    }
+
+
     func splitHorizontal() {
         split(orientation: .horizontal)
     }
@@ -233,6 +318,19 @@ final class PaneManager {
         guard let hostView else { return }
         hostView.subviews.forEach { $0.removeFromSuperview() }
         splitViews.removeAll()
+
+        if let zoomed = zoomedPane, panes.contains(where: { $0 === zoomed }) {
+            let view = zoomed.view
+            view.translatesAutoresizingMaskIntoConstraints = false
+            hostView.addSubview(view)
+            NSLayoutConstraint.activate([
+                view.topAnchor.constraint(equalTo: hostView.topAnchor),
+                view.leadingAnchor.constraint(equalTo: hostView.leadingAnchor),
+                view.trailingAnchor.constraint(equalTo: hostView.trailingAnchor),
+                view.bottomAnchor.constraint(equalTo: hostView.bottomAnchor),
+            ])
+            return
+        }
 
         if panes.count == 1, let pane = panes.first {
             let view = pane.view

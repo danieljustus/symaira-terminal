@@ -26,6 +26,8 @@ final class TerminalPane: PaneContainer {
         get { surface?.outputTap }
         set { surface?.outputTap = newValue }
     }
+    
+    public var pid: pid_t { surface?.pid ?? -1 }
 
     init(surface: (any TerminalSurface)?, configuration: TerminalSurfaceConfiguration = .init()) {
         self.surface = surface
