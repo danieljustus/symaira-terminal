@@ -40,7 +40,7 @@ let package = Package(
         .target(name: "ProviderKit"),
         .target(name: "ContextBank"),
         .target(name: "StackKit"),
-        .target(name: "UsageKit"),
+        .target(name: "UsageKit", resources: [.process("Resources")]),
 
         .target(
             name: "SymairaUI",
