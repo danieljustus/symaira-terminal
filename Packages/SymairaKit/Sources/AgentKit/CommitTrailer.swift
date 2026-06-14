@@ -32,7 +32,7 @@ public struct CommitTrailer {
 
 public actor GitCommitWatcher {
     private let fileManager = FileManager.default
-    private var watchedPaths: [String: DispatchSource.FileSystemObject] = [:]
+    private var watchedPaths: [String: DispatchSourceFileSystemObject] = [:]
 
     public init() {}
 
