@@ -101,6 +101,12 @@ public struct TranscriptStorage: @unchecked Sendable {
         let directory = storageDirectory
         if !fileManager.fileExists(atPath: directory.path) {
             try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
+            // Protect the directory so transcript files inherit NSFileProtection.complete.
+            // This prevents other processes from reading transcript data when the device is locked.
+            try fileManager.setAttributes(
+                [.protectionKey: FileProtectionType.complete],
+                ofItemAtPath: directory.path
+            )
         }
 
         let fileURL = directory.appendingPathComponent("\(entry.id).json")
