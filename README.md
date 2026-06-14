@@ -1,7 +1,7 @@
 # Symaira Terminal
 
 [![CI](https://github.com/danieljustus/symaira-terminal/actions/workflows/ci.yml/badge.svg)](https://github.com/danieljustus/symaira-terminal/actions/workflows/ci.yml)
-[![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Release](https://img.shields.io/github/v/release/danieljustus/symaira-terminal)](https://github.com/danieljustus/symaira-terminal/releases)
 
 A native macOS terminal built for the Human-AI era — designed for running multiple
@@ -103,11 +103,12 @@ Keys are stored securely in the macOS Keychain — never sent to Symaira servers
 
 ## License
 
-AGPLv3 — see [LICENSE](LICENSE). Unlike the other Symaira cores (MIT), the terminal
-uses AGPLv3 deliberately: the full local product including BYOK stays free for
-everyone, and improvements to distributed forks must remain open. Commercial cloud
-services (team sync, mobile companion relay, hosted tunnels) will live in a separate
-private repository and are not required to build or run this app — see
+MIT — see [LICENSE](LICENSE). Like all other Symaira cores, Symaira Terminal is
+open-source under the MIT License. The Symaira name, logo, and app icon are
+protected trademarks — see [TRADEMARK.md](TRADEMARK.md). Third-party dependency
+notices are in [NOTICE](NOTICE). Commercial cloud services (team sync, mobile
+companion relay, hosted tunnels) live in a separate private repository and are
+not required to build or run this app — see
 [docs/commercial-boundary.md](docs/commercial-boundary.md).
 
 ## Building
