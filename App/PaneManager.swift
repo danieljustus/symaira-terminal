@@ -1,11 +1,13 @@
 import AppKit
 import GhosttyBridge
+import SymairaUI
 import TerminalCore
 import WorktreeKit
 
 @MainActor
 final class PaneManager {
     private(set) var panes: [TerminalPane] = []
+    private(set) var browserPanes: [BrowserPane] = []
     private(set) var currentPane: TerminalPane?
     private(set) var zoomedPane: TerminalPane?
     private var splitViews: [UUID: NSSplitView] = [:]
@@ -78,6 +80,69 @@ final class PaneManager {
         var config = defaultConfiguration()
         config.workingDirectory = directory
         return createPane(at: config)
+    }
+
+    @discardableResult
+    func createBrowserPane(url: URL? = nil) -> BrowserPane {
+        let browserPane = BrowserPane()
+        browserPanes.append(browserPane)
+
+        if let initialURL = url {
+            browserPane.navigate(to: initialURL.absoluteString)
+        }
+
+        guard let currentPane, let hostView else {
+            onPanesChanged?(panes)
+            return browserPane
+        }
+
+        let currentView = currentPane.view
+        let browserView = browserPane.view
+
+        if let existingSplit = findSplitView(for: currentPane) {
+            let newSplit = NSSplitView()
+            newSplit.isVertical = true
+            newSplit.dividerStyle = .thin
+            newSplit.autosaveName = nil
+
+            if let parentIdx = existingSplit.subviews.firstIndex(where: { $0 === currentView }) {
+                existingSplit.insertArrangedSubview(newSplit, at: parentIdx + 1)
+                currentView.translatesAutoresizingMaskIntoConstraints = true
+                browserView.translatesAutoresizingMaskIntoConstraints = true
+                newSplit.addArrangedSubview(currentView)
+                newSplit.addArrangedSubview(browserView)
+            }
+        } else {
+            let splitView = NSSplitView()
+            splitView.isVertical = true
+            splitView.dividerStyle = .thin
+            splitView.translatesAutoresizingMaskIntoConstraints = false
+
+            hostView.subviews.forEach { $0.removeFromSuperview() }
+            hostView.addSubview(splitView)
+
+            NSLayoutConstraint.activate([
+                splitView.topAnchor.constraint(equalTo: hostView.topAnchor),
+                splitView.leadingAnchor.constraint(equalTo: hostView.leadingAnchor),
+                splitView.trailingAnchor.constraint(equalTo: hostView.trailingAnchor),
+                splitView.bottomAnchor.constraint(equalTo: hostView.bottomAnchor),
+            ])
+
+            currentView.translatesAutoresizingMaskIntoConstraints = true
+            browserView.translatesAutoresizingMaskIntoConstraints = true
+            splitView.addArrangedSubview(currentView)
+            splitView.addArrangedSubview(browserView)
+            splitViews[UUID()] = splitView
+        }
+
+        return browserPane
+    }
+
+    func closeBrowserPane(_ browserPane: BrowserPane) {
+        guard let idx = browserPanes.firstIndex(where: { $0 === browserPane }) else { return }
+        browserPane.close()
+        browserPanes.remove(at: idx)
+        rebuildLayout()
     }
 
     func forkSession(from sourcePane: TerminalPane) -> TerminalPane? {
@@ -366,7 +431,7 @@ final class PaneManager {
             return
         }
 
-        if panes.count == 1, let pane = panes.first {
+        if panes.count == 1, let pane = panes.first, browserPanes.isEmpty {
             let view = pane.view
             view.translatesAutoresizingMaskIntoConstraints = false
             hostView.addSubview(view)
@@ -379,18 +444,62 @@ final class PaneManager {
             return
         }
 
-        guard panes.count >= 2 else { return }
-        let splitView = buildSplitView(from: currentLayout)
-        splitView.translatesAutoresizingMaskIntoConstraints = false
+        // Build terminal pane layout
+        let terminalSplitView: NSSplitView?
+        if panes.count >= 2 {
+            let splitView = buildSplitView(from: currentLayout)
+            splitView.translatesAutoresizingMaskIntoConstraints = false
+            terminalSplitView = splitView
+        } else if let pane = panes.first {
+            let wrapper = NSSplitView()
+            wrapper.isVertical = true
+            wrapper.dividerStyle = .thin
+            pane.view.translatesAutoresizingMaskIntoConstraints = true
+            wrapper.addSubview(pane.view)
+            wrapper.translatesAutoresizingMaskIntoConstraints = false
+            terminalSplitView = wrapper
+        } else {
+            terminalSplitView = nil
+        }
 
-        hostView.addSubview(splitView)
+        if browserPanes.isEmpty {
+            if let splitView = terminalSplitView {
+                hostView.addSubview(splitView)
+                NSLayoutConstraint.activate([
+                    splitView.topAnchor.constraint(equalTo: hostView.topAnchor),
+                    splitView.leadingAnchor.constraint(equalTo: hostView.leadingAnchor),
+                    splitView.trailingAnchor.constraint(equalTo: hostView.trailingAnchor),
+                    splitView.bottomAnchor.constraint(equalTo: hostView.bottomAnchor),
+                ])
+                splitViews[UUID()] = splitView
+            }
+            return
+        }
+
+        // Build combined layout with browser panes
+        let mainSplitView = NSSplitView()
+        mainSplitView.isVertical = true
+        mainSplitView.dividerStyle = .thin
+        mainSplitView.translatesAutoresizingMaskIntoConstraints = false
+
+        if let terminalSplit = terminalSplitView {
+            mainSplitView.addSubview(terminalSplit)
+        }
+
+        for browserPane in browserPanes {
+            let browserView = browserPane.view
+            browserView.translatesAutoresizingMaskIntoConstraints = true
+            mainSplitView.addSubview(browserView)
+        }
+
+        hostView.addSubview(mainSplitView)
         NSLayoutConstraint.activate([
-            splitView.topAnchor.constraint(equalTo: hostView.topAnchor),
-            splitView.leadingAnchor.constraint(equalTo: hostView.leadingAnchor),
-            splitView.trailingAnchor.constraint(equalTo: hostView.trailingAnchor),
-            splitView.bottomAnchor.constraint(equalTo: hostView.bottomAnchor),
+            mainSplitView.topAnchor.constraint(equalTo: hostView.topAnchor),
+            mainSplitView.leadingAnchor.constraint(equalTo: hostView.leadingAnchor),
+            mainSplitView.trailingAnchor.constraint(equalTo: hostView.trailingAnchor),
+            mainSplitView.bottomAnchor.constraint(equalTo: hostView.bottomAnchor),
         ])
-        splitViews[UUID()] = splitView
+        splitViews[UUID()] = mainSplitView
     }
 
     func restoreFromLayout(_ state: SessionState, window: NSWindow, manager: PaneManager) {

@@ -62,5 +62,6 @@ let package = Package(
         .testTarget(name: "ContextBankTests", dependencies: ["ContextBank"]),
         .testTarget(name: "StackKitTests", dependencies: ["StackKit"]),
         .testTarget(name: "UsageKitTests", dependencies: ["UsageKit"]),
+        .testTarget(name: "SymairaUITests", dependencies: ["SymairaUI"]),
     ]
 )
