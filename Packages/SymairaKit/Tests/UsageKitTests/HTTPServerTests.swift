@@ -14,7 +14,7 @@ import Foundation
             quotaProvider: { QuotaRegistry.QuotaResult(quotas: [], errors: [:]) }
         )
         // Start — should not throw
-        try server.start()
+        try await server.start()
         let running = await server.isRunning
         #expect(running)
 
@@ -30,8 +30,8 @@ import Foundation
             snapshotProvider: { UsageSnapshot(samples: [], generatedAt: Date()) },
             quotaProvider: { QuotaRegistry.QuotaResult(quotas: [], errors: [:]) }
         )
-        try server.start()
-        try server.start()  // second call should be no-op
+        try await server.start()
+        try await server.start()  // second call should be no-op
         let running = await server.isRunning
         #expect(running)
         await server.stop()

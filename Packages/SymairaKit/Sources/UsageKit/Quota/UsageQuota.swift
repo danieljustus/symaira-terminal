@@ -51,7 +51,7 @@ public struct UsageQuota: Equatable, Sendable {
 
 /// Error types for quota fetchers — kept separate from `UsageReader` errors
 /// so the UI can surface "unauthorized" vs. "unavailable" distinctly.
-public enum QuotaFetchError: Error, Sendable {
+public enum QuotaFetchError: Error, Sendable, Equatable {
     case notEnabled
     case unauthorized
     case networkUnavailable
