@@ -51,7 +51,8 @@ public struct SecretRedactor: Sendable {
         let raw: [(pattern: String, replacement: String)] = [
             // Anthropic keys: sk-ant-...
             ("sk-ant-[A-Za-z0-9_-]{20,}", "[REDACTED:anthropic-key]"),
-            // OpenAI keys: sk-...
+            // OpenAI keys: sk-... or sk-proj-...
+            ("sk-proj-[A-Za-z0-9]{20,}", "[REDACTED:openai-key]"),
             ("sk-[A-Za-z0-9]{20,}", "[REDACTED:openai-key]"),
             // GitHub tokens: ghp_, gho_, ghu_, ghs_, ghr_
             ("gh[pousr]_[A-Za-z0-9]{36,}", "[REDACTED:github-token]"),
@@ -73,8 +74,8 @@ public struct SecretRedactor: Sendable {
             ("(?i)(API_KEY|SECRET_KEY|PRIVATE_KEY|ACCESS_TOKEN|AUTH_TOKEN|PASSWORD|SECRET)=[\"']?[^\\s\"']{4,}[\"']?", "$1=[REDACTED]"),
             // Private key file paths
             ("(?i)(id_rsa|id_ed25519|id_ecdsa|\\.pem|\\.key)(?=[\\s\"':]|$)", "[REDACTED:key-file]"),
-            // Base64-encoded blocks that look like keys (40+ chars, no spaces)
-            ("(?<=[=: ])[A-Za-z0-9+/]{40,}={0,2}(?=[\\s\"']|$)", "[REDACTED:base64-secret]"),
+            // Base64-encoded blocks that look like keys (40+ chars, require delimiters)
+            ("(?<=[=: ])[A-Za-z0-9+/]{40,}={0,2}(?=[\\s\"':,])", "[REDACTED:base64-secret]"),
         ]
 
         return raw.compactMap { entry in

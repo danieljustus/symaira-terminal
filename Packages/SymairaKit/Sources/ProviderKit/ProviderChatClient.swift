@@ -26,6 +26,19 @@ public enum ProviderError: Error, LocalizedError {
     }
 }
 
+/// A wrapper that redacts the secret value in `description` and `debugDescription`
+/// to prevent accidental logging of API keys.
+public struct Secret<Value: Sendable>: Sendable {
+    public let value: Value
+
+    public init(_ value: Value) {
+        self.value = value
+    }
+
+    public var description: String { "[REDACTED]" }
+    public var debugDescription: String { "[REDACTED]" }
+}
+
 struct ProviderDescriptor: Sendable {
     let endpoint: @Sendable (ProviderID, WorkspaceConfig.ProfileConfig?) -> URL
     let authHeader: @Sendable (String?) -> [String: String]
@@ -199,9 +212,11 @@ public struct ProviderChatClient: Sendable {
             throw ProviderError.networkError(NSError(domain: "ProviderKit", code: -1, userInfo: [NSLocalizedDescriptionKey: "Unknown provider"]))
         }
 
+        // Fetch key once; wrap in Secret to redact in logs/debug output.
+        let secretKey = Secret(try keyStore.key(provider: provider, profile: profile) ?? "")
+
         if provider != .ollama {
-            let apiKey = try keyStore.key(provider: provider, profile: profile)
-            guard let key = apiKey, !key.isEmpty else {
+            guard !secretKey.value.isEmpty else {
                 throw ProviderError.missingKey
             }
         }
@@ -217,9 +232,8 @@ public struct ProviderChatClient: Sendable {
             }
         }
 
-        let apiKey = try keyStore.key(provider: provider, profile: profile)
         let url = descriptor.endpoint(provider, profileConfig)
-        let headers = descriptor.authHeader(apiKey)
+        let headers = descriptor.authHeader(secretKey.value)
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"

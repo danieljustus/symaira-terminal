@@ -4,8 +4,10 @@
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 0.1.x   | :white_check_mark: |
-| < 0.1   | :x:                |
+| 0.5.x+  | :white_check_mark: |
+| < 0.5   | :x:                |
+
+Beta releases (e.g. `0.5.0-beta.1`) are covered under the same policy as stable releases.
 
 ## Reporting a Vulnerability
 

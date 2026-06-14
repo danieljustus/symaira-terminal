@@ -11,6 +11,9 @@ public struct WorkspaceConfig: Codable, Equatable, Sendable {
     /// All configured agent profiles for this workspace.
     public var agentProfiles: [AgentProfileConfig]
 
+    /// Config schema version for one-time migrations.
+    public var configVersion: Int
+
     public struct ProfileConfig: Codable, Equatable, Sendable {
         public let name: String
         public var baseURL: String?
@@ -41,7 +44,8 @@ public struct WorkspaceConfig: Codable, Equatable, Sendable {
         activeProfile: String = "default",
         profiles: [ProfileConfig] = [],
         activeAgentProfile: String = "default",
-        agentProfiles: [AgentProfileConfig] = []
+        agentProfiles: [AgentProfileConfig] = [],
+        configVersion: Int = 1
     ) {
         self.activeProfile = activeProfile
         self.profiles = profiles.isEmpty ? [ProfileConfig(name: "default")] : profiles
@@ -49,12 +53,13 @@ public struct WorkspaceConfig: Codable, Equatable, Sendable {
         self.agentProfiles = agentProfiles.isEmpty
             ? [AgentProfileConfig(name: "default")]
             : agentProfiles
+        self.configVersion = configVersion
     }
 
     public static let `default` = WorkspaceConfig()
 
     private enum CodingKeys: String, CodingKey {
-        case activeProfile, profiles, activeAgentProfile, agentProfiles
+        case activeProfile, profiles, activeAgentProfile, agentProfiles, configVersion
     }
 
     // Custom decoding so configs written before the agent-profile fields existed
@@ -66,7 +71,8 @@ public struct WorkspaceConfig: Codable, Equatable, Sendable {
             activeProfile: try c.decodeIfPresent(String.self, forKey: .activeProfile) ?? "default",
             profiles: try c.decodeIfPresent([ProfileConfig].self, forKey: .profiles) ?? [],
             activeAgentProfile: try c.decodeIfPresent(String.self, forKey: .activeAgentProfile) ?? "default",
-            agentProfiles: try c.decodeIfPresent([AgentProfileConfig].self, forKey: .agentProfiles) ?? []
+            agentProfiles: try c.decodeIfPresent([AgentProfileConfig].self, forKey: .agentProfiles) ?? [],
+            configVersion: try c.decodeIfPresent(Int.self, forKey: .configVersion) ?? 0
         )
     }
 
@@ -155,16 +161,20 @@ public final class WorkspaceConfigManager: ObservableObject {
         guard let data = try? Data(contentsOf: url) else {
             return .default
         }
-        // Migration: strip providerKeys from any existing config file.
-        // Keys must never be persisted — they live in the macOS Keychain only.
         guard var json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             return .default
         }
-        if var profiles = json["profiles"] as? [[String: Any]] {
-            for i in profiles.indices {
-                profiles[i].removeValue(forKey: "providerKeys")
+        // Run one-time migrations based on config version.
+        let configVersion = json["configVersion"] as? Int ?? 0
+        if configVersion < 1 {
+            // v0 → v1: strip providerKeys from profiles (keys live in Keychain only).
+            if var profiles = json["profiles"] as? [[String: Any]] {
+                for i in profiles.indices {
+                    profiles[i].removeValue(forKey: "providerKeys")
+                }
+                json["profiles"] = profiles
             }
-            json["profiles"] = profiles
+            json["configVersion"] = 1
         }
         guard let sanitizedData = try? JSONSerialization.data(withJSONObject: json),
               let config = try? JSONDecoder().decode(WorkspaceConfig.self, from: sanitizedData) else {

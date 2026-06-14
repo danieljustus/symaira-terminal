@@ -169,6 +169,12 @@ private func feed(_ parser: inout OSCStreamParser, _ text: String) -> [OSCEvent]
             "CLAUDECODE": "1",
             "CLAUDE_CODE_ENTRYPOINT": "cli",
             "GEMINI_API_KEY": "g-x",
+            "AWS_SECRET_ACCESS_KEY": "key",
+            "AZURE_OPENAI_API_KEY": "key",
+            "COHERE_API_KEY": "key",
+            "HF_TOKEN": "token",
+            "TOGETHER_API_KEY": "key",
+            "HUGGINGFACE_HUB_TOKEN": "token",
             "TERM": "xterm-256color",
         ]
         let sanitized = EnvironmentSanitizer.sanitize(env)

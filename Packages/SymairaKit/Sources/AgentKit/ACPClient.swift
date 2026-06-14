@@ -153,6 +153,8 @@ public final class ACPClient: @unchecked Sendable {
     }
 
     public func onEvent(_ handler: @escaping (ACPEvent) -> Void) {
+        lock.lock()
+        defer { lock.unlock() }
         eventHandler = handler
     }
 
@@ -223,14 +225,22 @@ public final class ACPClient: @unchecked Sendable {
         while process.isRunning {
             let chunk = stdout.fileHandleForReading.readData(ofLength: 4096)
             guard !chunk.isEmpty else { break }
+            lock.lock()
             frameParser.feed(chunk)
             while let message = frameParser.nextMessage() {
+                lock.unlock()
                 processMessage(message)
+                lock.lock()
             }
+            lock.unlock()
         }
+        lock.lock()
         while let message = frameParser.nextMessage() {
+            lock.unlock()
             processMessage(message)
+            lock.lock()
         }
+        lock.unlock()
     }
 
     private func processMessage(_ message: [String: Any]) {
@@ -276,6 +286,9 @@ public final class ACPClient: @unchecked Sendable {
         default:
             return
         }
-        eventHandler?(event)
+        lock.lock()
+        let handler = eventHandler
+        lock.unlock()
+        handler?(event)
     }
 }
