@@ -123,17 +123,21 @@ public struct TranscriptStorage: @unchecked Sendable {
         return try? decoder.decode(TranscriptEntry.self, from: data)
     }
 
-    public func list() -> [TranscriptEntry] {
+    public func list(limit: Int? = nil, offset: Int = 0) -> [TranscriptEntry] {
         guard let files = try? fileManager.contentsOfDirectory(
             at: storageDirectory,
             includingPropertiesForKeys: nil
         ) else { return [] }
 
-        return files
+        let sorted = files
             .filter { $0.pathExtension == "json" }
             .compactMap { try? Data(contentsOf: $0) }
             .compactMap { try? decoder.decode(TranscriptEntry.self, from: $0) }
             .sorted { $0.timestamp > $1.timestamp }
+
+        let start = min(offset, sorted.count)
+        let end = limit.map { min(start + $0, sorted.count) } ?? sorted.count
+        return Array(sorted[start..<end])
     }
 
     public func delete(id: String) throws {
