@@ -62,6 +62,9 @@ struct GeneralSettingsView: View {
     @Binding var defaultShell: String
     @Binding var scrollbackLines: Int
 
+    @AppStorage("keepAwakeAlways") private var keepAwakeAlways = false
+    @AppStorage("keepAwakeWhileAgentRunning") private var keepAwakeWhileAgentRunning = true
+
     var body: some View {
         Form {
             Section("Shell") {
@@ -81,6 +84,11 @@ struct GeneralSettingsView: View {
                         .textFieldStyle(.roundedBorder)
                         .frame(width: 80)
                 }
+            }
+
+            Section("Sleep Prevention") {
+                Toggle("Keep Mac Awake Always", isOn: $keepAwakeAlways)
+                Toggle("Keep Mac Awake While Agent is Running", isOn: $keepAwakeWhileAgentRunning)
             }
         }
         .formStyle(.grouped)
