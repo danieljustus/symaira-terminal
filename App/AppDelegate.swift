@@ -37,6 +37,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var savedWindowFrame: CodableRect?
 
     func applicationDidFinishLaunching(_: Notification) {
+        UserDefaults.standard.register(defaults: [
+            "keepAwakeAlways": false,
+            "keepAwakeWhileAgentRunning": true
+        ])
+        SleepPreventionManager.shared.updateAssertionState()
+
         let config = GhosttyAppConfig.parse()
         self.ghosttyConfig = config
 
@@ -233,6 +239,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_: Notification) {
         monitorTask?.cancel()
+        SleepPreventionManager.shared.deactivateAssertion()
         saveSession()
         paneManager?.panes.forEach { $0.close() }
     }
@@ -262,6 +269,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let appMenu = NSMenu()
         appMenu.addItem(NSMenuItem(title: "About Symaira Terminal", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: ""))
         appMenu.addItem(.separator())
+        let keepAwakeItem = NSMenuItem(title: "Keep Mac Awake", action: #selector(toggleKeepAwake), keyEquivalent: "")
+        keepAwakeItem.target = self
+        appMenu.addItem(keepAwakeItem)
         let settingsItem = NSMenuItem(title: "Settings…", action: #selector(showSettings), keyEquivalent: ",")
         settingsItem.target = self
         appMenu.addItem(settingsItem)
@@ -488,6 +498,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         
         await MainActor.run {
             self.sidebarViewModel?.paneItems = updatedItems
+            self.checkActiveAgents()
         }
     }
 
@@ -857,6 +868,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func updateStatusRing(paneID: UUID, status: AgentStatus) {
         guard let pane = paneManager?.panes.first(where: { $0.paneID == paneID }) else { return }
         pane.updateStatus(status)
+        checkActiveAgents()
+    }
+
+    @objc private func toggleKeepAwake() {
+        let current = UserDefaults.standard.bool(forKey: "keepAwakeAlways")
+        UserDefaults.standard.set(!current, forKey: "keepAwakeAlways")
+        SleepPreventionManager.shared.updateAssertionState()
+    }
+
+    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        if menuItem.action == #selector(toggleKeepAwake) {
+            menuItem.state = UserDefaults.standard.bool(forKey: "keepAwakeAlways") ? .on : .off
+            return true
+        }
+        return true
+    }
+
+    private func checkActiveAgents() {
+        guard let paneManager = self.paneManager else { return }
+        let hasActive = paneManager.panes.contains { pane in
+            pane.agentStatus == .running || pane.agentStatus == .awaitingApproval
+        }
+        SleepPreventionManager.shared.updateAgentActivityState(hasActiveAgent: hasActive)
     }
 }
 
