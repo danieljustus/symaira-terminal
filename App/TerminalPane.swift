@@ -1,6 +1,7 @@
 import AgentKit
 import AppKit
 import GhosttyBridge
+import SwiftUI
 import SymairaUI
 import TerminalCore
 
@@ -42,21 +43,21 @@ final class TerminalPane: PaneContainer {
             container.addSubview(terminalView)
         }
         
-        let editorView = inputEditor.view
-        editorView.translatesAutoresizingMaskIntoConstraints = false
-        container.addSubview(editorView)
+        let inputBar = NSHostingView(rootView: CommandInputBar(editor: inputEditor))
+        inputBar.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(inputBar)
         
         NSLayoutConstraint.activate([
             container.subviews[0].topAnchor.constraint(equalTo: container.topAnchor),
             container.subviews[0].leadingAnchor.constraint(equalTo: container.leadingAnchor),
             container.subviews[0].trailingAnchor.constraint(equalTo: container.trailingAnchor),
             
-            editorView.topAnchor.constraint(equalTo: container.subviews[0].bottomAnchor),
-            editorView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            editorView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            editorView.bottomAnchor.constraint(equalTo: container.bottomAnchor),
-            editorView.heightAnchor.constraint(greaterThanOrEqualToConstant: 32),
-            editorView.heightAnchor.constraint(lessThanOrEqualToConstant: 200),
+            inputBar.topAnchor.constraint(equalTo: container.subviews[0].bottomAnchor),
+            inputBar.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            inputBar.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            inputBar.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+            inputBar.heightAnchor.constraint(greaterThanOrEqualToConstant: 32),
+            inputBar.heightAnchor.constraint(lessThanOrEqualToConstant: 200),
         ])
         
         return container

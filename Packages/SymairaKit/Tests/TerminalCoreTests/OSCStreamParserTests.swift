@@ -101,6 +101,61 @@ private func feed(_ parser: inout OSCStreamParser, _ text: String) -> [OSCEvent]
         let events = feed(&parser, "\u{1B}[31mred\u{1B}[0m\u{1B}]0;t\u{07}")
         #expect(events == [.windowTitle("t")])
     }
+
+    @Test func hyperlinkStartWithBEL() {
+        var parser = OSCStreamParser()
+        let events = feed(&parser, "\u{1B}]8;id=link1;https://example.com\u{07}")
+        #expect(events.count == 1)
+        guard case let .hyperlink(uri, params) = events[0] else {
+            Issue.record("expected hyperlink, got \(events)")
+            return
+        }
+        #expect(uri?.absoluteString == "https://example.com")
+        #expect(params == "id=link1")
+    }
+
+    @Test func hyperlinkEndWithST() {
+        var parser = OSCStreamParser()
+        let events = feed(&parser, "\u{1B}]8;;\u{1B}\\")
+        #expect(events.count == 1)
+        guard case let .hyperlink(uri, params) = events[0] else {
+            Issue.record("expected hyperlink, got \(events)")
+            return
+        }
+        #expect(uri == nil)
+        #expect(params.isEmpty)
+    }
+
+    @Test func hyperlinkStartEndCycle() {
+        var parser = OSCStreamParser()
+        let stream = "\u{1B}]8;id=mylink;https://example.com\u{07}click here\u{1B}]8;;\u{07}"
+        let events = feed(&parser, stream)
+        #expect(events.count == 2)
+        guard case let .hyperlink(startURI, startParams) = events[0] else {
+            Issue.record("expected hyperlink start, got \(events[0])")
+            return
+        }
+        #expect(startURI?.absoluteString == "https://example.com")
+        #expect(startParams == "id=mylink")
+        guard case let .hyperlink(endURI, endParams) = events[1] else {
+            Issue.record("expected hyperlink end, got \(events[1])")
+            return
+        }
+        #expect(endURI == nil)
+        #expect(endParams.isEmpty)
+    }
+
+    @Test func hyperlinkEmptyURI() {
+        var parser = OSCStreamParser()
+        let events = feed(&parser, "\u{1B}]8;id=x;\u{07}")
+        #expect(events.count == 1)
+        guard case let .hyperlink(uri, params) = events[0] else {
+            Issue.record("expected hyperlink, got \(events)")
+            return
+        }
+        #expect(uri == nil)
+        #expect(params == "id=x")
+    }
 }
 
 @Suite struct EnvironmentSanitizerTests {

@@ -13,6 +13,9 @@ public final class CommandInputEditor: NSObject, ObservableObject {
     @Published public var isVisible: Bool = true
     @Published public var text: String = ""
     @Published public var cursorPosition: Int = 0
+    @Published public var isSTTAuthorized: Bool = false
+
+    public let sttService = STTService()
 
     private var history: [String] = []
     private var historyIndex: Int = -1
@@ -20,6 +23,7 @@ public final class CommandInputEditor: NSObject, ObservableObject {
     private let scrollView: NSScrollView
     private weak var surface: (any TerminalSurface)?
     private var isAlternateScreenActive: Bool = false
+    private var lastRecognizedText: String = ""
 
     public init(surface: (any TerminalSurface)?) {
         let textStorage = NSTextStorage()
@@ -66,6 +70,7 @@ public final class CommandInputEditor: NSObject, ObservableObject {
 
         self.surface = surface
         textView.delegate = self
+        sttService.delegate = self
         setupKeyBindings()
     }
 
@@ -83,6 +88,45 @@ public final class CommandInputEditor: NSObject, ObservableObject {
         text = ""
         cursorPosition = 0
         historyIndex = -1
+    }
+
+    public func requestSTTAuthorization() {
+        sttService.requestAuthorization { [weak self] authorized in
+            self?.isSTTAuthorized = authorized
+        }
+    }
+
+    public func toggleSTTRecording() {
+        if sttService.isRecording {
+            sttService.stopRecording()
+        } else {
+            if !isSTTAuthorized {
+                requestSTTAuthorization()
+                return
+            }
+            lastRecognizedText = ""
+            do {
+                try sttService.startRecording()
+            } catch {
+                NSLog("symaira stt: failed to start recording — \(error.localizedDescription)")
+            }
+        }
+    }
+
+    private func insertRecognizedText(_ newText: String) {
+        let delta: String
+        if newText.hasPrefix(lastRecognizedText) {
+            delta = String(newText.dropFirst(lastRecognizedText.count))
+        } else {
+            delta = newText
+        }
+        lastRecognizedText = newText
+
+        guard !delta.isEmpty else { return }
+
+        let cursor = textView.selectedRange.location
+        let nsRange = NSRange(location: cursor, length: 0)
+        textView.insertText(delta, replacementRange: nsRange)
     }
 
     public func setAlternateScreenActive(_ active: Bool) {
@@ -175,6 +219,55 @@ public struct CommandInputEditorView: NSViewRepresentable {
 
     public func updateNSView(_ nsView: NSView, context: Context) {
         nsView.isHidden = !editor.isVisible
+    }
+}
+
+public struct CommandInputBar: View {
+    @ObservedObject var editor: CommandInputEditor
+
+    public init(editor: CommandInputEditor) {
+        self.editor = editor
+    }
+
+    public var body: some View {
+        VStack(spacing: 0) {
+            CommandInputEditorView(editor: editor)
+                .frame(minHeight: 28, idealHeight: 36)
+
+            HStack(spacing: 8) {
+                Button {
+                    editor.toggleSTTRecording()
+                } label: {
+                    Image(systemName: editor.sttService.isRecording ? "mic.fill" : "mic")
+                        .font(.system(size: 12))
+                        .foregroundColor(editor.sttService.isRecording ? .red : .secondary)
+                }
+                .buttonStyle(.plain)
+                .help(editor.sttService.isRecording ? "Stop dictation" : "Start dictation")
+                .onAppear {
+                    editor.requestSTTAuthorization()
+                }
+
+                Spacer()
+            }
+            .padding(.horizontal, 6)
+            .padding(.vertical, 3)
+            .background(Color(nsColor: .textBackgroundColor).opacity(0.5))
+        }
+    }
+}
+
+extension CommandInputEditor: STTServiceDelegate {
+    public func sttService(_ service: STTService, didRecognize text: String) {
+        insertRecognizedText(text)
+    }
+
+    public func sttService(_ service: STTService, didFailWithError error: Error) {
+        NSLog("symaira stt: recognition error — \(error.localizedDescription)")
+    }
+
+    public func sttServiceDidFinishRecording(_ service: STTService) {
+        lastRecognizedText = ""
     }
 }
 

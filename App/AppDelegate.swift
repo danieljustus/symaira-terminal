@@ -30,6 +30,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private lazy var workspaceConfigManager = WorkspaceConfigManager(workspaceURL: URL(fileURLWithPath: NSHomeDirectory()))
     private var settingsWindow: NSWindow?
     private var onboardingWindow: NSWindow?
+    private var sketchpadWindow: NSWindow?
     private var serviceProvider: TerminalServiceProvider?
 
     // Saved at launch — self.window must not be accessed during termination
@@ -734,6 +735,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         _ = paneManager?.forkSession(from: currentPane)
     }
 
+    private func toggleDictation() {
+        guard let currentPane = paneManager?.currentPane else { return }
+        currentPane.inputEditor.toggleSTTRecording()
+    }
+
+    private func showSketchpad() {
+        if let existing = sketchpadWindow {
+            existing.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+
+        let sketchpadView = SketchpadView()
+        let hostingController = NSHostingController(rootView: sketchpadView)
+
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 400, height: 350),
+            styleMask: [.titled, .closable, .resizable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "Sketchpad"
+        window.contentViewController = hostingController
+        window.isReleasedWhenClosed = false
+        window.center()
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        sketchpadWindow = window
+    }
+
     private func showCommandPalette() {
         guard let window else { return }
         let items = [
@@ -754,6 +785,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             CommandPaletteItem(name: "Focus Blocked Agent", shortcut: "⌘⇧U", category: "Navigation") { [weak self] in self?.focusBlocked() },
             CommandPaletteItem(name: "Toggle Sidebar", shortcut: "⌘B", category: "View") { [weak self] in self?.toggleSidebar() },
             CommandPaletteItem(name: "Fork Session", shortcut: "⌘⇧F", category: "Session") { [weak self] in self?.forkSession() },
+            CommandPaletteItem(name: "Toggle Dictation", shortcut: nil, category: "Input") { [weak self] in self?.toggleDictation() },
+            CommandPaletteItem(name: "Open Sketchpad", shortcut: nil, category: "Input") { [weak self] in self?.showSketchpad() },
         ]
 
         let paletteView = CommandPalette(isPresented: .constant(true), items: items)
