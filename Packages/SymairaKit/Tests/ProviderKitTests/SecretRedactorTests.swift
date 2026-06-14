@@ -131,6 +131,20 @@ final class SecretRedactorTests: XCTestCase {
         XCTAssertFalse(result.wasTruncated)
     }
 
+    func testRedactsOpenAIProjectKey() {
+        let input = "key=sk-proj-ABCDEFghijklmnop1234567890ABCDEF"
+        let result = redactor.redact(input)
+        XCTAssertFalse(result.text.contains("sk-proj-"))
+        XCTAssertTrue(result.text.contains("[REDACTED:openai-key]"))
+    }
+
+    func testDoesNotRedactCommitSHA() {
+        let input = "commit 880ace8484221cfc2e9b5aa6c5c0147251a4103b"
+        let result = redactor.redact(input)
+        XCTAssertEqual(result.redactionCount, 0)
+        XCTAssertTrue(result.text.contains("880ace8484221cfc2e9b5aa6c5c0147251a4103b"))
+    }
+
     func testEmptyInput() {
         let result = redactor.redact("")
         XCTAssertEqual(result.text, "")
