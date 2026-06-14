@@ -1,8 +1,9 @@
+import Foundation
 import Testing
 @testable import SymairaUI
 
 @Suite struct BrowserPaneTests {
-    @Test func instantiationCreatesPaneWithID() {
+    @Test @MainActor func instantiationCreatesPaneWithID() {
         let pane = BrowserPane()
         #expect(pane.paneID != UUID())
         #expect(pane.kind == .browser)
@@ -18,13 +19,13 @@ import Testing
         #expect(kind == .browser)
     }
 
-    @Test func browserPaneHasView() {
+    @Test @MainActor func browserPaneHasView() {
         let pane = BrowserPane()
         let view = pane.view
         #expect(view != nil)
     }
 
-    @Test func closeDoesNotCrash() {
+    @Test @MainActor func closeDoesNotCrash() {
         let pane = BrowserPane()
         pane.close()
     }

@@ -1,6 +1,7 @@
 import AgentKit
 import AppKit
 import GhosttyBridge
+import SwiftUI
 import SymairaUI
 import TerminalCore
 
