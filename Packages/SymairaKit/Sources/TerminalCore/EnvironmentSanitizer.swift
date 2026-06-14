@@ -20,6 +20,12 @@ public enum EnvironmentSanitizer {
         "OPENAI_",
         "OPENROUTER_",
         "CLAUDE_CODE_",
+        "AWS_SECRET",
+        "AZURE_",
+        "COHERE_",
+        "HF_",
+        "TOGETHER_",
+        "HUGGINGFACE_",
     ]
 
     public static func sanitize(_ environment: [String: String]) -> [String: String] {
