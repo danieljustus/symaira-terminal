@@ -110,7 +110,7 @@ private func sample(ts: Date, input: Int = 10, output: Int = 5, model: String = 
         let anchor = testNow.addingTimeInterval(-2 * 3600)  // 2 hours ago
         let s = sample(ts: testNow.addingTimeInterval(-1 * 3600))
         let current = agg.currentBillingWindow(samples: [s], now: testNow, windowStart: anchor)
-        #expect(current.isActive)
+        #expect(current.isActive(at: testNow))
         #expect(current.totals.sampleCount == 1)
     }
 
@@ -124,7 +124,7 @@ private func sample(ts: Date, input: Int = 10, output: Int = 5, model: String = 
     @Test func windowRemainingIsPositive() {
         let anchor = testNow.addingTimeInterval(-1 * 3600)
         let current = agg.currentBillingWindow(samples: [], now: testNow, windowStart: anchor)
-        #expect(current.remaining > 0)
+        #expect(current.remaining(at: testNow) > 0)
     }
 
     @Test func windowAcrossBoundaryCountsOnlyCurrentWindow() {
