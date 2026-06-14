@@ -1,11 +1,9 @@
 import Foundation
-import Testing
+import XCTest
 @testable import TerminalCore
 
-@Suite("EnvironmentSanitizer")
-struct EnvironmentSanitizerTests {
-    @Test("Blocked exact names are stripped")
-    func blockedNamesStripped() {
+final class EnvironmentSanitizerTests: XCTestCase {
+    func testBlockedNamesStripped() {
         let env: [String: String] = [
             "CLAUDECODE": "1",
             "GOOGLE_API_KEY": "key",
@@ -13,14 +11,13 @@ struct EnvironmentSanitizerTests {
             "PATH": "/usr/bin",
         ]
         let result = EnvironmentSanitizer.sanitize(env)
-        #expect(result["CLAUDECODE"] == nil)
-        #expect(result["GOOGLE_API_KEY"] == nil)
-        #expect(result["GEMINI_API_KEY"] == nil)
-        #expect(result["PATH"] == "/usr/bin")
+        XCTAssertNil(result["CLAUDECODE"])
+        XCTAssertNil(result["GOOGLE_API_KEY"])
+        XCTAssertNil(result["GEMINI_API_KEY"])
+        XCTAssertEqual(result["PATH"], "/usr/bin")
     }
 
-    @Test("Blocked prefixes are stripped")
-    func blockedPrefixesStripped() {
+    func testBlockedPrefixesStripped() {
         let env: [String: String] = [
             "ANTHROPIC_API_KEY": "key",
             "OPENAI_API_KEY": "key",
@@ -36,35 +33,33 @@ struct EnvironmentSanitizerTests {
             "SAFE_VAR": "value",
         ]
         let result = EnvironmentSanitizer.sanitize(env)
-        #expect(result["ANTHROPIC_API_KEY"] == nil)
-        #expect(result["OPENAI_API_KEY"] == nil)
-        #expect(result["OPENROUTER_API_KEY"] == nil)
-        #expect(result["CLAUDE_CODE_MODEL"] == nil)
-        #expect(result["AWS_SECRET_ACCESS_KEY"] == nil)
-        #expect(result["AWS_SECRET_SESSION_TOKEN"] == nil)
-        #expect(result["AZURE_OPENAI_API_KEY"] == nil)
-        #expect(result["COHERE_API_KEY"] == nil)
-        #expect(result["HF_TOKEN"] == nil)
-        #expect(result["TOGETHER_API_KEY"] == nil)
-        #expect(result["HUGGINGFACE_HUB_TOKEN"] == nil)
-        #expect(result["SAFE_VAR"] == "value")
+        XCTAssertNil(result["ANTHROPIC_API_KEY"])
+        XCTAssertNil(result["OPENAI_API_KEY"])
+        XCTAssertNil(result["OPENROUTER_API_KEY"])
+        XCTAssertNil(result["CLAUDE_CODE_MODEL"])
+        XCTAssertNil(result["AWS_SECRET_ACCESS_KEY"])
+        XCTAssertNil(result["AWS_SECRET_SESSION_TOKEN"])
+        XCTAssertNil(result["AZURE_OPENAI_API_KEY"])
+        XCTAssertNil(result["COHERE_API_KEY"])
+        XCTAssertNil(result["HF_TOKEN"])
+        XCTAssertNil(result["TOGETHER_API_KEY"])
+        XCTAssertNil(result["HUGGINGFACE_HUB_TOKEN"])
+        XCTAssertEqual(result["SAFE_VAR"], "value")
     }
 
-    @Test("Non-sensitive variables pass through")
-    func nonSensitivePassThrough() {
+    func testNonSensitivePassThrough() {
         let env: [String: String] = [
             "PATH": "/usr/bin",
             "HOME": "/Users/test",
             "TERM": "xterm-256color",
         ]
         let result = EnvironmentSanitizer.sanitize(env)
-        #expect(result == env)
+        XCTAssertEqual(result, env)
     }
 
-    @Test("Empty environment returns empty")
-    func emptyEnvironment() {
+    func testEmptyEnvironment() {
         let env: [String: String] = [:]
         let result = EnvironmentSanitizer.sanitize(env)
-        #expect(result.isEmpty)
+        XCTAssertTrue(result.isEmpty)
     }
 }
