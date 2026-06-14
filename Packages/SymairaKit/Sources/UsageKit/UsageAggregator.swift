@@ -53,7 +53,10 @@ public struct BillingWindow: Equatable, Sendable {
     public let totals: UsageTotals
 
     public var remaining: TimeInterval { max(0, end.timeIntervalSinceNow) }
-    public var isActive: Bool { Date() < end }
+    public var isActive: Bool { isActive(at: Date()) }
+
+    public func remaining(at now: Date) -> TimeInterval { max(0, end.timeIntervalSince(now)) }
+    public func isActive(at now: Date) -> Bool { now < end }
 
     public init(start: Date, end: Date, totals: UsageTotals) {
         self.start = start
