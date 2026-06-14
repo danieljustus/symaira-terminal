@@ -22,8 +22,6 @@ public final class CommandInputEditor: NSObject, ObservableObject {
     private var isAlternateScreenActive: Bool = false
 
     public init(surface: (any TerminalSurface)?) {
-        self.surface = surface
-
         let textStorage = NSTextStorage()
         let layoutManager = NSLayoutManager()
         textStorage.addLayoutManager(layoutManager)
@@ -66,6 +64,7 @@ public final class CommandInputEditor: NSObject, ObservableObject {
 
         super.init()
 
+        self.surface = surface
         textView.delegate = self
         setupKeyBindings()
     }
