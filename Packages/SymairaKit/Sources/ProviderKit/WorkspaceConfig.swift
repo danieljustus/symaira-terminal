@@ -53,6 +53,23 @@ public struct WorkspaceConfig: Codable, Equatable, Sendable {
 
     public static let `default` = WorkspaceConfig()
 
+    private enum CodingKeys: String, CodingKey {
+        case activeProfile, profiles, activeAgentProfile, agentProfiles
+    }
+
+    // Custom decoding so configs written before the agent-profile fields existed
+    // (and legacy configs that only carried provider profiles) still decode —
+    // synthesized Decodable would otherwise fail on the missing keys.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            activeProfile: try c.decodeIfPresent(String.self, forKey: .activeProfile) ?? "default",
+            profiles: try c.decodeIfPresent([ProfileConfig].self, forKey: .profiles) ?? [],
+            activeAgentProfile: try c.decodeIfPresent(String.self, forKey: .activeAgentProfile) ?? "default",
+            agentProfiles: try c.decodeIfPresent([AgentProfileConfig].self, forKey: .agentProfiles) ?? []
+        )
+    }
+
     public func profile(named name: String) -> ProfileConfig? {
         profiles.first { $0.name == name }
     }

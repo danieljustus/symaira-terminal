@@ -44,7 +44,6 @@ public final class CommandInputEditor: NSObject, ObservableObject {
         textView.selectedTextAttributes = [
             .backgroundColor: NSColor.controlAccentColor.withAlphaComponent(0.3)
         ]
-        textView.delegate = self
 
         textView.textContainerInset = NSSize(width: 4, height: 4)
         textView.minSize = NSSize(width: 0, height: 0)
@@ -67,6 +66,7 @@ public final class CommandInputEditor: NSObject, ObservableObject {
 
         super.init()
 
+        textView.delegate = self
         setupKeyBindings()
     }
 
