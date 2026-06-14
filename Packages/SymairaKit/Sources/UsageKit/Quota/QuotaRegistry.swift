@@ -15,6 +15,11 @@ public struct QuotaRegistry: Sendable {
     public struct QuotaResult: Sendable {
         public let quotas: [UsageQuota]
         public let errors: [UsageProvider: QuotaFetchError]
+
+        public init(quotas: [UsageQuota], errors: [UsageProvider: QuotaFetchError]) {
+            self.quotas = quotas
+            self.errors = errors
+        }
     }
 
     /// Concurrently fetch all enabled fetchers. Disabled or failed fetchers
