@@ -121,7 +121,7 @@ public final class SketchpadViewModel: ObservableObject {
 public struct SketchpadCanvasView: NSViewRepresentable {
     let canvas: SketchpadCanvas
 
-    public init(canvas: SketchpadCanvas) {
+    init(canvas: SketchpadCanvas) {
         self.canvas = canvas
     }
 
