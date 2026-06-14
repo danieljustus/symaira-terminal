@@ -1,6 +1,6 @@
 import AppKit
-import GhosttyBridge
 import SwiftUI
+import TerminalCore
 
 @MainActor
 public final class CommandInputEditor: NSObject, ObservableObject {
