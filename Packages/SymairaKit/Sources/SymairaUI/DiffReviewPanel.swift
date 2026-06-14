@@ -127,7 +127,7 @@ public struct DiffReviewPanel: View {
                         selectedTranscript = transcript
                     } label: {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(transcript.id.uuidString.prefix(8) + "...")
+                            Text(String(transcript.id.prefix(8)) + "...")
                                 .font(.system(.body, design: .monospaced))
                             Text(transcript.timestamp, style: .date)
                                 .font(.caption)
@@ -180,7 +180,7 @@ struct TranscriptDetailView: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Text("Transcript \(transcript.id.uuidString.prefix(8))...")
+                Text("Transcript \(transcript.id.prefix(8))...")
                     .font(.headline)
                 Spacer()
                 Button("Done") {
