@@ -26,6 +26,10 @@
 	<true/>
 	<key>NSHumanReadableCopyright</key>
 	<string>© 2026 Symaira — AGPLv3</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Symaira Terminal uses the microphone for speech-to-text dictation in the command input.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Symaira Terminal uses speech recognition to convert your voice into text for the command input.</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 	<key>NSServices</key>
