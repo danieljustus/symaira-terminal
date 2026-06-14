@@ -10,6 +10,9 @@ public enum OSCEvent: Equatable, Sendable {
     case semanticPrompt(SemanticPromptEvent)
     /// OSC 777 (`notify;title;body`) or OSC 99 (Kitty) — desktop notification.
     case notification(title: String, body: String)
+    /// OSC 8 — clickable hyperlink. `params` carries key=value metadata (e.g.
+    /// `id=mylink`); `uri` is the target URL. An empty URI signals hyperlink end.
+    case hyperlink(uri: URL?, params: String)
     /// Any OSC code we recognized structurally but do not handle yet.
     case unhandled(code: Int, payload: String)
 }
@@ -126,6 +129,8 @@ public struct OSCStreamParser: Sendable {
                 return .unhandled(code: 7, payload: rest)
             }
             return .workingDirectory(url)
+        case 8:
+            return parseHyperlink(rest)
         case 133:
             return parseSemanticPrompt(rest)
         case 777:
@@ -175,5 +180,14 @@ public struct OSCStreamParser: Sendable {
             return .notification(title: "", body: payload)
         }
         return .notification(title: payload, body: "")
+    }
+
+    /// OSC 8: `params;URI` (hyperlink start) or `;` (hyperlink end).
+    private static func parseHyperlink(_ rest: String) -> OSCEvent {
+        let parts = rest.split(separator: ";", maxSplits: 1, omittingEmptySubsequences: false)
+        let params = parts.first.map(String.init) ?? ""
+        let uriString = parts.count > 1 ? String(parts[1]) : ""
+        let uri = uriString.isEmpty ? nil : URL(string: uriString)
+        return .hyperlink(uri: uri, params: params)
     }
 }
