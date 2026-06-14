@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### M4 — Polish & Launch (in progress)
 
+## [0.4.0] — 2026-06-14
+
+### Added
+- UsageKit: local AI usage and cost tracking for Claude Code, Codex, Gemini CLI, and more
+- Usage pricing tables: convert token counts to USD cost per model
+- Usage aggregation engine: today/week/month/session buckets with 5-hour billing windows
+- Subscription quota fetchers: plan session/weekly limits and credits (opt-in, credential-safe)
+- Usage UI: status-bar summary and detail panel with progress bars and badges
+- Usage refresh scheduler: incremental log tailing, debounced polling, App Nap aware
+- Optional local usage HTTP API for interop with other apps (loopback, opt-in, off by default)
+- StackKit module: MCP hub, stack detection, settings UI
+
 ## [0.2.0] — 2026-06-11
 
 ### Fixed
@@ -90,6 +102,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 26 unit tests across all modules
 - ADR-001: Terminal engine choice + pin strategy
 
-[Unreleased]: https://github.com/danieljustus/symaira-terminal/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/danieljustus/symaira-terminal/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/danieljustus/symaira-terminal/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/danieljustus/symaira-terminal/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/danieljustus/symaira-terminal/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/danieljustus/symaira-terminal/releases/tag/v0.1.0
