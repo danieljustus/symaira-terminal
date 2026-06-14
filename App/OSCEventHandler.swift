@@ -29,6 +29,9 @@ final class OSCEventHandler {
         case .notification(let title, let body):
             sendNotification(title: title, body: body)
 
+        case .hyperlink:
+            break
+
         case .unhandled:
             break
         }
