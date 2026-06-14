@@ -729,6 +729,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         paneManager?.toggleZoom()
     }
 
+    @objc private func forkSession() {
+        guard let currentPane = paneManager?.currentPane else { return }
+        _ = paneManager?.forkSession(from: currentPane)
+    }
+
     private func showCommandPalette() {
         guard let window else { return }
         let items = [
@@ -748,6 +753,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             CommandPaletteItem(name: "Toggle Pane Zoom", shortcut: "⌘⇧Enter", category: "Navigation") { [weak self] in self?.toggleZoom() },
             CommandPaletteItem(name: "Focus Blocked Agent", shortcut: "⌘⇧U", category: "Navigation") { [weak self] in self?.focusBlocked() },
             CommandPaletteItem(name: "Toggle Sidebar", shortcut: "⌘B", category: "View") { [weak self] in self?.toggleSidebar() },
+            CommandPaletteItem(name: "Fork Session", shortcut: "⌘⇧F", category: "Session") { [weak self] in self?.forkSession() },
         ]
 
         let paletteView = CommandPalette(isPresented: .constant(true), items: items)

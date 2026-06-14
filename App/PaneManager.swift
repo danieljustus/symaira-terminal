@@ -1,6 +1,7 @@
 import AppKit
 import GhosttyBridge
 import TerminalCore
+import WorktreeKit
 
 @MainActor
 final class PaneManager {
@@ -13,13 +14,17 @@ final class PaneManager {
     let engine: GhosttyEngine
     private weak var hostView: NSView?
     private var oscParsers: [UUID: OSCStreamParser] = [:]
+    private var worktreeManager: WorktreeManager?
 
     var onPaneChanged: ((TerminalPane?) -> Void)?
     var onPanesChanged: (([TerminalPane]) -> Void)?
     var onOSCTap: ((UUID, OSCEvent) -> Void)?
 
-    init(engine: GhosttyEngine) {
+    init(engine: GhosttyEngine, repositoryURL: URL? = nil) {
         self.engine = engine
+        if let repoURL = repositoryURL {
+            self.worktreeManager = WorktreeManager(repositoryURL: repoURL)
+        }
     }
 
     private func defaultConfiguration() -> TerminalSurfaceConfiguration {
@@ -73,6 +78,35 @@ final class PaneManager {
         var config = defaultConfiguration()
         config.workingDirectory = directory
         return createPane(at: config)
+    }
+
+    func forkSession(from sourcePane: TerminalPane) -> TerminalPane? {
+        guard let worktreeManager else {
+            NSLog("symaira: cannot fork session - no worktree manager configured")
+            return nil
+        }
+
+        let sourceConfig = sourcePane.configuration
+        guard let sourceCWD = sourceConfig.workingDirectory else {
+            NSLog("symaira: cannot fork session - source pane has no working directory")
+            return nil
+        }
+
+        let taskID = "fork-\(UUID().uuidString.prefix(8))"
+        let newWorktree: Worktree
+        do {
+            newWorktree = try worktreeManager.create(taskID: taskID, baseRef: "HEAD")
+        } catch {
+            NSLog("symaira: failed to create worktree for fork: %@", String(describing: error))
+            return nil
+        }
+
+        var newConfig = defaultConfiguration()
+        newConfig.workingDirectory = newWorktree.path
+        newConfig.environment = EnvironmentSanitizer.sanitizedProcessEnvironment()
+
+        let newPane = createPane(at: newConfig)
+        return newPane
     }
 
     func closePane(_ pane: TerminalPane) {

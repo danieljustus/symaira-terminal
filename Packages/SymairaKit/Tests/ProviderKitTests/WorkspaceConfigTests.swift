@@ -87,3 +87,88 @@ import Testing
         try? FileManager.default.removeItem(at: tmp)
     }
 }
+
+@Suite struct AgentProfileTests {
+    @Test func defaultConfigHasOneAgentProfile() {
+        let config = WorkspaceConfig()
+        #expect(config.activeAgentProfile == "default")
+        #expect(config.agentProfiles.count == 1)
+        #expect(config.agentProfiles.first?.name == "default")
+        #expect(config.agentProfiles.first?.mode == "strategic")
+    }
+
+    @Test func agentProfileLookup() {
+        let config = WorkspaceConfig(agentProfiles: [
+            WorkspaceConfig.AgentProfileConfig(name: "default"),
+            WorkspaceConfig.AgentProfileConfig(name: "production", mode: "yolo"),
+        ])
+        #expect(config.agentProfile(named: "production")?.mode == "yolo")
+        #expect(config.agentProfile(named: "missing") == nil)
+    }
+
+    @Test func agentProfilePersistence() throws {
+        let tmp = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+        let manager = WorkspaceConfigManager(workspaceURL: tmp)
+
+        let profile = WorkspaceConfig.AgentProfileConfig(
+            name: "strict",
+            mode: "strategic",
+            rules: ["Use pnpm", "Run tests before pushing"]
+        )
+        try manager.addAgentProfile(profile)
+        try manager.switchAgentProfile(to: "strict")
+
+        let loaded = WorkspaceConfigManager(workspaceURL: tmp)
+        #expect(loaded.config.activeAgentProfile == "strict")
+        #expect(loaded.config.agentProfiles.count == 2)
+        #expect(loaded.config.agentProfile(named: "strict")?.rules.count == 2)
+
+        try? FileManager.default.removeItem(at: tmp)
+    }
+
+    @Test func agentProfileUpdate() throws {
+        let tmp = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+        let manager = WorkspaceConfigManager(workspaceURL: tmp)
+
+        var profile = WorkspaceConfig.AgentProfileConfig(name: "dev")
+        try manager.addAgentProfile(profile)
+
+        profile.mode = "yolo"
+        profile.rules = ["No rules"]
+        try manager.updateAgentProfile(profile)
+
+        let loaded = WorkspaceConfigManager(workspaceURL: tmp)
+        #expect(loaded.config.agentProfile(named: "dev")?.mode == "yolo")
+        #expect(loaded.config.agentProfile(named: "dev")?.rules == ["No rules"])
+
+        try? FileManager.default.removeItem(at: tmp)
+    }
+
+    @Test func agentProfileRemove() throws {
+        let tmp = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+        let manager = WorkspaceConfigManager(workspaceURL: tmp)
+
+        let profile = WorkspaceConfig.AgentProfileConfig(name: "temp")
+        try manager.addAgentProfile(profile)
+        try manager.removeAgentProfile("temp")
+
+        #expect(manager.config.agentProfiles.count == 1)
+        #expect(manager.config.agentProfile(named: "temp") == nil)
+
+        try? FileManager.default.removeItem(at: tmp)
+    }
+
+    @Test func cannotRemoveDefaultAgentProfile() throws {
+        let tmp = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+        let manager = WorkspaceConfigManager(workspaceURL: tmp)
+
+        try manager.removeAgentProfile("default")
+        #expect(manager.config.agentProfiles.count == 1)
+
+        try? FileManager.default.removeItem(at: tmp)
+    }
+}
