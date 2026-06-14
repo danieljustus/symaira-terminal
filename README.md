@@ -130,5 +130,5 @@ xcodebuild -project SymairaTerminal.xcodeproj -scheme SymairaTerminal build
 
 ## Architecture
 
-See [docs/Systemarchitektur und Entwicklungsplan.md](docs/Systemarchitektur%20und%20Entwicklungsplan.md)
-(research, German) and the ADRs in [docs/adr/](docs/adr/).
+See [docs/architecture-plan-v1.md](docs/architecture-plan-v1.md) (v1 core-MVP plan,
+German) and the ADRs in [docs/adr/](docs/adr/).
