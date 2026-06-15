@@ -45,7 +45,6 @@ This security policy applies to:
 ### Out of Scope
 
 - Third-party dependencies (report to their maintainers)
-- Issues in the commercial/private repository (separate contact)
 - Social engineering attacks
 
 ## Security Best Practices
