@@ -68,6 +68,24 @@ final class ScrollbackBufferTests: XCTestCase {
         XCTAssertEqual(buf.currentText?.utf8.count, 100)
     }
 
+    func testSearchIsCaseInsensitive() {
+        let buf = ScrollbackBuffer()
+        buf.append(Array("Hello WORLD\n".utf8))
+        buf.append(Array("goodbye world\n".utf8))
+        XCTAssertEqual(buf.searchText("world").count, 2, "lowercase query matches mixed/upper case")
+        XCTAssertEqual(buf.searchText("HELLO").first?.lineNumber, 1, "uppercase query matches mixed case")
+    }
+
+    func testRepeatedPruningStaysUnderByteCap() {
+        // Stream far more than the cap; hysteresis must keep it bounded every step.
+        let buf = ScrollbackBuffer(maxLines: 10_000, maxBytes: 1000)
+        let line = Array(repeating: UInt8(ascii: "A"), count: 99) + [UInt8(ascii: "\n")]
+        for _ in 0..<50 {
+            buf.append(line)
+            XCTAssert(buf.currentText?.utf8.count ?? 0 <= 1000, "buffer must never exceed maxBytes")
+        }
+    }
+
     func testClearResetsBuffer() {
         let buf = ScrollbackBuffer(maxLines: 10, maxBytes: 50)
         buf.append(Array("some data\n".utf8))
