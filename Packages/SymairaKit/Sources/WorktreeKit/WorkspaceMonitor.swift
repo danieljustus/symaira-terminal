@@ -72,19 +72,35 @@ public actor WorkspaceMonitor {
 
     public static func parseListeningPorts(_ output: String) -> [PortInfo] {
         var results: [PortInfo] = []
+        var currentPID: Int32?
+        var currentAddress: String?
+        
         for line in output.components(separatedBy: .newlines) {
-            if line.hasPrefix("COMMAND") || line.isEmpty { continue }
-            let parts = line.split(separator: " ").map(String.init)
-            guard parts.count >= 9, let pid = Int32(parts[1]) else { continue }
-            let nameStr = parts[8]
-            if let lastColon = nameStr.lastIndex(of: ":") {
-                let portStr = nameStr[nameStr.index(after: lastColon)...]
-                    .trimmingCharacters(in: CharacterSet(charactersIn: " (LISTEN)"))
-                if let port = UInt16(portStr) {
-                    results.append(PortInfo(port: port, pid: pid))
+            guard !line.isEmpty else { continue }
+            
+            let prefix = line.first
+            let value = String(line.dropFirst())
+            
+            switch prefix {
+            case "p":
+                currentPID = Int32(value)
+            case "n":
+                currentAddress = value
+                if let pid = currentPID,
+                   let addr = currentAddress,
+                   let lastColon = addr.lastIndex(of: ":") {
+                    let portStr = String(addr[addr.index(after: lastColon)...])
+                    if let port = UInt16(portStr) {
+                        results.append(PortInfo(port: port, pid: pid))
+                    }
                 }
+                currentPID = nil
+                currentAddress = nil
+            default:
+                break
             }
         }
+        
         return results
     }
 
