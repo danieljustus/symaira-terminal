@@ -1,7 +1,7 @@
 # Agent Instructions — symaira-terminal
 
 Native macOS terminal app (Swift 6, AppKit/SwiftUI, libghostty engine). Public repo,
-AGPLv3. Part of the Symaira family — see `../AGENTS.md` for the cross-repo
+MIT-licensed. Part of the Symaira family — see `../AGENTS.md` for the cross-repo
 conventions and `docs/commercial-boundary.md` for the public/pro boundary.
 
 ## Build & Test

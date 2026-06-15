@@ -94,4 +94,4 @@ App → SymairaUI → {AgentKit, WorktreeKit, ProviderKit, ContextBank} → Term
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the AGPLv3 License.
+By contributing, you agree that your contributions will be licensed under the MIT License.
