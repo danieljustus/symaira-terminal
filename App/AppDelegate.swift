@@ -603,60 +603,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         var prTitle: String? = nil
         var prStatus: String? = nil
         
+        // Only report PR data that comes from a real `gh pr view` result. When
+        // gh is missing or there is no PR for the branch, leave the PR fields
+        // nil — the sidebar then shows an honest empty state. (Earlier versions
+        // fabricated PR numbers/titles/statuses from the branch-name hash, which
+        // surfaced fictional "approved/changes_requested" PRs as real state.)
         let ghPaths = ["/opt/homebrew/bin/gh", "/usr/local/bin/gh", "/usr/bin/gh"]
-        var foundGh = false
-        for gp in ghPaths {
-            if FileManager.default.fileExists(atPath: gp) {
-                if let prJson = await runCommand(executable: gp, arguments: ["pr", "view", "--json", "number,title,state,reviewDecision"], directory: cwd) {
-                    if let data = prJson.data(using: .utf8),
-                       let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                        prNumber = json["number"] as? Int
-                        prTitle = json["title"] as? String
-                        let state = json["state"] as? String ?? ""
-                        let decision = json["reviewDecision"] as? String ?? ""
-                        
-                        if state == "MERGED" {
-                            prStatus = "merged"
-                        } else if state == "CLOSED" {
-                            prStatus = "closed"
-                        } else if state == "OPEN" {
-                            if decision == "APPROVED" {
-                                prStatus = "approved"
-                            } else if decision == "CHANGES_REQUESTED" {
-                                prStatus = "changes_requested"
-                            } else {
-                                prStatus = "open"
-                            }
-                        }
-                        foundGh = true
-                        break
-                    }
-                }
+        for gp in ghPaths where FileManager.default.fileExists(atPath: gp) {
+            guard let prJson = await runCommand(executable: gp, arguments: ["pr", "view", "--json", "number,title,state,reviewDecision"], directory: cwd),
+                  let data = prJson.data(using: .utf8),
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                break
             }
-        }
-        
-        if !foundGh || prNumber == nil {
-            if branch.hasPrefix("symaira/task-") {
-                let taskId = String(branch.dropFirst("symaira/task-".count))
-                if let taskInt = Int(taskId) {
-                    prNumber = taskInt + 100
-                    prTitle = "Sync and implement changes for task \(taskId)"
-                    let statuses = ["draft", "open", "changes_requested", "approved"]
-                    prStatus = statuses[taskInt % statuses.count]
+            prNumber = json["number"] as? Int
+            prTitle = json["title"] as? String
+            let state = json["state"] as? String ?? ""
+            let decision = json["reviewDecision"] as? String ?? ""
+
+            if state == "MERGED" {
+                prStatus = "merged"
+            } else if state == "CLOSED" {
+                prStatus = "closed"
+            } else if state == "OPEN" {
+                if decision == "APPROVED" {
+                    prStatus = "approved"
+                } else if decision == "CHANGES_REQUESTED" {
+                    prStatus = "changes_requested"
                 } else {
-                    prNumber = 42
-                    prTitle = "Automated PR for \(branch)"
                     prStatus = "open"
                 }
-            } else if branch != "main" && branch != "master" && branch != "HEAD" {
-                let hashVal = abs(branch.hashValue)
-                prNumber = (hashVal % 900) + 100
-                prTitle = "Feature: \(branch.replacingOccurrences(of: "-", with: " ").capitalized)"
-                let statuses = ["draft", "open", "changes_requested", "approved"]
-                prStatus = statuses[hashVal % statuses.count]
             }
+            break
         }
-        
+
         return GitAndPRResult(
             branch: branch,
             isDirty: isDirty,
