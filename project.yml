@@ -17,6 +17,8 @@ targets:
       - App
       - path: Resources/shell-integration
         buildPhase: resources
+      - path: Resources/WorkflowCanvas
+        buildPhase: resources
     dependencies:
       - package: SymairaKit
         product: GhosttyBridge

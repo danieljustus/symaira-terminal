@@ -67,5 +67,12 @@ public enum SymairaToolRegistry {
             homebrewFormula: "danieljustus/tap/symfetch",
             mcpArgs: ["mcp"]
         ),
+        SymairaTool(
+            id: "symcanvas",
+            displayName: "Symaira Canvas",
+            binaryName: "symcanvas",
+            homebrewFormula: "danieljustus/tap/symcanvas",
+            mcpArgs: ["serve"]
+        ),
     ]
 }
