@@ -1,12 +1,24 @@
 import Foundation
 import TerminalCore
 import AgentKit
+import UserNotifications
 
 @MainActor
 final class OSCEventHandler {
+    /// Hard cap on the length of a title that originates from terminal output.
+    /// OSC titles are attacker-controllable (any program, remote SSH session, or
+    /// `cat`-ed file can emit them), so an unbounded string must never reach the
+    /// window/tab UI.
+    private static let maxTitleLength = 256
+    /// Minimum spacing between two terminal-triggered notifications. Without
+    /// this, output containing many OSC 9 sequences could spam the user.
+    private static let notificationMinInterval: TimeInterval = 3.0
+
     private var statusEngines: [UUID: AgentStatusEngine] = [:]
     private var paneTitles: [UUID: String] = [:]
     private var paneCWDs: [UUID: URL] = [:]
+    private var lastNotificationAt: Date?
+    private var didRequestNotificationAuth = false
 
     var onStatusChanged: ((UUID, AgentStatus) -> Void)?
     var onTitleChanged: ((UUID, String) -> Void)?
@@ -16,8 +28,9 @@ final class OSCEventHandler {
     func handle(_ event: OSCEvent, for paneID: UUID) {
         switch event {
         case .windowTitle(let title):
-            paneTitles[paneID] = title
-            onTitleChanged?(paneID, title)
+            let clean = Self.sanitizeTitle(title)
+            paneTitles[paneID] = clean
+            onTitleChanged?(paneID, clean)
 
         case .workingDirectory(let url):
             paneCWDs[paneID] = url
@@ -77,11 +90,59 @@ final class OSCEventHandler {
     }
 
     private func sendNotification(title: String, body: String) {
-        let notification = NSUserNotification()
-        notification.title = title
-        notification.informativeText = body
-        notification.soundName = NSUserNotificationDefaultSoundName
-        NSUserNotificationCenter.default.deliver(notification)
-        onNotification?(title, body)
+        // Rate-limit: terminal output can emit OSC 9 notifications in a tight
+        // loop; drop anything that arrives faster than the minimum interval.
+        let now = Date()
+        if let last = lastNotificationAt, now.timeIntervalSince(last) < Self.notificationMinInterval {
+            return
+        }
+        lastNotificationAt = now
+
+        // These strings come from untrusted terminal output, so bound their
+        // length and strip control characters, and label the source so a
+        // notification cannot impersonate the app or the system.
+        let safeTitle = Self.sanitizeTitle(title)
+        let safeBody = Self.sanitizeTitle(body)
+        onNotification?(safeTitle, safeBody)
+
+        let alreadyAuthorized = didRequestNotificationAuth
+        didRequestNotificationAuth = true
+
+        // Capture only Sendable Strings across the concurrency boundary; the
+        // UserNotifications objects are rebuilt on the target side.
+        if alreadyAuthorized {
+            Self.deliver(title: safeTitle, body: safeBody)
+        } else {
+            UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { granted, _ in
+                guard granted else { return }
+                Self.deliver(title: safeTitle, body: safeBody)
+            }
+        }
+    }
+
+    private static func deliver(title: String, body: String) {
+        let content = UNMutableNotificationContent()
+        content.title = "Terminal: \(title)"
+        content.body = body
+        content.sound = .default
+        let request = UNNotificationRequest(
+            identifier: UUID().uuidString,
+            content: content,
+            trigger: nil
+        )
+        UNUserNotificationCenter.current().add(request)
+    }
+
+    /// Strip control characters and clamp the length of a string that came from
+    /// untrusted terminal output before it is shown in the UI or a notification.
+    static func sanitizeTitle(_ raw: String) -> String {
+        let stripped = raw.unicodeScalars
+            .filter { !CharacterSet.controlCharacters.contains($0) }
+        var result = String(String.UnicodeScalarView(stripped))
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if result.count > maxTitleLength {
+            result = String(result.prefix(maxTitleLength))
+        }
+        return result
     }
 }
