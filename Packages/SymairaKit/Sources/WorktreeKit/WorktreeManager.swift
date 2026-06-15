@@ -1,15 +1,6 @@
 import Darwin
 import Foundation
 
-/// Thread-safe collector so two concurrent pipe drains can publish their result
-/// without a data race under Swift 6 strict concurrency.
-final class DataBox: @unchecked Sendable {
-    private let lock = NSLock()
-    private var data = Data()
-    func set(_ d: Data) { lock.lock(); data = d; lock.unlock() }
-    var value: Data { lock.lock(); defer { lock.unlock() }; return data }
-}
-
 public struct Worktree: Equatable, Hashable, Sendable {
     public let taskID: String
     public let path: URL
@@ -105,44 +96,10 @@ public struct WorktreeManager: Sendable {
         return String(data: outData, encoding: .utf8) ?? ""
     }
 
-    /// Runs a process, draining stdout and stderr **concurrently** before waiting
-    /// for exit. Reading one stream fully before the other deadlocks when the
-    /// second stream fills its ~64 KB pipe buffer (e.g. a large `git diff` with
-    /// progress on stderr): the child blocks writing while we block reading the
-    /// wrong fd. Concurrent drains avoid that.
+    /// Runs a process, draining stdout and stderr concurrently. Delegates to
+    /// `ProcessRunner.run` which owns the single canonical drain implementation.
     static func run(_ process: Process) throws -> (stdout: Data, stderr: Data, status: Int32) {
-        let outPipe = Pipe(), errPipe = Pipe()
-        process.standardOutput = outPipe
-        process.standardError = errPipe
-        try process.run()
-
-        let outFD = outPipe.fileHandleForReading.fileDescriptor
-        let errFD = errPipe.fileHandleForReading.fileDescriptor
-        let outBox = DataBox(), errBox = DataBox()
-        let group = DispatchGroup()
-        let queue = DispatchQueue.global(qos: .userInitiated)
-        queue.async(group: group) { outBox.set(drain(outFD)) }
-        queue.async(group: group) { errBox.set(drain(errFD)) }
-        group.wait()
-        process.waitUntilExit()
-        // Pipes stay retained until here, keeping the read fds valid for the drains.
-        return (outBox.value, errBox.value, process.terminationStatus)
-    }
-
-    /// Reads a file descriptor to EOF with a POSIX read loop. Uses the raw fd
-    /// (a Sendable Int32) so the concurrent drain closures capture nothing that
-    /// strict concurrency would reject.
-    static func drain(_ fd: Int32) -> Data {
-        var data = Data()
-        var buffer = [UInt8](repeating: 0, count: 65536)
-        while true {
-            let n = buffer.withUnsafeMutableBytes { read(fd, $0.baseAddress, $0.count) }
-            if n > 0 {
-                data.append(contentsOf: buffer[0..<n])
-            } else {
-                break  // 0 == EOF, < 0 == error
-            }
-        }
-        return data
+        let r = try ProcessRunner.run(process)
+        return (r.stdout, r.stderr, r.exitCode)
     }
 }

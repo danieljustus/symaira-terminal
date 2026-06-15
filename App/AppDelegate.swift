@@ -6,6 +6,7 @@ import AgentKit
 import ProviderKit
 import StackKit
 import SymairaUI
+import WorktreeKit
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -672,23 +673,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func runCommand(executable: String, arguments: [String], directory: URL? = nil) async -> String? {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: executable)
-        process.arguments = arguments
-        if let directory = directory {
-            process.currentDirectoryURL = directory
-        }
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = Pipe()
-        do {
-            try process.run()
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            process.waitUntilExit()
-            return String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
-        } catch {
-            return nil
-        }
+        await ProcessRunner.runReturningStdout(
+            executable: executable,
+            arguments: arguments,
+            directory: directory,
+            timeout: 15
+        )
     }
 
     @objc private func togglePalette() {

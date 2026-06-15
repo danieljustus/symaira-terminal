@@ -25,6 +25,8 @@ targets:
       - package: SymairaKit
         product: AgentKit
       - package: SymairaKit
+        product: WorktreeKit
+      - package: SymairaKit
         product: SymairaUI
     settings:
       base:
