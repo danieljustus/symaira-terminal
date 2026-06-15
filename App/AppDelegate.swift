@@ -456,8 +456,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func updatePaneStatuses() async {
         guard let manager = paneManager else { return }
-        let parentMap = await fetchProcessTree()
-        let listeningPorts = await fetchListeningPorts()
+        let parentMap = await cachedProcessTree()
+        let listeningPorts = await cachedListeningPorts()
         
         var updatedItems: [PaneStatusInfo] = []
         let currentPanes = manager.panes
@@ -574,11 +574,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let timestamp: Date
     }
 
+    private struct ProcessTreeCacheEntry {
+        let result: [Int32: Int32]
+        let timestamp: Date
+    }
+
+    private struct PortCacheEntry {
+        let result: [PortInfo]
+        let timestamp: Date
+    }
+
     /// Per-cwd cache for git/PR info. The status loop runs every 2s, but git and
     /// gh lookups are expensive (several subprocess spawns per pane); refreshing
     /// them at most once per TTL per directory cuts the bulk of that cost.
     private var gitInfoCache: [String: GitCacheEntry] = [:]
     private static let gitInfoTTL: TimeInterval = 20
+
+    /// ps / lsof are each hundreds of ms and return machine-wide data — a single
+    /// cached result per TTL interval is sufficient for all panes in the same tick.
+    private var processTreeCache: ProcessTreeCacheEntry?
+    private var portCache: PortCacheEntry?
+    private static let sysInfoTTL: TimeInterval = 8
 
     private func cachedGitAndPRInfo(for cwd: URL) async -> GitAndPRResult {
         let key = cwd.path
@@ -587,6 +603,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         let result = await fetchGitAndPRInfo(for: cwd)
         gitInfoCache[key] = GitCacheEntry(result: result, timestamp: Date())
+        return result
+    }
+
+    private func cachedProcessTree() async -> [Int32: Int32] {
+        if let c = processTreeCache, Date().timeIntervalSince(c.timestamp) < Self.sysInfoTTL {
+            return c.result
+        }
+        let result = await fetchProcessTree()
+        processTreeCache = ProcessTreeCacheEntry(result: result, timestamp: Date())
+        return result
+    }
+
+    private func cachedListeningPorts() async -> [PortInfo] {
+        if let c = portCache, Date().timeIntervalSince(c.timestamp) < Self.sysInfoTTL {
+            return c.result
+        }
+        let result = await fetchListeningPorts()
+        portCache = PortCacheEntry(result: result, timestamp: Date())
         return result
     }
 
