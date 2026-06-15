@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Workflow Canvas</title>
+  <!-- React & React Flow from CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js" crossorigin></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://cdn.jsdelivr.net/npm/reactflow@11.10.1/dist/umd/index.min.js" crossorigin></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reactflow@11.10.1/dist/style.min.css">
+  
+  <style>
+    body, html, #app {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #0b0d11;
+      color: #e3e6ed;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      overflow: hidden;
+    }
+
+    #app {
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 20px;
+      background-color: #161b22;
+      border-bottom: 1px solid #30363d;
+      height: 44px;
+      box-sizing: border-box;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      color: #58a6ff;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+    }
+
+    button {
+      background: #21262d;
+      border: 1px solid #30363d;
+      color: #c9d1d9;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+
+    button:hover {
+      background: #30363d;
+      border-color: #8b949e;
+      color: #f0f6fc;
+    }
+
+    button.primary {
+      background: #238636;
+      border-color: #2ea043;
+      color: #ffffff;
+      box-shadow: 0 0 8px rgba(46, 160, 67, 0.4);
+    }
+
+    button.primary:hover {
+      background: #2ea043;
+      box-shadow: 0 0 12px rgba(46, 160, 67, 0.6);
+    }
+
+    #canvas-container {
+      flex: 1;
+      position: relative;
+      display: flex;
+    }
+
+    .react-flow__renderer {
+      background-color: #0b0d11;
+    }
+
+    /* Custom Node Styling */
+    .custom-node {
+      padding: 12px;
+      border-radius: 8px;
+      background: rgba(22, 27, 34, 0.85);
+      border: 1px solid #30363d;
+      color: #c9d1d9;
+      font-size: 12px;
+      min-width: 180px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(8px);
+      transition: border-color 0.3s, box-shadow 0.3s;
+    }
+
+    .custom-node.selected {
+      border-color: #58a6ff;
+      box-shadow: 0 0 8px rgba(88, 166, 255, 0.5);
+    }
+
+    .custom-node .node-header {
+      font-weight: bold;
+      margin-bottom: 6px;
+      border-bottom: 1px solid #30363d;
+      padding-bottom: 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .custom-node.agent { border-left: 4px solid #58a6ff; }
+    .custom-node.action { border-left: 4px solid #bc8cff; }
+    .custom-node.input { border-left: 4px solid #3fb950; }
+    .custom-node.condition { border-left: 4px solid #d29922; }
+    .custom-node.merge { border-left: 4px solid #f78166; }
+
+    .node-header .node-type {
+      font-size: 9px;
+      text-transform: uppercase;
+      opacity: 0.7;
+    }
+
+    .node-body {
+      font-size: 11px;
+      opacity: 0.9;
+    }
+
+    .node-status {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #8b949e;
+      display: inline-block;
+    }
+
+    .node-status.active {
+      background: #3fb950;
+      box-shadow: 0 0 8px #3fb950;
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0% { opacity: 0.6; }
+      50% { opacity: 1; }
+      100% { opacity: 0.6; }
+    }
+
+    /* Sidebar properties panel */
+    #properties-panel {
+      width: 280px;
+      background: #161b22;
+      border-left: 1px solid #30363d;
+      padding: 16px;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    #properties-panel h2 {
+      margin: 0 0 10px 0;
+      font-size: 14px;
+      color: #c9d1d9;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-group label {
+      font-size: 11px;
+      color: #8b949e;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    .form-group input, .form-group textarea, .form-group select {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      color: #c9d1d9;
+      padding: 6px;
+      font-size: 12px;
+    }
+
+    .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
+      border-color: #58a6ff;
+      outline: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+
+  <script>
+    const { useState, useEffect, useCallback, useRef } = React;
+    const ReactFlow = window.ReactFlow.default;
+    const { Handle, Position, Background, Controls, MiniMap } = window.ReactFlow;
+
+    // Custom Node Components
+    const NodeWrapper = ({ type, title, subtitle, status, selected }) => {
+      return React.createElement('div', { className: `custom-node ${type} ${selected ? 'selected' : ''}` }, [
+        React.createElement('div', { className: 'node-header', key: 'header' }, [
+          React.createElement('span', { className: 'node-title', key: 'title' }, title),
+          React.createElement('span', { className: 'node-type', key: 'type' }, type)
+        ]),
+        React.createElement('div', { className: 'node-body', key: 'body' }, subtitle),
+        React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', marginTop: '8px', alignItems: 'center' }, key: 'footer' }, [
+          React.createElement('div', { className: `node-status ${status === 'active' ? 'active' : ''}` }),
+          React.createElement('span', { style: { fontSize: '9px', opacity: 0.6 } }, status || 'idle')
+        ])
+      ]);
+    };
+
+    const CustomNode = ({ data, selected }) => {
+      const type = data.type || 'agent';
+      return React.createElement('div', null, [
+        React.createElement(Handle, { type: 'target', position: Position.Left, id: 'in', style: { background: '#58a6ff' }, key: 'handle-in' }),
+        React.createElement(NodeWrapper, {
+          type: type,
+          title: data.label || 'Node',
+          subtitle: data.subtitle || '',
+          status: data.status || 'idle',
+          selected: selected,
+          key: 'wrapper'
+        }),
+        React.createElement(Handle, { type: 'source', position: Position.Right, id: 'out', style: { background: '#58a6ff' }, key: 'handle-out' })
+      ]);
+    };
+
+    const nodeTypes = {
+      custom: CustomNode
+    };
+
+    // Main App Component
+    const App = () => {
+      const [nodes, setNodes] = useState([
+        {
+          id: '1',
+          type: 'custom',
+          position: { x: 100, y: 150 },
+          data: { label: 'Dev Agent', type: 'agent', subtitle: 'Claude 3.5 Sonnet', status: 'idle', model: 'claude-3-5-sonnet', prompt: 'Fix all bugs', path: 'symaira-terminal' }
+        },
+        {
+          id: '2',
+          type: 'custom',
+          position: { x: 350, y: 150 },
+          data: { label: 'QA Agent', type: 'agent', subtitle: 'Gemini 1.5 Pro', status: 'idle', model: 'gemini-1.5-pro', prompt: 'Run latency benchmarks', path: 'symaira-terminal' }
+        }
+      ]);
+      
+      const [edges, setEdges] = useState([
+        { id: 'e1-2', source: '1', target: '2', sourceHandle: 'out', targetHandle: 'in' }
+      ]);
+
+      const [selectedNode, setSelectedNode] = useState(null);
+
+      // Notify Swift when nodes or edges change
+      const saveWorkflow = useCallback((currentNodes, currentEdges) => {
+        const payload = {
+          nodes: currentNodes,
+          edges: currentEdges
+        };
+        if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.symairaCanvas) {
+          window.webkit.messageHandlers.symairaCanvas.postMessage({
+            action: 'save',
+            workflow: JSON.stringify(payload)
+          });
+        }
+      }, []);
+
+      const onNodesChange = useCallback((changes) => {
+        // Handle node changes from React Flow
+        setNodes((nds) => {
+          const nextNodes = nds.map(node => {
+            const match = changes.find(c => c.id === node.id);
+            if (match && match.type === 'position' && match.position) {
+              return { ...node, position: match.position };
+            }
+            if (match && match.type === 'select') {
+              setSelectedNode(match.selected ? node : null);
+            }
+            return node;
+          });
+          saveWorkflow(nextNodes, edges);
+          return nextNodes;
+        });
+      }, [edges, saveWorkflow]);
+
+      const onEdgesChange = useCallback((changes) => {
+        setEdges((eds) => {
+          const nextEdges = eds.filter(edge => {
+            const match = changes.find(c => c.id === edge.id);
+            if (match && match.type === 'remove') return false;
+            return true;
+          });
+          saveWorkflow(nodes, nextEdges);
+          return nextEdges;
+        });
+      }, [nodes, saveWorkflow]);
+
+      const onConnect = useCallback((params) => {
+        setEdges((eds) => {
+          const nextEdges = [...eds, { ...params, id: `e-${params.source}-${params.target}` }];
+          saveWorkflow(nodes, nextEdges);
+          return nextEdges;
+        });
+      }, [nodes, saveWorkflow]);
+
+      const addNode = (type) => {
+        const id = (nodes.length + 1).toString();
+        const newNode = {
+          id: id,
+          type: 'custom',
+          position: { x: 150 + Math.random() * 100, y: 150 + Math.random() * 100 },
+          data: {
+            label: `New ${type}`,
+            type: type,
+            subtitle: type === 'agent' ? 'Claude 3.5 Sonnet' : '',
+            status: 'idle',
+            model: 'claude-3-5-sonnet',
+            prompt: '',
+            path: ''
+          }
+        };
+        const nextNodes = [...nodes, newNode];
+        setNodes(nextNodes);
+        saveWorkflow(nextNodes, edges);
+      };
+
+      const executeWorkflow = () => {
+        if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.symairaCanvas) {
+          window.webkit.messageHandlers.symairaCanvas.postMessage({
+            action: 'run',
+            workflow: JSON.stringify({ nodes, edges })
+          });
+        }
+      };
+
+      // API exposed to Swift
+      useEffect(() => {
+        window.symairaCanvasAPI = {
+          loadWorkflow: (jsonString) => {
+            try {
+              const data = JSON.parse(jsonString);
+              if (data.nodes) setNodes(data.nodes);
+              if (data.edges) setEdges(data.edges);
+            } catch (e) {
+              console.error('Failed to load workflow data:', e);
+            }
+          },
+          updateNodeStatus: (nodeId, status) => {
+            setNodes(nds => nds.map(node => {
+              if (node.id === nodeId) {
+                return { ...node, data: { ...node.data, status } };
+              }
+              return node;
+            }));
+          }
+        };
+      }, []);
+
+      const updateSelectedNodeData = (key, value) => {
+        if (!selectedNode) return;
+        setNodes(nds => {
+          const nextNodes = nds.map(node => {
+            if (node.id === selectedNode.id) {
+              const updatedData = { ...node.data, [key]: value };
+              if (key === 'model') {
+                updatedData.subtitle = value;
+              }
+              const updatedNode = { ...node, data: updatedData };
+              setSelectedNode(updatedNode);
+              return updatedNode;
+            }
+            return node;
+          });
+          saveWorkflow(nextNodes, edges);
+          return nextNodes;
+        });
+      };
+
+      return React.createElement('div', { style: { display: 'flex', width: '100%', height: '100%' } }, [
+        React.createElement('div', { style: { flex: 1, display: 'flex', flexDirection: 'column' } }, [
+          React.createElement('header', null, [
+            React.createElement('h1', null, 'Workflow Canvas'),
+            React.createElement('div', { className: 'controls' }, [
+              React.createElement('button', { onClick: () => addNode('agent') }, '+ Agent'),
+              React.createElement('button', { onClick: () => addNode('action') }, '+ AI Action'),
+              React.createElement('button', { onClick: () => addNode('input') }, '+ File Input'),
+              React.createElement('button', { className: 'primary', onClick: executeWorkflow }, 'Run Workflow')
+            ])
+          ]),
+          React.createElement('div', { id: 'canvas-container' }, [
+            React.createElement(ReactFlow, {
+              nodes: nodes,
+              edges: edges,
+              onNodesChange: onNodesChange,
+              onEdgesChange: onEdgesChange,
+              onConnect: onConnect,
+              nodeTypes: nodeTypes,
+              fitView: true
+            }, [
+              React.createElement(Background, { color: '#30363d', gap: 16, size: 1, key: 'bg' }),
+              React.createElement(Controls, { key: 'controls' })
+            ])
+          ])
+        ]),
+        // Properties panel
+        selectedNode && React.createElement('div', { id: 'properties-panel' }, [
+          React.createElement('h2', null, 'Properties'),
+          React.createElement('div', { className: 'form-group' }, [
+            React.createElement('label', null, 'Label'),
+            React.createElement('input', {
+              value: selectedNode.data.label || '',
+              onChange: (e) => updateSelectedNodeData('label', e.target.value)
+            })
+          ]),
+          selectedNode.data.type === 'agent' && React.createElement('div', { className: 'form-group' }, [
+            React.createElement('label', null, 'Model'),
+            React.createElement('select', {
+              value: selectedNode.data.model || 'claude-3-5-sonnet',
+              onChange: (e) => updateSelectedNodeData('model', e.target.value)
+            }, [
+              React.createElement('option', { value: 'claude-3-5-sonnet' }, 'Claude 3.5 Sonnet'),
+              React.createElement('option', { value: 'gemini-1.5-pro' }, 'Gemini 1.5 Pro'),
+              React.createElement('option', { value: 'gpt-4o' }, 'GPT-4o')
+            ])
+          ]),
+          React.createElement('div', { className: 'form-group' }, [
+            React.createElement('label', null, 'Prompt / Command'),
+            React.createElement('textarea', {
+              rows: 4,
+              value: selectedNode.data.prompt || '',
+              onChange: (e) => updateSelectedNodeData('prompt', e.target.value)
+            })
+          ]),
+          React.createElement('div', { className: 'form-group' }, [
+            React.createElement('label', null, 'Target Directory'),
+            React.createElement('input', {
+              value: selectedNode.data.path || '',
+              placeholder: 'e.g. symaira-terminal',
+              onChange: (e) => updateSelectedNodeData('path', e.target.value)
+            })
+          ])
+        ])
+      ]);
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById('app'));
+    root.render(React.createElement(App));
+  </script>
+</body>
+</html>

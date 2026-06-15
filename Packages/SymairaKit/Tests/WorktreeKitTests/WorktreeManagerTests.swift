@@ -68,4 +68,25 @@ private func makeFixtureRepo() throws -> (repo: URL, container: URL) {
             try manager.git(["worktree", "remove", "/nonexistent/path"])
         }
     }
+
+    @Test func handoffPackageLifecycle() throws {
+        let (repo, container) = try makeFixtureRepo()
+        defer { try? FileManager.default.removeItem(at: container.deletingLastPathComponent()) }
+        let manager = WorktreeManager(repositoryURL: repo, containerURL: container)
+
+        let sourceWT = try manager.create(taskID: "source1")
+        try "handoff text\n".write(
+            to: sourceWT.path.appendingPathComponent("file.txt"), atomically: true, encoding: .utf8)
+
+        let package = try manager.createHandoffPackage(from: sourceWT)
+        #expect(package.sourceTaskID == "source1")
+        #expect(!package.gitDiffCompressedBase64.isEmpty)
+        #expect(package.summary.contains("file.txt"))
+
+        let targetWT = try manager.create(taskID: "target1")
+        try manager.applyHandoffPackage(package, to: targetWT)
+
+        let targetContent = try String(contentsOf: targetWT.path.appendingPathComponent("file.txt"), encoding: .utf8)
+        #expect(targetContent == "handoff text\n")
+    }
 }

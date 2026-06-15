@@ -52,7 +52,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let engine = GhosttyEngine()
         self.engine = engine
 
-        let manager = PaneManager(engine: engine)
+        let repoURL = URL(fileURLWithPath: NSHomeDirectory())
+        let manager = PaneManager(engine: engine, repositoryURL: repoURL)
         self.paneManager = manager
 
         manager.onPaneChanged = { [weak self] pane in
@@ -73,6 +74,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         manager.onOSCTap = { [weak self] paneID, event in
             self?.oscEventHandler.handle(event, for: paneID)
         }
+
+        setupWorkflowCanvasObservers()
 
         oscEventHandler.onStatusChanged = { [weak self] paneID, status in
             self?.updateStatusRing(paneID: paneID, status: status)
@@ -119,7 +122,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ])
 
         // Sidebar View Setup
-        let repoURL = URL(fileURLWithPath: NSHomeDirectory())
         let worktreeStore = WorktreeStore(repositoryURL: repoURL)
         let viewModel = SidebarViewModel(worktreeStore: worktreeStore)
         self.sidebarViewModel = viewModel
@@ -395,6 +397,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         toggleZoomItem.target = self
         viewMenu.addItem(toggleZoomItem)
 
+        let canvasMenuItem = NSMenuItem(title: "Workflow Canvas", action: #selector(showWorkflowCanvas), keyEquivalent: "")
+        canvasMenuItem.target = self
+        viewMenu.addItem(canvasMenuItem)
+
         let viewMenuItem = NSMenuItem(title: "View", action: nil, keyEquivalent: "")
         viewMenuItem.submenu = viewMenu
         mainMenu.addItem(viewMenuItem)
@@ -615,6 +621,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             CommandPaletteItem(name: "Fork Session", shortcut: "⌘⇧F", category: "Session") { [weak self] in self?.forkSession() },
             CommandPaletteItem(name: "Toggle Dictation", shortcut: nil, category: "Input") { [weak self] in self?.toggleDictation() },
             CommandPaletteItem(name: "Open Sketchpad", shortcut: nil, category: "Input") { [weak self] in self?.showSketchpad() },
+            CommandPaletteItem(name: "Open Workflow Canvas", shortcut: nil, category: "Workflow") { [weak self] in self?.showWorkflowCanvas() },
         ]
 
         let paletteView = CommandPalette(isPresented: .constant(true), items: items)
@@ -759,6 +766,162 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         SleepPreventionManager.shared.updateAgentActivityState(hasActiveAgent: hasActive)
     }
+
+    // MARK: - Workflow Canvas & Handoff Pipeline
+
+    private var canvasWindow: NSWindow?
+
+    @objc private func showWorkflowCanvas() {
+        if let existing = canvasWindow {
+            existing.makeKeyAndOrderFront(nil)
+            return
+        }
+        let view = WorkflowCanvasView()
+        let hosting = NSHostingController(rootView: view)
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 800, height: 600),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable],
+            backing: .buffered,
+            defer: false
+        )
+        window.contentViewController = hosting
+        window.title = "Workflow Canvas"
+        window.isReleasedWhenClosed = false
+        window.center()
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        canvasWindow = window
+    }
+
+    private func setupWorkflowCanvasObservers() {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleRunWorkflow(_:)),
+            name: Notification.Name("com.symaira.terminal.runWorkflow"),
+            object: nil
+        )
+        
+        DistributedNotificationCenter.default().addObserver(
+            self,
+            selector: #selector(handleHandoffNotification(_:)),
+            name: NSNotification.Name("com.symaira.terminal.handoff"),
+            object: nil
+        )
+    }
+
+    @objc private func handleRunWorkflow(_ notification: Notification) {
+        guard let userInfo = notification.userInfo,
+              let workflowJSON = userInfo["workflow"] as? String,
+              let data = workflowJSON.data(using: .utf8),
+              let workflow = try? JSONDecoder().decode(WorkflowData.self, from: data) else {
+            return
+        }
+        
+        let targetNodeIDs = Set(workflow.edges.map(\.target))
+        let startingNodes = workflow.nodes.filter { !targetNodeIDs.contains($0.id) }
+        
+        guard let nodeToRun = startingNodes.first ?? workflow.nodes.first else { return }
+        runNode(nodeToRun)
+    }
+
+    @objc private func handleHandoffNotification(_ notification: Notification) {
+        guard let userInfo = notification.userInfo,
+              let taskID = userInfo["taskID"] as? String else {
+            return
+        }
+        
+        let summary = userInfo["summary"] as? String ?? ""
+        
+        guard let savedWorkflowJSON = UserDefaults.standard.string(forKey: "symaira.workflow.canvas"),
+              let data = savedWorkflowJSON.data(using: .utf8),
+              let workflow = try? JSONDecoder().decode(WorkflowData.self, from: data),
+              let sourceNode = workflow.nodes.first(where: { $0.data.path == taskID }) else {
+            return
+        }
+        
+        updateNodeStatus(nodeID: sourceNode.id, status: "done")
+        
+        let edgesFromSource = workflow.edges.filter { $0.source == sourceNode.id }
+        for edge in edgesFromSource {
+            guard let targetNode = workflow.nodes.first(where: { $0.id == edge.target }) else { continue }
+            executeHandoff(from: sourceNode, to: targetNode, summary: summary)
+        }
+    }
+
+    private func executeHandoff(from sourceNode: WorkflowNode, to targetNode: WorkflowNode, summary: String) {
+        guard let worktreeStore = sidebarViewModel?.worktreeStore,
+              let paneManager = self.paneManager,
+              let worktreeManager = paneManager.worktreeManager else {
+            return
+        }
+        
+        guard let sourceWT = worktreeStore.worktrees.first(where: { $0.taskID == sourceNode.data.path }) else {
+            return
+        }
+        
+        do {
+            let package = try worktreeManager.createHandoffPackage(from: sourceWT)
+            
+            let targetPath = targetNode.data.path ?? "task-\(UUID().uuidString.prefix(8))"
+            let targetWT: Worktree
+            if let existing = worktreeStore.worktrees.first(where: { $0.taskID == targetPath }) {
+                targetWT = existing
+            } else {
+                targetWT = try worktreeStore.create(taskID: targetPath)
+            }
+            
+            try worktreeManager.applyHandoffPackage(package, to: targetWT)
+            
+            let newPane = paneManager.createPane(inDirectory: targetWT.path)
+            
+            if let prompt = targetNode.data.prompt, !prompt.isEmpty {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                    newPane.surface?.sendText(prompt + "\n")
+                }
+            }
+            
+            updateNodeStatus(nodeID: targetNode.id, status: "active")
+        } catch {
+            NSLog("symaira: handoff failed: \(error.localizedDescription)")
+        }
+    }
+
+    private func runNode(_ node: WorkflowNode) {
+        guard let worktreeStore = sidebarViewModel?.worktreeStore,
+              let paneManager = self.paneManager else {
+            return
+        }
+        
+        let path = node.data.path ?? "task-\(UUID().uuidString.prefix(8))"
+        let wt: Worktree
+        do {
+            if let existing = worktreeStore.worktrees.first(where: { $0.taskID == path }) {
+                wt = existing
+            } else {
+                wt = try worktreeStore.create(taskID: path)
+            }
+            
+            let pane = paneManager.createPane(inDirectory: wt.path)
+            
+            if let prompt = node.data.prompt, !prompt.isEmpty {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                    pane.surface?.sendText(prompt + "\n")
+                }
+            }
+            
+            updateNodeStatus(nodeID: node.id, status: "active")
+        } catch {
+            NSLog("symaira: failed to run workflow node: \(error.localizedDescription)")
+        }
+    }
+
+    private func updateNodeStatus(nodeID: String, status: String) {
+        NotificationCenter.default.post(
+            name: Notification.Name("com.symaira.terminal.updateCanvasNodeStatus"),
+            object: nil,
+            userInfo: ["nodeID": nodeID, "status": status]
+        )
+    }
 }
 
 extension AppDelegate: @preconcurrency TabBarDelegate {
@@ -773,4 +936,28 @@ extension AppDelegate: @preconcurrency TabBarDelegate {
     }
 }
 
-import SwiftUI
+// MARK: - Workflow Codable Models
+
+struct WorkflowData: Codable {
+    let nodes: [WorkflowNode]
+    let edges: [WorkflowEdge]
+}
+
+struct WorkflowNode: Codable {
+    let id: String
+    let data: WorkflowNodeData
+}
+
+struct WorkflowNodeData: Codable {
+    let label: String?
+    let type: String?
+    let prompt: String?
+    let path: String?
+    let model: String?
+}
+
+struct WorkflowEdge: Codable {
+    let id: String
+    let source: String
+    let target: String
+}

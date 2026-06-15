@@ -3,13 +3,14 @@ import Foundation
 @testable import StackKit
 
 @Suite struct SymairaToolRegistryTests {
-    @Test func registryContainsAllFourTools() {
+    @Test func registryContainsAllFiveTools() {
         let tools = SymairaToolRegistry.all
-        #expect(tools.count == 4)
+        #expect(tools.count == 5)
         #expect(tools.map(\.id).contains("symvault"))
         #expect(tools.map(\.id).contains("symmemory"))
         #expect(tools.map(\.id).contains("symseek"))
         #expect(tools.map(\.id).contains("symfetch"))
+        #expect(tools.map(\.id).contains("symcanvas"))
     }
 
     @Test func allToolsAreMCPEnabled() {

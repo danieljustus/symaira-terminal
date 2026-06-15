@@ -16,7 +16,7 @@ final class PaneManager {
     let engine: GhosttyEngine
     private weak var hostView: NSView?
     private var oscParsers: [UUID: OSCStreamParser] = [:]
-    private var worktreeManager: WorktreeManager?
+    var worktreeManager: WorktreeManager?
 
     var onPaneChanged: ((TerminalPane?) -> Void)?
     var onPanesChanged: (([TerminalPane]) -> Void)?
