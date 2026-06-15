@@ -48,6 +48,18 @@ struct ProviderDescriptor: Sendable {
 }
 
 public struct ProviderChatClient: Sendable {
+    /// Canonical per-provider default models. Update this table to change defaults
+    /// without touching any other code. `ProviderSettingsView` surfaces these so
+    /// users see the active default before they set a custom value.
+    public static let defaultModels: [ProviderID: String] = [
+        .anthropic:        "claude-sonnet-4-20250514",
+        .openai:           "gpt-4o",
+        .openAICompatible: "",           // user must configure explicitly
+        .openrouter:       "anthropic/claude-sonnet-4",
+        .google:           "gemini-2.5-flash",
+        .ollama:           "llama3.1",
+    ]
+
     private let keyStore: KeyStore
     private let descriptors: [ProviderID: ProviderDescriptor]
 
@@ -68,7 +80,7 @@ public struct ProviderChatClient: Sendable {
                     ]
                 },
                 requestBody: { provider, systemPrompt, userMessage, maxTokens, profileConfig in
-                    let model = profileConfig?.model ?? "claude-sonnet-4-20250514"
+                    let model = profileConfig?.model ?? defaultModels[provider] ?? ""
                     return [
                         "model": model,
                         "system": systemPrompt,
@@ -80,7 +92,7 @@ public struct ProviderChatClient: Sendable {
                     let response = try JSONDecoder().decode(AnthropicResponse.self, from: data)
                     return response.content.first?.text ?? ""
                 },
-                defaultModel: { _ in "claude-sonnet-4-20250514" }
+                defaultModel: { provider in defaultModels[provider] ?? "" }
             ),
             .openai: ProviderDescriptor(
                 endpoint: { _, _ in URL(string: "https://api.openai.com/v1/chat/completions")! },
@@ -91,7 +103,7 @@ public struct ProviderChatClient: Sendable {
                     ]
                 },
                 requestBody: { provider, systemPrompt, userMessage, maxTokens, profileConfig in
-                    let model = profileConfig?.model ?? "gpt-4o"
+                    let model = profileConfig?.model ?? defaultModels[provider] ?? ""
                     return [
                         "model": model,
                         "messages": [
@@ -105,7 +117,7 @@ public struct ProviderChatClient: Sendable {
                     let response = try JSONDecoder().decode(OpenAIResponse.self, from: data)
                     return response.choices.first?.message.content ?? ""
                 },
-                defaultModel: { _ in "gpt-4o" }
+                defaultModel: { provider in defaultModels[provider] ?? "" }
             ),
             .openAICompatible: ProviderDescriptor(
                 endpoint: { _, profileConfig in
@@ -120,7 +132,7 @@ public struct ProviderChatClient: Sendable {
                     ]
                 },
                 requestBody: { provider, systemPrompt, userMessage, maxTokens, profileConfig in
-                    let model = profileConfig?.model ?? "default"
+                    let model = profileConfig?.model ?? defaultModels[provider] ?? ""
                     return [
                         "model": model,
                         "messages": [
@@ -134,7 +146,7 @@ public struct ProviderChatClient: Sendable {
                     let response = try JSONDecoder().decode(OpenAIResponse.self, from: data)
                     return response.choices.first?.message.content ?? ""
                 },
-                defaultModel: { _ in "default" }
+                defaultModel: { provider in defaultModels[provider] ?? "" }
             ),
             .openrouter: ProviderDescriptor(
                 endpoint: { _, _ in URL(string: "https://openrouter.ai/api/v1/chat/completions")! },
@@ -145,7 +157,7 @@ public struct ProviderChatClient: Sendable {
                     ]
                 },
                 requestBody: { provider, systemPrompt, userMessage, maxTokens, profileConfig in
-                    let model = profileConfig?.model ?? "anthropic/claude-sonnet-4"
+                    let model = profileConfig?.model ?? defaultModels[provider] ?? ""
                     return [
                         "model": model,
                         "messages": [
@@ -159,17 +171,22 @@ public struct ProviderChatClient: Sendable {
                     let response = try JSONDecoder().decode(OpenAIResponse.self, from: data)
                     return response.choices.first?.message.content ?? ""
                 },
-                defaultModel: { _ in "anthropic/claude-sonnet-4" }
+                defaultModel: { provider in defaultModels[provider] ?? "" }
             ),
             .google: ProviderDescriptor(
-                endpoint: { _, _ in URL(string: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent")! },
+                // Model is part of the Google REST URL path; use profileConfig.model
+                // or the default from the table so the endpoint stays data-driven.
+                endpoint: { _, profileConfig in
+                    let model = profileConfig?.model ?? defaultModels[.google] ?? "gemini-2.5-flash"
+                    return URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent")!
+                },
                 authHeader: { apiKey in
                     [
                         "x-goog-api-key": apiKey ?? "",
                         "content-type": "application/json"
                     ]
                 },
-                requestBody: { provider, systemPrompt, userMessage, maxTokens, profileConfig in
+                requestBody: { _, systemPrompt, userMessage, _, _ in
                     return [
                         "contents": [["parts": [["text": systemPrompt + "\n\n" + userMessage]]]]
                     ]
@@ -178,13 +195,13 @@ public struct ProviderChatClient: Sendable {
                     let response = try JSONDecoder().decode(GoogleResponse.self, from: data)
                     return response.candidates.first?.content.parts.first?.text ?? ""
                 },
-                defaultModel: { _ in "gemini-2.5-flash" }
+                defaultModel: { provider in defaultModels[provider] ?? "" }
             ),
             .ollama: ProviderDescriptor(
                 endpoint: { _, _ in URL(string: "http://localhost:11434/api/generate")! },
                 authHeader: { _ in ["content-type": "application/json"] },
                 requestBody: { provider, systemPrompt, userMessage, maxTokens, profileConfig in
-                    let model = profileConfig?.model ?? "llama3.1"
+                    let model = profileConfig?.model ?? defaultModels[provider] ?? ""
                     return [
                         "model": model,
                         "prompt": systemPrompt + "\n\n" + userMessage,
@@ -195,7 +212,7 @@ public struct ProviderChatClient: Sendable {
                     let response = try JSONDecoder().decode(OllamaResponse.self, from: data)
                     return response.response
                 },
-                defaultModel: { _ in "llama3.1" }
+                defaultModel: { provider in defaultModels[provider] ?? "" }
             )
         ]
     }
