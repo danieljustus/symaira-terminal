@@ -25,7 +25,7 @@
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSHumanReadableCopyright</key>
-	<string>© 2026 Symaira — AGPLv3</string>
+	<string>© 2026 Symaira — MIT</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Symaira Terminal uses the microphone for speech-to-text dictation in the command input.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>

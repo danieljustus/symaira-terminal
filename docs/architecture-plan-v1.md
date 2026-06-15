@@ -7,7 +7,7 @@ Symaira baut Tools für die Human-AI-Era. Nächstes Produkt: ein natives macOS-T
 Entscheidungen des Users (10.06.2026):
 - **Scope v1**: Fokussiertes Core-MVP (~4 Monate). Canvas, Mobile App, Tunnel, STT/Sketchpad nach v1.
 - **Open-Core**: nach Symaira-Konvention — Public Core Repo + privates `-pro`-Repo (Go, `symaira-prokit`, Google Cloud + Firebase + Stripe).
-- **Lizenz**: AGPLv3 für `symaira-terminal` (bewusste Abweichung von MIT der anderen Cores — im Repo-README/commercial-boundary.md begründen).
+- **Lizenz**: MIT für `symaira-terminal` (einheitlich mit den anderen Cores — siehe `commercial-boundary.md`). *(Ursprünglich war AGPLv3 geplant; das Repo wurde später auf MIT relizenziert.)*
 
 Projektstand: Greenfield. Nur `docs/Systemarchitektur und Entwicklungsplan.md` existiert.
 
@@ -31,7 +31,7 @@ Projektstand: Greenfield. Nur `docs/Systemarchitektur und Entwicklungsplan.md` e
 
 | Repo | Lizenz | Inhalt |
 |---|---|---|
-| `symaira-terminal` (public) | AGPLv3 | macOS-App komplett, inkl. BYOK. Baut/läuft ohne privaten Code (Regel aus `commercial-boundary.md`). |
+| `symaira-terminal` (public) | MIT | macOS-App komplett, inkl. BYOK. Baut/läuft ohne privaten Code (Regel aus `commercial-boundary.md`). |
 | `symaira-terminal-pro` (privat, später) | privat | Go `pro-api` + `pro-worker` auf `symaira-prokit` (Firebase Auth, Stripe, Google Cloud). Features: E2EE-Companion-Relay, gehosteter Tunnel, Commit-Context-Team-Sharing, Workspace-Sync. |
 
 Boundary-Regeln wie bei vault: Pro konsumiert versionierte Releases des Cores; braucht Pro eine Core-Fähigkeit (z. B. E2EE-Sync-Protokoll-Client), wird sie zuerst public implementiert und getaggt. In v1 wird `symaira-terminal-pro` **nicht** gebaut — aber die Modulgrenzen (s. u.) halten die Tür offen.
@@ -97,7 +97,7 @@ Abhängigkeitsrichtung: `App → SymairaUI → {AgentKit, WorktreeKit, ProviderK
 - **M1 (Monat 1)**: Terminal solide — Tabs/Splits (AppKit), Übernahme von `~/.config/ghostty/config` (Themes/Fonts/Keybindings), Scrollback, Basis-Session-Persistenz. **Gate: Eingabelatenz + Durchsatz-Benchmark ≥ iTerm2-Niveau.**
 - **M2 (Monat 2)**: Agent-Awareness — OSC-Parser (133/7/8/777/99), Status-Engine, animierte Pane-Ringe, Workspace-Sidebar (Branch, Ports, Changed Files, letzte Aktivität), Cmd+Shift+U-Fokussprung, Shift-Shift-Palette mit Agent-Presets.
 - **M3 (Monat 3)**: Worktree-Manager + Review-Panel, Context Bank (Seitenpanel-Editor für CLAUDE.md/AGENTS.md + Rollen-Templates), **ProviderKit/BYOK** (Keychain, Fix-Error, NL→Command), **ACP-Client** mit OpenCode + Gemini CLI.
-- **M4 (Monat 4)**: Blocks-lite, Multi-Account-Routing, Polish (Onboarding, Settings), Notarisierung + Sparkle + Homebrew Cask, **Public Beta + OSS-Launch (AGPLv3)**.
+- **M4 (Monat 4)**: Blocks-lite, Multi-Account-Routing, Polish (Onboarding, Settings), Notarisierung + Sparkle + Homebrew Cask, **Public Beta + OSS-Launch (MIT)**.
 - **Post-v1**: Workflow-Canvas (WKWebView/React Flow), Mobile Companion + E2EE-Relay (`-pro`), gehosteter Tunnel (`-pro`), Commit-Context-Team-Sharing (`-pro`), STT/Sketchpad, WKWebView-Browser-Pane mit Browser-MCP.
 
 ## Verifikation
@@ -117,7 +117,7 @@ Abhängigkeitsrichtung: `App → SymairaUI → {AgentKit, WorktreeKit, ProviderK
 ## M0 → M1 Übergang (10.06.2026)
 
 M0 wurde mit Commit `446ad0f` abgeschlossen. Alle Lieferungen sind vorhanden:
-- ✅ Repo-Setup (AGPLv3, AGENTS.md, commercial-boundary.md, CI)
+- ✅ Repo-Setup (MIT, AGENTS.md, commercial-boundary.md, CI)
 - ✅ XcodeGen project.yml + App-Target-Skelett
 - ✅ SPM-Package SymairaKit mit 7 Modul-Targets
 - ✅ GhosttyKit-Spike (TerminalSmoke rendert zsh in SwiftUI)

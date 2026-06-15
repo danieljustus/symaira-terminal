@@ -7,7 +7,6 @@ final class ScrollbackBuffer: @unchecked Sendable {
     private let maxBytes: Int
     private let lock = NSLock()
     private var cachedText: String?
-    private var cachedTextLowered: String?
     private var cachedBufferCount: Int = 0
 
     init(maxLines: Int = 10_000, maxBytes: Int = 5_242_880) {
@@ -27,7 +26,6 @@ final class ScrollbackBuffer: @unchecked Sendable {
         }
         pruneIfNeeded()
         cachedText = nil
-        cachedTextLowered = nil
         cachedBufferCount = buffer.count
     }
 
@@ -38,18 +36,20 @@ final class ScrollbackBuffer: @unchecked Sendable {
 
         if cachedText == nil || cachedBufferCount != buffer.count {
             cachedText = String(data: buffer, encoding: .utf8)
-            cachedTextLowered = cachedText?.lowercased()
+            cachedBufferCount = buffer.count
         }
 
-        guard let text = cachedText, let textLowered = cachedTextLowered else { return [] }
+        guard let text = cachedText else { return [] }
 
-        let lowered = query.lowercased()
+        // Case-insensitive search directly on the cached text — no second
+        // full-buffer lowercased copy, and offsets map back to the original
+        // string without parallel-index gymnastics.
         var matches: [SearchMatch] = []
-        var searchStart = textLowered.startIndex
+        var searchStart = text.startIndex
         var lastByteOffset = 0
         var lastIndex = text.startIndex
 
-        while let range = textLowered.range(of: lowered, range: searchStart..<textLowered.endIndex) {
+        while let range = text.range(of: query, options: [.caseInsensitive], range: searchStart..<text.endIndex) {
             let prefixOffset: Int
             if range.lowerBound == lastIndex {
                 prefixOffset = lastByteOffset
@@ -98,14 +98,13 @@ final class ScrollbackBuffer: @unchecked Sendable {
         buffer = Data()
         lineOffsets = [0]
         cachedText = nil
-        cachedTextLowered = nil
         cachedBufferCount = 0
     }
 
     var currentText: String? {
         lock.lock()
         defer { lock.unlock() }
-        return String(data: buffer, encoding: .utf8)
+        return buffer.isEmpty ? nil : String(data: buffer, encoding: .utf8)
     }
 
     private func pruneIfNeeded() {
@@ -113,16 +112,23 @@ final class ScrollbackBuffer: @unchecked Sendable {
         let byteExcess = buffer.count > maxBytes
         guard lineExcess || byteExcess else { return }
 
+        // Hysteresis: once a hard cap is exceeded, trim down to ~80% of it instead
+        // of exactly to the cap. Trimming to the cap means every subsequent append
+        // at capacity recopies the whole buffer; dropping a batch amortizes the
+        // O(n) copy across ~20%-of-capacity appends.
+        let lineTarget = max(1, maxLines * 4 / 5)
+        let byteTarget = max(1, maxBytes * 4 / 5)
+
         // Determine how many lines to drop to satisfy both constraints.
         var linesToDrop = 0
         if lineExcess {
-            linesToDrop = lineOffsets.count - maxLines
+            linesToDrop = lineOffsets.count - lineTarget
         }
         if byteExcess {
-            // Find the earliest line boundary that brings us under maxBytes.
-            // We need to drop enough lines so that buffer.count - lineOffsets[dropCount] <= maxBytes,
-            // i.e. lineOffsets[dropCount] >= buffer.count - maxBytes.
-            let targetOffset = buffer.count - maxBytes
+            // Find the earliest line boundary that brings us under byteTarget.
+            // We need to drop enough lines so that buffer.count - lineOffsets[dropCount] <= byteTarget,
+            // i.e. lineOffsets[dropCount] >= buffer.count - byteTarget.
+            let targetOffset = buffer.count - byteTarget
             // Binary search for the first lineOffsets entry >= targetOffset.
             var lo = 0
             var hi = lineOffsets.count - 1

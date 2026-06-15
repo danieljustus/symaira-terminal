@@ -184,4 +184,36 @@ private func feed(_ parser: inout OSCStreamParser, _ text: String) -> [OSCEvent]
             "TERM": "xterm-256color",
         ])
     }
+
+    @Test func stripsAWSAccessKeyAndSessionTokenKeepingRegion() {
+        let env = [
+            "AWS_REGION": "us-east-1",
+            "AWS_ACCESS_KEY_ID": "AKIAEXAMPLE",
+            "AWS_SESSION_TOKEN": "token",
+            "AWS_SECRET_ACCESS_KEY": "secret",
+        ]
+        // The whole AWS credential set must go; the non-secret region stays.
+        #expect(EnvironmentSanitizer.sanitize(env) == ["AWS_REGION": "us-east-1"])
+    }
+
+    @Test func stripsGoogleCredentialsPathAndGitHubTokens() {
+        let env = [
+            "GOOGLE_APPLICATION_CREDENTIALS": "/path/creds.json",
+            "GH_TOKEN": "gho_x",
+            "GITHUB_TOKEN": "ghp_x",
+            "PATH": "/usr/bin",
+        ]
+        #expect(EnvironmentSanitizer.sanitize(env) == ["PATH": "/usr/bin"])
+    }
+
+    @Test func stripsAdditionalProviderKeyNamespaces() {
+        let env = [
+            "GROQ_API_KEY": "x",
+            "MISTRAL_API_KEY": "x",
+            "DEEPSEEK_API_KEY": "x",
+            "XAI_API_KEY": "x",
+            "HOME": "/Users/dev",
+        ]
+        #expect(EnvironmentSanitizer.sanitize(env) == ["HOME": "/Users/dev"])
+    }
 }

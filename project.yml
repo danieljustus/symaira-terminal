@@ -46,7 +46,7 @@ targets:
         CFBundleName: Symaira Terminal
         NSHighResolutionCapable: true
         NSPrincipalClass: NSApplication
-        NSHumanReadableCopyright: "© 2026 Symaira — AGPLv3"
+        NSHumanReadableCopyright: "© 2026 Symaira — MIT"
         LSApplicationCategoryType: public.app-category.developer-tools
 
   SymairaTerminalTests:
