@@ -1,6 +1,10 @@
-import AgentKit
 import SwiftUI
 import WorktreeKit
+
+// NOTE: The Transcripts tab has been removed because TranscriptStorage.save is not
+// yet called anywhere in production (only in unit tests), so the list was always
+// empty. The TranscriptStorage backend and tests remain intact. Re-add the tab once
+// ACPClient wires transcript writes through SecretRedactor — see issue #134.
 
 public struct DiffReviewPanel: View {
     @ObservedObject var worktreeStore: WorktreeStore
@@ -8,14 +12,6 @@ public struct DiffReviewPanel: View {
     @State private var diff: String = ""
     @State private var isLoading = false
     @State private var error: String?
-    @State private var selectedTab: ReviewTab = .diff
-    @State private var transcripts: [TranscriptEntry] = []
-    @State private var selectedTranscript: TranscriptEntry?
-
-    public enum ReviewTab: String, CaseIterable {
-        case diff = "Diff"
-        case transcripts = "Transcripts"
-    }
 
     public init(worktreeStore: WorktreeStore) {
         self.worktreeStore = worktreeStore
@@ -35,64 +31,40 @@ public struct DiffReviewPanel: View {
             }
             .padding()
 
-            Picker("Tab", selection: $selectedTab) {
-                ForEach(ReviewTab.allCases, id: \.self) { tab in
-                    Text(tab.rawValue).tag(tab)
-                }
-            }
-            .pickerStyle(.segmented)
-            .padding(.horizontal)
-
             Divider()
 
-            switch selectedTab {
-            case .diff:
-                diffContent
-            case .transcripts:
-                transcriptsContent
-            }
+            diffContent
 
             Divider()
 
             HStack {
-                if selectedTab == .diff {
-                    Picker("Worktree", selection: $selectedWorktree) {
-                        Text("None").tag(nil as Worktree?)
-                        ForEach(worktreeStore.worktrees, id: \.taskID) { worktree in
-                            Text(worktree.taskID).tag(worktree as Worktree?)
-                        }
+                Picker("Worktree", selection: $selectedWorktree) {
+                    Text("None").tag(nil as Worktree?)
+                    ForEach(worktreeStore.worktrees, id: \.taskID) { worktree in
+                        Text(worktree.taskID).tag(worktree as Worktree?)
                     }
-                    .pickerStyle(.menu)
-                    .frame(maxWidth: 200)
                 }
+                .pickerStyle(.menu)
+                .frame(maxWidth: 200)
 
                 Spacer()
 
-                if selectedTab == .diff {
-                    Button("Copy Diff") {
-                        NSPasteboard.general.clearContents()
-                        NSPasteboard.general.setString(diff, forType: .string)
-                    }
-                    .disabled(diff.isEmpty)
-
-                    Button("Refresh") {
-                        loadDiff()
-                    }
-                    .disabled(selectedWorktree == nil)
-                } else {
-                    Button("Refresh") {
-                        loadTranscripts()
-                    }
+                Button("Copy Diff") {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(diff, forType: .string)
                 }
+                .disabled(diff.isEmpty)
+
+                Button("Refresh") {
+                    loadDiff()
+                }
+                .disabled(selectedWorktree == nil)
             }
             .padding()
         }
         .frame(minWidth: 400, minHeight: 300)
         .onChange(of: selectedWorktree) {
             loadDiff()
-        }
-        .onAppear {
-            loadTranscripts()
         }
     }
 
@@ -112,34 +84,6 @@ public struct DiffReviewPanel: View {
             } else {
                 DiffView(diff: diff)
             }
-        }
-    }
-
-    private var transcriptsContent: some View {
-        Group {
-            if transcripts.isEmpty {
-                Text("No transcripts found")
-                    .foregroundColor(.secondary)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                List(transcripts) { transcript in
-                    Button {
-                        selectedTranscript = transcript
-                    } label: {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(String(transcript.id.prefix(8)) + "...")
-                                .font(.system(.body, design: .monospaced))
-                            Text(transcript.timestamp, style: .date)
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-        }
-        .sheet(item: $selectedTranscript) { transcript in
-            TranscriptDetailView(transcript: transcript)
         }
     }
 
@@ -167,50 +111,6 @@ public struct DiffReviewPanel: View {
             }
         }
     }
-
-    private func loadTranscripts() {
-        transcripts = TranscriptStorage.shared.list()
-    }
 }
 
-struct TranscriptDetailView: View {
-    let transcript: TranscriptEntry
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Text("Transcript \(transcript.id.prefix(8))...")
-                    .font(.headline)
-                Spacer()
-                Button("Done") {
-                    dismiss()
-                }
-            }
-            .padding()
-
-            Divider()
-
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 12) {
-                    ForEach(transcript.content.indices, id: \.self) { index in
-                        let message = transcript.content[index]
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(message.role.rawValue.uppercased())
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            Text(message.content)
-                                .textSelection(.enabled)
-                        }
-                        .padding(.horizontal)
-                    }
-                }
-                .padding(.vertical)
-            }
-        }
-        .frame(minWidth: 600, minHeight: 400)
-    }
-}
-
-extension TranscriptEntry: Identifiable {}
 
