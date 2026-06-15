@@ -876,7 +876,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func updateTitle(pane: TerminalPane?) {
         guard let pane else { return }
         let title = oscEventHandler.title(for: pane.paneID)
-        window?.title = "\(title) — Symaira Terminal"
+        window?.title = title.isEmpty ? "Symaira Terminal" : "\(title) — Symaira Terminal"
     }
 
     private func updateTabBar(panes: [TerminalPane]) {

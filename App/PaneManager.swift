@@ -33,11 +33,17 @@ final class PaneManager {
         let shell = UserDefaults.standard.string(forKey: "defaultShell") ?? "/bin/zsh"
         let scrollbackLines = UserDefaults.standard.integer(forKey: "scrollbackLines")
         let effectiveScrollback = scrollbackLines > 0 ? scrollbackLines : 10_000
-        return TerminalSurfaceConfiguration(
+        var config = TerminalSurfaceConfiguration(
             executablePath: shell,
             arguments: ["-l"],
             scrollbackLines: effectiveScrollback
         )
+        // Start new panes in the user's home directory. Without an explicit cwd
+        // the PTY inherits the app process's launch directory (e.g. the build
+        // folder), which both opens shells in the wrong place and leaks that
+        // directory name into the tab/window title via the shell's OSC title.
+        config.workingDirectory = URL(fileURLWithPath: NSHomeDirectory())
+        return config
     }
 
     func attach(to view: NSView) {

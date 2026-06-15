@@ -81,8 +81,11 @@ final class OSCEventHandler {
         statusEngines[paneID]?.current ?? .idle
     }
 
+    /// The terminal-provided title for a pane, or "" if none has arrived yet.
+    /// Callers decide their own placeholder (window: app name; tab: "Tab N"),
+    /// so we never surface a directory-derived default before a real OSC title.
     func title(for paneID: UUID) -> String {
-        paneTitles[paneID] ?? "Terminal"
+        paneTitles[paneID] ?? ""
     }
 
     func cwd(for paneID: UUID) -> URL? {
