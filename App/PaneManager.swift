@@ -204,7 +204,7 @@ final class PaneManager {
         let next = panes[(idx + 1) % panes.count]
         currentPane = next
         onPaneChanged?(next)
-        next.view.window?.makeFirstResponder(next.view)
+        focusSurface(of: next)
     }
 
     func focusPrevious() {
@@ -212,7 +212,7 @@ final class PaneManager {
         let prev = panes[(idx - 1 + panes.count) % panes.count]
         currentPane = prev
         onPaneChanged?(prev)
-        prev.view.window?.makeFirstResponder(prev.view)
+        focusSurface(of: prev)
     }
 
     func selectPane(at index: Int) {
@@ -220,7 +220,24 @@ final class PaneManager {
         let pane = panes[index]
         currentPane = pane
         onPaneChanged?(pane)
-        pane.view.window?.makeFirstResponder(pane.view)
+        focusSurface(of: pane)
+    }
+
+    /// Make the libghostty surface the first responder so keystrokes reach the
+    /// PTY. Focusing the wrapper `pane.view` (a plain container NSView) does not
+    /// forward key events to the Metal surface, so the terminal would silently
+    /// swallow input. Falls back to the container only if the surface is absent.
+    private func focusSurface(of pane: TerminalPane) {
+        let target = pane.surface?.view ?? pane.view
+        target.window?.makeFirstResponder(target)
+    }
+
+    /// Focus the current pane's surface. Call this once the hosting window is on
+    /// screen — at `createPane` time during launch the view is not yet in a
+    /// window, so the initial pane would otherwise never become first responder.
+    func focusCurrent() {
+        guard let pane = currentPane else { return }
+        focusSurface(of: pane)
     }
 
     func focusNextActive() {

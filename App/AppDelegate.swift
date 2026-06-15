@@ -220,6 +220,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
         self.window = window
 
+        // The window is on screen now, so the terminal surface can finally
+        // become first responder — without this the initial pane never receives
+        // keyboard focus and the terminal appears unresponsive on launch.
+        manager.focusCurrent()
+
         if let screen = window.screen {
             let frame = window.frame
             let sf = screen.frame
