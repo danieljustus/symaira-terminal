@@ -21,6 +21,19 @@ private func makeFixtureRepo() throws -> (repo: URL, container: URL) {
 }
 
 @Suite struct WorktreeManagerTests {
+    /// Regression: draining stdout fully before stderr deadlocks once the second
+    /// stream fills its ~64 KB pipe buffer. This process writes ~200 KB to each
+    /// stream; the concurrent drain in `run` must complete without hanging.
+    @Test func runDoesNotDeadlockOnLargeDualStreams() throws {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/sh")
+        process.arguments = ["-c", "yes x | head -c 200000; yes y | head -c 200000 1>&2"]
+        let (out, err, status) = try WorktreeManager.run(process)
+        #expect(status == 0)
+        #expect(out.count == 200000)
+        #expect(err.count == 200000)
+    }
+
     @Test func createListDiffRemoveLifecycle() throws {
         let (repo, container) = try makeFixtureRepo()
         defer { try? FileManager.default.removeItem(at: container.deletingLastPathComponent()) }
