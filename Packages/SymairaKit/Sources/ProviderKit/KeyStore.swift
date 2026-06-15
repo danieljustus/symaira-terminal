@@ -12,6 +12,32 @@ public enum ProviderID: String, CaseIterable, Sendable, Codable {
     case openAICompatible = "openai-compatible"
 }
 
+extension ProviderID {
+    /// The authentication method for this provider.
+    public var authMethod: AuthMethod {
+        switch self {
+        case .openai:
+            return .oauth(.openAI)
+        case .google:
+            return .oauth(.google)
+        case .anthropic, .openrouter, .ollama, .openAICompatible:
+            return .apiKey
+        }
+    }
+
+    /// Whether this provider supports OAuth sign-in.
+    public var supportsOAuth: Bool {
+        if case .oauth = authMethod { return true }
+        return false
+    }
+
+    /// The OAuth configuration for this provider, if available.
+    public var oauthConfig: OAuthConfig? {
+        if case .oauth(let config) = authMethod { return config }
+        return nil
+    }
+}
+
 public enum KeyStoreError: Error, Equatable {
     case keychainFailure(OSStatus)
 }

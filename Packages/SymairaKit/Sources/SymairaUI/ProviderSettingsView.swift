@@ -53,6 +53,8 @@ struct ProviderRow: View {
     @State private var isEditing = false
     @State private var keyValue = ""
     @State private var isRevealed = false
+    @State private var isSigningIn = false
+    @State private var oauthError: String?
 
     var body: some View {
         Button(action: onSelect) {
@@ -64,25 +66,66 @@ struct ProviderRow: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(provider.displayName)
                         .font(.body)
-                    if let key = store.key(for: provider) {
-                        Text(isRevealed ? key : maskedKey(key))
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                    if provider.supportsOAuth {
+                        if store.hasOAuthToken(for: provider) {
+                            Text("Signed in with OAuth")
+                                .font(.caption)
+                                .foregroundColor(.green)
+                        } else {
+                            Text("Not signed in")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
                     } else {
-                        Text("No key set")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                        if let key = store.key(for: provider) {
+                            Text(isRevealed ? key : maskedKey(key))
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        } else {
+                            Text("No key set")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
                     }
                     if let defaultModel = ProviderChatClient.defaultModels[provider], !defaultModel.isEmpty {
                         Text("Default model: \(defaultModel)")
                             .font(.caption2)
                             .foregroundColor(.secondary)
                     }
+                    if let error = oauthError {
+                        Text(error)
+                            .font(.caption2)
+                            .foregroundColor(.red)
+                    }
                 }
 
                 Spacer()
 
-                if store.hasKey(for: provider) {
+                if provider.supportsOAuth {
+                    if store.hasOAuthToken(for: provider) {
+                        Button {
+                            store.signOutOAuth(for: provider)
+                        } label: {
+                            Text("Sign Out")
+                                .font(.caption)
+                        }
+                        .buttonStyle(.plain)
+                    } else {
+                        Button {
+                            signInWithOAuth()
+                        } label: {
+                            if isSigningIn {
+                                ProgressView()
+                                    .controlSize(.small)
+                            } else {
+                                Text("Sign In")
+                                    .font(.caption)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(isSigningIn)
+                    }
+                } else if store.hasKey(for: provider) {
                     Button {
                         isRevealed.toggle()
                     } label: {
@@ -122,6 +165,19 @@ struct ProviderRow: View {
                 store: store,
                 isPresented: $isEditing
             )
+        }
+    }
+
+    private func signInWithOAuth() {
+        isSigningIn = true
+        oauthError = nil
+        Task {
+            do {
+                try await store.signInWithOAuth(for: provider)
+            } catch {
+                oauthError = error.localizedDescription
+            }
+            isSigningIn = false
         }
     }
 

@@ -61,10 +61,12 @@ public struct ProviderChatClient: Sendable {
     ]
 
     private let keyStore: KeyStore
+    private let tokenStore: TokenStore
     private let descriptors: [ProviderID: ProviderDescriptor]
 
-    public init(keyStore: KeyStore = KeychainKeyStore()) {
+    public init(keyStore: KeyStore = KeychainKeyStore(), tokenStore: TokenStore = KeychainTokenStore()) {
         self.keyStore = keyStore
+        self.tokenStore = tokenStore
         self.descriptors = Self.buildDescriptors()
     }
 
@@ -229,8 +231,23 @@ public struct ProviderChatClient: Sendable {
             throw ProviderError.networkError(NSError(domain: "ProviderKit", code: -1, userInfo: [NSLocalizedDescriptionKey: "Unknown provider"]))
         }
 
-        // Fetch key once; wrap in Secret to redact in logs/debug output.
-        let secretKey = Secret(try keyStore.key(provider: provider, profile: profile) ?? "")
+        let secretKey: Secret<String>
+        if provider.supportsOAuth {
+            guard let token = try tokenStore.token(provider: provider, profile: profile) else {
+                throw ProviderError.missingKey
+            }
+            let tokenClient = OAuthTokenClient()
+            let accessToken = try await tokenClient.validAccessToken(
+                for: token,
+                config: provider.oauthConfig!,
+                tokenStore: tokenStore,
+                provider: provider,
+                profile: profile
+            )
+            secretKey = Secret(accessToken)
+        } else {
+            secretKey = Secret(try keyStore.key(provider: provider, profile: profile) ?? "")
+        }
 
         if provider != .ollama {
             guard !secretKey.value.isEmpty else {
