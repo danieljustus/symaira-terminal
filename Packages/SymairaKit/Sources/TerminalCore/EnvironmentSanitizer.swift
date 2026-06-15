@@ -12,6 +12,12 @@ public enum EnvironmentSanitizer {
         "CLAUDECODE",
         "GOOGLE_API_KEY",
         "GEMINI_API_KEY",
+        // Google service-account credentials path — a pointer to a secret file
+        // is just as sensitive as the secret itself.
+        "GOOGLE_APPLICATION_CREDENTIALS",
+        // GitHub tokens leak push/repo access into nested agents.
+        "GH_TOKEN",
+        "GITHUB_TOKEN",
     ]
 
     /// Variables whose name starts with any of these prefixes are stripped.
@@ -20,12 +26,21 @@ public enum EnvironmentSanitizer {
         "OPENAI_",
         "OPENROUTER_",
         "CLAUDE_CODE_",
+        // Cover the whole AWS credential set, not just the secret key:
+        // AWS_ACCESS_KEY_ID and AWS_SESSION_TOKEN are credentials too.
+        "AWS_ACCESS_KEY",
         "AWS_SECRET",
+        "AWS_SESSION_TOKEN",
         "AZURE_",
         "COHERE_",
         "HF_",
         "TOGETHER_",
         "HUGGINGFACE_",
+        // Additional OpenAI-compatible provider key namespaces.
+        "GROQ_",
+        "MISTRAL_",
+        "DEEPSEEK_",
+        "XAI_",
     ]
 
     public static func sanitize(_ environment: [String: String]) -> [String: String] {
