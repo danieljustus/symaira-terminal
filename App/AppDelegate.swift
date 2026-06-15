@@ -471,7 +471,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 ?? pane.configuration.workingDirectory
                 ?? URL(fileURLWithPath: NSHomeDirectory())
             
-            let gitResult = await fetchGitAndPRInfo(for: cwd)
+            let gitResult = await cachedGitAndPRInfo(for: cwd)
             
             let shellPID = pane.pid
             let panePorts = listeningPorts.filter { portInfo in
@@ -568,6 +568,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return false
     }
 
+    private struct GitCacheEntry {
+        let result: GitAndPRResult
+        let timestamp: Date
+    }
+
+    /// Per-cwd cache for git/PR info. The status loop runs every 2s, but git and
+    /// gh lookups are expensive (several subprocess spawns per pane); refreshing
+    /// them at most once per TTL per directory cuts the bulk of that cost.
+    private var gitInfoCache: [String: GitCacheEntry] = [:]
+    private static let gitInfoTTL: TimeInterval = 20
+
+    private func cachedGitAndPRInfo(for cwd: URL) async -> GitAndPRResult {
+        let key = cwd.path
+        if let entry = gitInfoCache[key], Date().timeIntervalSince(entry.timestamp) < Self.gitInfoTTL {
+            return entry.result
+        }
+        let result = await fetchGitAndPRInfo(for: cwd)
+        gitInfoCache[key] = GitCacheEntry(result: result, timestamp: Date())
+        return result
+    }
+
     struct GitAndPRResult {
         let branch: String?
         let isDirty: Bool
@@ -608,7 +629,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // nil — the sidebar then shows an honest empty state. (Earlier versions
         // fabricated PR numbers/titles/statuses from the branch-name hash, which
         // surfaced fictional "approved/changes_requested" PRs as real state.)
-        let ghPaths = ["/opt/homebrew/bin/gh", "/usr/local/bin/gh", "/usr/bin/gh"]
+        // Skip the PR lookup on the trunk branch — there is no per-branch PR to
+        // find there, so spawning gh every refresh would be pure waste.
+        let skipPRLookup = (branch == "main" || branch == "master" || branch == "HEAD")
+        let ghPaths = skipPRLookup ? [] : ["/opt/homebrew/bin/gh", "/usr/local/bin/gh", "/usr/bin/gh"]
         for gp in ghPaths where FileManager.default.fileExists(atPath: gp) {
             guard let prJson = await runCommand(executable: gp, arguments: ["pr", "view", "--json", "number,title,state,reviewDecision"], directory: cwd),
                   let data = prJson.data(using: .utf8),
