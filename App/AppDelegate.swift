@@ -26,6 +26,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var mainAreaView: NSView?
     private var sidebarViewModel: SidebarViewModel?
     private var monitorTask: Task<Void, Never>?
+    private let workspaceMonitor = WorkspaceMonitor()
     private lazy var providerStore = ProviderStore()
     private lazy var stackStore = StackStore()
     private lazy var workspaceConfigManager = WorkspaceConfigManager(workspaceURL: URL(fileURLWithPath: NSHomeDirectory()))
@@ -456,8 +457,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func updatePaneStatuses() async {
         guard let manager = paneManager else { return }
-        let parentMap = await cachedProcessTree()
-        let listeningPorts = await cachedListeningPorts()
+        let parentMap = await workspaceMonitor.cachedProcessTree()
+        let listeningPorts = await workspaceMonitor.cachedListeningPorts()
         
         var updatedItems: [PaneStatusInfo] = []
         let currentPanes = manager.panes
@@ -472,11 +473,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 ?? pane.configuration.workingDirectory
                 ?? URL(fileURLWithPath: NSHomeDirectory())
             
-            let gitResult = await cachedGitAndPRInfo(for: cwd)
+            let gitResult = await workspaceMonitor.cachedGitAndPRInfo(for: cwd)
             
             let shellPID = pane.pid
             let panePorts = listeningPorts.filter { portInfo in
-                isDescendant(pid: portInfo.pid, parentPID: shellPID, parentMap: parentMap)
+                WorkspaceMonitor.isDescendant(pid: portInfo.pid, parentPID: shellPID, parentMap: parentMap)
             }.map { $0.port }
             
             let info = PaneStatusInfo(
@@ -509,211 +510,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func fetchProcessTree() async -> [Int32: Int32] {
-        guard let output = await runCommand(executable: "/bin/ps", arguments: ["-ax", "-o", "pid=,ppid="]) else {
-            return [:]
-        }
-        var parentMap: [Int32: Int32] = [:]
-        let lines = output.components(separatedBy: .newlines)
-        for line in lines {
-            let parts = line.split(separator: " ").map(String.init)
-            if parts.count >= 2, let pid = Int32(parts[0]), let ppid = Int32(parts[1]) {
-                parentMap[pid] = ppid
-            }
-        }
-        return parentMap
-    }
-
-    struct PortInfo {
-        let port: UInt16
-        let pid: Int32
-    }
-
-    private func fetchListeningPorts() async -> [PortInfo] {
-        let lsofPath = "/usr/sbin/lsof"
-        guard let output = await runCommand(executable: lsofPath, arguments: ["-iTCP", "-sTCP:LISTEN", "-P", "-n"]) else {
-            return []
-        }
-        var results: [PortInfo] = []
-        let lines = output.components(separatedBy: .newlines)
-        for line in lines {
-            if line.hasPrefix("COMMAND") || line.isEmpty { continue }
-            let parts = line.split(separator: " ").map(String.init)
-            if parts.count >= 9 {
-                let pidStr = parts[1]
-                let nameStr = parts[8]
-                
-                guard let pid = Int32(pidStr) else { continue }
-                if let lastColon = nameStr.lastIndex(of: ":") {
-                    let portStr = nameStr[nameStr.index(after: lastColon)...].trimmingCharacters(in: CharacterSet(charactersIn: " (LISTEN)"))
-                    if let port = UInt16(portStr) {
-                        results.append(PortInfo(port: port, pid: pid))
-                    }
-                }
-            }
-        }
-        return results
-    }
-
-    private func isDescendant(pid: Int32, parentPID: Int32, parentMap: [Int32: Int32]) -> Bool {
-        var current = pid
-        var visited = Set<Int32>()
-        while current > 0 && !visited.contains(current) {
-            if current == parentPID {
-                return true
-            }
-            visited.insert(current)
-            guard let parent = parentMap[current] else { break }
-            current = parent
-        }
-        return false
-    }
-
-    private struct GitCacheEntry {
-        let result: GitAndPRResult
-        let timestamp: Date
-    }
-
-    private struct ProcessTreeCacheEntry {
-        let result: [Int32: Int32]
-        let timestamp: Date
-    }
-
-    private struct PortCacheEntry {
-        let result: [PortInfo]
-        let timestamp: Date
-    }
-
-    /// Per-cwd cache for git/PR info. The status loop runs every 2s, but git and
-    /// gh lookups are expensive (several subprocess spawns per pane); refreshing
-    /// them at most once per TTL per directory cuts the bulk of that cost.
-    private var gitInfoCache: [String: GitCacheEntry] = [:]
-    private static let gitInfoTTL: TimeInterval = 20
-
-    /// ps / lsof are each hundreds of ms and return machine-wide data — a single
-    /// cached result per TTL interval is sufficient for all panes in the same tick.
-    private var processTreeCache: ProcessTreeCacheEntry?
-    private var portCache: PortCacheEntry?
-    private static let sysInfoTTL: TimeInterval = 8
-
-    private func cachedGitAndPRInfo(for cwd: URL) async -> GitAndPRResult {
-        let key = cwd.path
-        if let entry = gitInfoCache[key], Date().timeIntervalSince(entry.timestamp) < Self.gitInfoTTL {
-            return entry.result
-        }
-        let result = await fetchGitAndPRInfo(for: cwd)
-        gitInfoCache[key] = GitCacheEntry(result: result, timestamp: Date())
-        return result
-    }
-
-    private func cachedProcessTree() async -> [Int32: Int32] {
-        if let c = processTreeCache, Date().timeIntervalSince(c.timestamp) < Self.sysInfoTTL {
-            return c.result
-        }
-        let result = await fetchProcessTree()
-        processTreeCache = ProcessTreeCacheEntry(result: result, timestamp: Date())
-        return result
-    }
-
-    private func cachedListeningPorts() async -> [PortInfo] {
-        if let c = portCache, Date().timeIntervalSince(c.timestamp) < Self.sysInfoTTL {
-            return c.result
-        }
-        let result = await fetchListeningPorts()
-        portCache = PortCacheEntry(result: result, timestamp: Date())
-        return result
-    }
-
-    struct GitAndPRResult {
-        let branch: String?
-        let isDirty: Bool
-        let ahead: Int
-        let behind: Int
-        let prNumber: Int?
-        let prTitle: String?
-        let prStatus: String?
-    }
-
-    private func fetchGitAndPRInfo(for cwd: URL) async -> GitAndPRResult {
-        let gitPath = "/usr/bin/git"
-        guard let branchOutput = await runCommand(executable: gitPath, arguments: ["rev-parse", "--abbrev-ref", "HEAD"], directory: cwd),
-              !branchOutput.contains("fatal: not a git repository") else {
-            return GitAndPRResult(branch: nil, isDirty: false, ahead: 0, behind: 0, prNumber: nil, prTitle: nil, prStatus: nil)
-        }
-        let branch = branchOutput.trimmingCharacters(in: .whitespacesAndNewlines)
-        
-        let dirtyOutput = await runCommand(executable: gitPath, arguments: ["status", "--porcelain"], directory: cwd)
-        let isDirty = !(dirtyOutput?.isEmpty ?? true)
-        
-        var ahead = 0
-        var behind = 0
-        if let abOutput = await runCommand(executable: gitPath, arguments: ["rev-list", "--left-right", "--count", "HEAD...@{u}"], directory: cwd) {
-            let parts = abOutput.split(separator: "\t").map(String.init)
-            if parts.count >= 2, let ah = Int(parts[0]), let be = Int(parts[1]) {
-                ahead = ah
-                behind = be
-            }
-        }
-        
-        var prNumber: Int? = nil
-        var prTitle: String? = nil
-        var prStatus: String? = nil
-        
-        // Only report PR data that comes from a real `gh pr view` result. When
-        // gh is missing or there is no PR for the branch, leave the PR fields
-        // nil — the sidebar then shows an honest empty state. (Earlier versions
-        // fabricated PR numbers/titles/statuses from the branch-name hash, which
-        // surfaced fictional "approved/changes_requested" PRs as real state.)
-        // Skip the PR lookup on the trunk branch — there is no per-branch PR to
-        // find there, so spawning gh every refresh would be pure waste.
-        let skipPRLookup = (branch == "main" || branch == "master" || branch == "HEAD")
-        let ghPaths = skipPRLookup ? [] : ["/opt/homebrew/bin/gh", "/usr/local/bin/gh", "/usr/bin/gh"]
-        for gp in ghPaths where FileManager.default.fileExists(atPath: gp) {
-            guard let prJson = await runCommand(executable: gp, arguments: ["pr", "view", "--json", "number,title,state,reviewDecision"], directory: cwd),
-                  let data = prJson.data(using: .utf8),
-                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                break
-            }
-            prNumber = json["number"] as? Int
-            prTitle = json["title"] as? String
-            let state = json["state"] as? String ?? ""
-            let decision = json["reviewDecision"] as? String ?? ""
-
-            if state == "MERGED" {
-                prStatus = "merged"
-            } else if state == "CLOSED" {
-                prStatus = "closed"
-            } else if state == "OPEN" {
-                if decision == "APPROVED" {
-                    prStatus = "approved"
-                } else if decision == "CHANGES_REQUESTED" {
-                    prStatus = "changes_requested"
-                } else {
-                    prStatus = "open"
-                }
-            }
-            break
-        }
-
-        return GitAndPRResult(
-            branch: branch,
-            isDirty: isDirty,
-            ahead: ahead,
-            behind: behind,
-            prNumber: prNumber,
-            prTitle: prTitle,
-            prStatus: prStatus
-        )
-    }
-
-    private func runCommand(executable: String, arguments: [String], directory: URL? = nil) async -> String? {
-        await ProcessRunner.runReturningStdout(
-            executable: executable,
-            arguments: arguments,
-            directory: directory,
-            timeout: 15
-        )
-    }
 
     @objc private func togglePalette() {
         showPalette.toggle()
