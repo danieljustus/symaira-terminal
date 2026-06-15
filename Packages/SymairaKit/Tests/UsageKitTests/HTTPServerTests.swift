@@ -36,4 +36,31 @@ import Foundation
         #expect(running)
         await server.stop()
     }
+
+    @Test func allowsLoopbackHosts() {
+        #expect(UsageHTTPServer.isAllowedHost("127.0.0.1"))
+        #expect(UsageHTTPServer.isAllowedHost("127.0.0.1:6737"))
+        #expect(UsageHTTPServer.isAllowedHost("localhost"))
+        #expect(UsageHTTPServer.isAllowedHost("localhost:6737"))
+        #expect(UsageHTTPServer.isAllowedHost("LOCALHOST"))
+        #expect(UsageHTTPServer.isAllowedHost("[::1]:6737"))
+        #expect(UsageHTTPServer.isAllowedHost("::1"))
+    }
+
+    @Test func rejectsNonLoopbackOrMissingHosts() {
+        #expect(!UsageHTTPServer.isAllowedHost(nil))
+        #expect(!UsageHTTPServer.isAllowedHost(""))
+        #expect(!UsageHTTPServer.isAllowedHost("evil.com"))
+        #expect(!UsageHTTPServer.isAllowedHost("evil.com:6737"))
+        #expect(!UsageHTTPServer.isAllowedHost("0.0.0.0"))
+        #expect(!UsageHTTPServer.isAllowedHost("127.0.0.1.evil.com"))
+    }
+
+    @Test func parsesHostHeaderCaseInsensitively() {
+        let lines = ["GET /usage HTTP/1.1", "Host: 127.0.0.1:6737", "Accept: */*"]
+        #expect(UsageHTTPServer.headerValue(named: "host", in: lines) == "127.0.0.1:6737")
+        let lower = ["GET / HTTP/1.1", "host:   localhost  "]
+        #expect(UsageHTTPServer.headerValue(named: "Host", in: lower) == "localhost")
+        #expect(UsageHTTPServer.headerValue(named: "Host", in: ["GET / HTTP/1.1"]) == nil)
+    }
 }

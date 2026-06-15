@@ -72,15 +72,57 @@ public actor UsageHTTPServer {
             }
         }
 
-        let requestLine = String(data: requestData, encoding: .utf8)?
-            .components(separatedBy: "\r\n").first ?? ""
+        let requestText = String(data: requestData, encoding: .utf8) ?? ""
+        let lines = requestText.components(separatedBy: "\r\n")
+        let requestLine = lines.first ?? ""
         let path = requestLine.components(separatedBy: " ").dropFirst().first ?? "/"
+        let host = Self.headerValue(named: "host", in: lines)
 
-        let (statusCode, body) = await buildResponse(path: path)
+        // Reject anything not addressed to the loopback host. The socket already
+        // binds to 127.0.0.1, but a browser the user visits could reach this port
+        // via DNS-rebinding; a Host-header allowlist closes that probe surface.
+        let (statusCode, body): (Int, Data)
+        if !Self.isAllowedHost(host) {
+            statusCode = 403
+            body = "{\"error\":\"forbidden host\"}".data(using: .utf8)!
+        } else {
+            (statusCode, body) = await buildResponse(path: path)
+        }
         let response = httpResponse(statusCode: statusCode, body: body)
         connection.send(content: response, completion: .contentProcessed { _ in
             connection.cancel()
         })
+    }
+
+    /// Case-insensitive lookup of a single header value from the raw request lines.
+    static func headerValue(named name: String, in lines: [String]) -> String? {
+        let prefix = name.lowercased() + ":"
+        for line in lines.dropFirst() {
+            if line.lowercased().hasPrefix(prefix) {
+                return line.dropFirst(prefix.count).trimmingCharacters(in: .whitespaces)
+            }
+        }
+        return nil
+    }
+
+    /// Accepts only loopback hosts (with optional port). A missing Host header is
+    /// rejected — every legitimate local client sends one.
+    static func isAllowedHost(_ host: String?) -> Bool {
+        guard let host, !host.isEmpty else { return false }
+        // Strip the port. IPv6 literals are bracketed: [::1]:6737.
+        let hostname: String
+        if host.hasPrefix("[") {
+            // Bracketed IPv6 literal, optionally with :port — take inside the brackets.
+            hostname = String(host.dropFirst().prefix { $0 != "]" })
+        } else if host.filter({ $0 == ":" }).count == 1, let colon = host.firstIndex(of: ":") {
+            // Exactly one colon → host:port (IPv4 or name). Multiple colons with no
+            // brackets is a bare IPv6 literal, which carries no port to strip.
+            hostname = String(host[..<colon])
+        } else {
+            hostname = host
+        }
+        let allowed: Set<String> = ["127.0.0.1", "localhost", "::1"]
+        return allowed.contains(hostname.lowercased())
     }
 
     private func buildResponse(path: String) async -> (Int, Data) {
@@ -168,6 +210,7 @@ public actor UsageHTTPServer {
     private func statusText(_ code: Int) -> String {
         switch code {
         case 200: "OK"
+        case 403: "Forbidden"
         case 404: "Not Found"
         default:  "Unknown"
         }
