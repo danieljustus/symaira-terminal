@@ -73,6 +73,11 @@ struct ProviderRow: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
+                    if let defaultModel = ProviderChatClient.defaultModels[provider], !defaultModel.isEmpty {
+                        Text("Default model: \(defaultModel)")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
                 }
 
                 Spacer()
