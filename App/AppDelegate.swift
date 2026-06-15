@@ -839,12 +839,52 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         
-        updateNodeStatus(nodeID: sourceNode.id, status: "done")
-        
         let edgesFromSource = workflow.edges.filter { $0.source == sourceNode.id }
-        for edge in edgesFromSource {
-            guard let targetNode = workflow.nodes.first(where: { $0.id == edge.target }) else { continue }
-            executeHandoff(from: sourceNode, to: targetNode, summary: summary)
+        let targetNodeNames = edgesFromSource.compactMap { edge -> String? in
+            guard let targetNode = workflow.nodes.first(where: { $0.id == edge.target }) else { return nil }
+            return targetNode.data.label ?? targetNode.data.path ?? "Unknown"
+        }
+        
+        showHandoffConfirmation(
+            sourceName: sourceNode.data.label ?? sourceNode.data.path ?? "Unknown",
+            targetNames: targetNodeNames,
+            summary: summary
+        ) { [weak self] approved in
+            guard approved, let self = self else { return }
+            
+            self.updateNodeStatus(nodeID: sourceNode.id, status: "done")
+            
+            for edge in edgesFromSource {
+                guard let targetNode = workflow.nodes.first(where: { $0.id == edge.target }) else { continue }
+                self.executeHandoff(from: sourceNode, to: targetNode, summary: summary)
+            }
+        }
+    }
+    
+    private func showHandoffConfirmation(
+        sourceName: String,
+        targetNames: [String],
+        summary: String,
+        completion: @escaping (Bool) -> Void
+    ) {
+        DispatchQueue.main.async {
+            let alert = NSAlert()
+            alert.messageText = "Handoff Request"
+            alert.informativeText = """
+                A distributed notification requests a workflow handoff.
+                
+                Source: \(sourceName)
+                Target(s): \(targetNames.joined(separator: ", "))
+                \(summary.isEmpty ? "" : "Summary: \(summary)")
+                
+                Do you want to proceed?
+                """
+            alert.alertStyle = .warning
+            alert.addButton(withTitle: "Allow")
+            alert.addButton(withTitle: "Deny")
+            
+            let response = alert.runModal()
+            completion(response == .alertFirstButtonReturn)
         }
     }
 
