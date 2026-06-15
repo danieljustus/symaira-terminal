@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import ProviderKit
 
@@ -6,7 +7,8 @@ public struct OnboardingView: View {
     @State private var currentStep = 0
     @State private var apiKey = ""
     @State private var selectedProvider: ProviderID = .anthropic
-    @State private var isComplete = false
+    @State private var keySaved = false
+    @State private var keyError: String?
     @Binding var isPresented: Bool
 
     public init(providerStore: ProviderStore, isPresented: Binding<Bool>) {
@@ -69,7 +71,6 @@ public struct OnboardingView: View {
                     }
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(currentStep == 1 && apiKey.isEmpty)
             }
         }
         .padding(40)
@@ -78,10 +79,10 @@ public struct OnboardingView: View {
 
     private var stepOne: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Step 1: Add API Key")
+            Text("Step 1: Add an API key (optional)")
                 .font(.headline)
 
-            Text("Bring your own API key. Keys stay in your macOS Keychain only.")
+            Text("Bring your own key for AI features. Keys stay in your macOS Keychain only — you can also add one later in Settings.")
                 .foregroundColor(.secondary)
 
             Picker("Provider", selection: $selectedProvider) {
@@ -90,38 +91,79 @@ public struct OnboardingView: View {
                 }
             }
             .pickerStyle(.menu)
+            .onChange(of: selectedProvider) { _, _ in
+                keySaved = false
+                keyError = nil
+            }
 
-            SecureField("API Key", text: $apiKey)
-                .textFieldStyle(.roundedBorder)
+            HStack {
+                SecureField("API Key", text: $apiKey)
+                    .textFieldStyle(.roundedBorder)
+                    .onChange(of: apiKey) { _, _ in
+                        keySaved = false
+                        keyError = nil
+                    }
+
+                Button("Save") {
+                    saveKey()
+                }
+                .disabled(apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+
+            if keySaved {
+                Label("Saved to Keychain", systemImage: "checkmark.circle.fill")
+                    .font(.caption)
+                    .foregroundColor(.green)
+            } else if let keyError {
+                Label(keyError, systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundColor(.orange)
+            }
         }
     }
 
     private var stepTwo: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Step 2: Shell Integration")
+            Text("Step 2: Shell integration (optional)")
                 .font(.headline)
 
-            Text("Enable OSC 133 shell integration for command blocks and prompt navigation.")
+            Text("Enable OSC 133 shell integration for command blocks, prompt navigation, and agent status. Add this line to your shell config, then restart your shell.")
                 .foregroundColor(.secondary)
 
-            Text("Add to your shell rc file:")
-                .font(.caption)
-                .foregroundColor(.secondary)
+            if let path = shellIntegrationPath {
+                let line = "source \"\(path)\""
+                HStack(alignment: .top) {
+                    Text(line)
+                        .font(.system(.caption, design: .monospaced))
+                        .textSelection(.enabled)
+                        .padding(8)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color(nsColor: .textBackgroundColor))
+                        .cornerRadius(4)
 
-            Text("source /path/to/symaira-shell-integration.zsh")
-                .font(.system(.caption, design: .monospaced))
-                .padding(8)
-                .background(Color(nsColor: .textBackgroundColor))
-                .cornerRadius(4)
+                    Button {
+                        let pasteboard = NSPasteboard.general
+                        pasteboard.clearContents()
+                        pasteboard.setString(line, forType: .string)
+                    } label: {
+                        Image(systemName: "doc.on.doc")
+                    }
+                    .help("Copy to clipboard")
+                }
+            } else {
+                Text("Shell integration script not found in the app bundle. You can skip this step and enable it later from Settings.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
         }
     }
 
     private var stepThree: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Step 3: Ready to Go")
+            Text("Step 3: You're ready")
                 .font(.headline)
 
-            Text("You're all set! Start coding with AI agents in parallel.")
+            Text("Your terminal is ready to use. Press ⌘T to open a new tab, or ⌘D to split the current pane.")
                 .foregroundColor(.secondary)
 
             VStack(alignment: .leading, spacing: 8) {
@@ -133,9 +175,37 @@ public struct OnboardingView: View {
         }
     }
 
+    /// Resolved, real path to the bundled shell-integration script for the
+    /// user's current shell. Nil when running outside the app bundle (previews,
+    /// tests) or if the resource is missing.
+    private var shellIntegrationPath: String? {
+        let shell = (ProcessInfo.processInfo.environment["SHELL"] as NSString?)?.lastPathComponent ?? "zsh"
+        let resource: (name: String, ext: String)
+        switch shell {
+        case "bash": resource = ("symaira-bash-integration", "bash")
+        case "fish": resource = ("symaira-fish-integration", "fish")
+        default: resource = ("symaira-zsh-integration", "zsh")
+        }
+        return Bundle.main.url(forResource: resource.name, withExtension: resource.ext)?.path
+    }
+
+    private func saveKey() {
+        let trimmed = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        do {
+            try providerStore.setKey(trimmed, for: selectedProvider)
+            keySaved = true
+            keyError = nil
+        } catch {
+            keySaved = false
+            keyError = "Could not save key to Keychain."
+        }
+    }
+
     private func complete() {
-        if !apiKey.isEmpty {
-            try? providerStore.setKey(apiKey, for: selectedProvider)
+        let trimmed = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !keySaved && !trimmed.isEmpty {
+            try? providerStore.setKey(trimmed, for: selectedProvider)
         }
         UserDefaults.standard.set(true, forKey: "onboardingCompleted")
         isPresented = false
