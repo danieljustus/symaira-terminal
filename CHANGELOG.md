@@ -9,6 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### M4 — Polish & Launch (in progress)
 
+## [0.6.0] — 2026-06-15
+
+### Added
+- OAuth/PKCE provider sign-in support (OpenAI, Google) — browser-based auth instead of API keys
+- IDE-like input editor for terminal pane
+- OSC 8 hyperlink parsing for clickable links in terminal output
+
+### Fixed
+- Pipe deadlock in terminal session handling
+- TTL caching for provider responses
+- Model defaults for OpenAI-compatible providers
+- Dead transcript UI elements
+- Terminal input handling improvements
+- OSC handling hardening
+
+### Security
+- Security hardening across multiple modules
+- Performance and architecture improvements
+
+### Docs
+- Removed private/commercial repository references from public docs
+- Removed superseded research plan, linked curated v1 plan
+
 ## [0.4.0] — 2026-06-14
 
 ### Added
