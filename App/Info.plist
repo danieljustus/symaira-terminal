@@ -32,6 +32,17 @@
 	<string>Symaira Terminal uses speech recognition to convert your voice into text for the command input.</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.symaira.terminal.oauth</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>symaira-oauth</string>
+			</array>
+		</dict>
+	</array>
 	<key>NSServices</key>
 	<array>
 		<dict>
