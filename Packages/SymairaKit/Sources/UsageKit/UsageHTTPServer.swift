@@ -65,10 +65,26 @@ public actor UsageHTTPServer {
     private func handle(connection: NWConnection) async {
         connection.start(queue: .global(qos: .utility))
 
-        // Read the HTTP request line (we don't need headers for this read-only API).
-        let requestData = await withCheckedContinuation { cont in
-            connection.receive(minimumIncompleteLength: 1, maximumLength: 4096) { data, _, _, _ in
-                cont.resume(returning: data ?? Data())
+        var requestData = Data()
+        var headerTerminatorFound = false
+        
+        while !headerTerminatorFound {
+            let chunk = await withCheckedContinuation { (cont: CheckedContinuation<Data?, Never>) in
+                connection.receive(minimumIncompleteLength: 1, maximumLength: 4096) { data, _, _, _ in
+                    cont.resume(returning: data)
+                }
+            }
+            
+            guard let chunk = chunk, !chunk.isEmpty else {
+                connection.cancel()
+                return
+            }
+            
+            requestData.append(chunk)
+            
+            if let requestString = String(data: requestData, encoding: .utf8),
+               requestString.contains("\r\n\r\n") {
+                headerTerminatorFound = true
             }
         }
 

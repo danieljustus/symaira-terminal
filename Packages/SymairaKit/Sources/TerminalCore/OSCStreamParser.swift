@@ -125,10 +125,19 @@ public struct OSCStreamParser: Sendable {
         case 0, 2:
             return .windowTitle(rest)
         case 7:
-            guard let url = URL(string: rest), url.scheme == "file" else {
-                return .unhandled(code: 7, payload: rest)
+            if let url = URL(string: rest), url.scheme == "file" {
+                return .workingDirectory(url)
             }
-            return .workingDirectory(url)
+            
+            if rest.hasPrefix("file://") {
+                let pathString = rest.replacingOccurrences(of: "file://localhost", with: "")
+                    .replacingOccurrences(of: "file://", with: "")
+                let decodedPath = pathString.removingPercentEncoding ?? pathString
+                let url = URL(fileURLWithPath: decodedPath)
+                return .workingDirectory(url)
+            }
+            
+            return .unhandled(code: 7, payload: rest)
         case 8:
             return parseHyperlink(rest)
         case 133:

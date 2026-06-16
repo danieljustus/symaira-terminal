@@ -9,6 +9,16 @@ permissions:
   contents: read
 
 jobs:
+  lint:
+    name: Lint & Static Analysis
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - name: Install SwiftLint
+        run: brew install swiftlint
+      - name: Run SwiftLint
+        run: swiftlint lint --strict --reporter github-actions-logging
+
   test:
     name: Build & Test (SymairaKit)
     runs-on: macos-15

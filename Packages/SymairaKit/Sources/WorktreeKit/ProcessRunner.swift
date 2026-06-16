@@ -105,17 +105,32 @@ public struct ProcessRunner: Sendable {
         return Result(stdout: outBox.value, stderr: errBox.value, exitCode: process.terminationStatus)
     }
 
-    /// Reads a file descriptor to EOF using a POSIX read loop. Uses the raw fd
-    /// (Int32, Sendable) so concurrent drain closures capture nothing that strict
-    /// concurrency would reject.
     static func drain(_ fd: Int32) -> Data {
+        let flags = fcntl(fd, F_GETFL)
+        guard flags != -1 else { return Data() }
+        
+        fcntl(fd, F_SETFL, flags | O_NONBLOCK)
+        
         var data = Data()
         var buf = [UInt8](repeating: 0, count: 65536)
+        
         while true {
             let n = buf.withUnsafeMutableBytes { read(fd, $0.baseAddress, $0.count) }
-            if n > 0 { data.append(contentsOf: buf[0..<n]) }
-            else { break }
+            
+            if n > 0 {
+                data.append(contentsOf: buf[0..<n])
+            } else if n == -1 {
+                if errno == EAGAIN || errno == EWOULDBLOCK {
+                    usleep(1000)
+                    continue
+                }
+                break
+            } else {
+                break
+            }
         }
+        
+        fcntl(fd, F_SETFL, flags)
         return data
     }
 }
