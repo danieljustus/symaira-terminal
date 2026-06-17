@@ -5,7 +5,7 @@ set -euo pipefail
 # Example: ./scripts/update-homebrew-tap.sh 1.0.0 build/release/SymairaTerminal-1.0.0.dmg
 #
 # Prerequisites:
-#   - TAP_REPO_TOKEN: GitHub PAT with repo scope (for pushing to the tap repo)
+#   - HOMEBREW_TAP_GITHUB_TOKEN: GitHub PAT with repo scope (for pushing to the tap repo)
 #   - The tap repo must exist: github.com/danieljustus/homebrew-tap
 
 VERSION="${1:?Usage: $0 <version> <dmg-path>}"
@@ -28,8 +28,8 @@ echo "SHA256: ${SHA256}"
 
 TAP_DIR="$(mktemp -d)/homebrew-tap"
 echo "Cloning tap repo..."
-if [ -n "${TAP_REPO_TOKEN:-}" ]; then
-    git clone "https://x-access-token:${TAP_REPO_TOKEN}@github.com/${TAP_REPO}.git" "${TAP_DIR}"
+if [ -n "${HOMEBREW_TAP_GITHUB_TOKEN:-}" ]; then
+    git clone "https://x-access-token:${HOMEBREW_TAP_GITHUB_TOKEN}@github.com/${TAP_REPO}.git" "${TAP_DIR}"
 else
     git clone "${TAP_REPO_URL}" "${TAP_DIR}"
 fi

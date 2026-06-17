@@ -178,14 +178,14 @@ jobs:
 
       - name: Update Homebrew tap
         env:
-          TAP_REPO_TOKEN: ${{ secrets.TAP_REPO_TOKEN }}
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           DMG_PATH="build/release/SymairaTerminal-${VERSION}.dmg"
-          if [ -f "$DMG_PATH" ] && [ -n "${TAP_REPO_TOKEN:-}" ]; then
+          if [ -f "$DMG_PATH" ] && [ -n "${HOMEBREW_TAP_GITHUB_TOKEN:-}" ]; then
             ./scripts/update-homebrew-tap.sh "$VERSION" "$DMG_PATH"
           else
-            echo "Skipping tap update: DMG not found or TAP_REPO_TOKEN not set"
+            echo "Skipping tap update: DMG not found or HOMEBREW_TAP_GITHUB_TOKEN not set"
           fi
 
       - name: Clean up signing material
