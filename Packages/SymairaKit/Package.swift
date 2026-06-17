@@ -53,6 +53,10 @@ let package = Package(
         // docs/design/agent-control-surface.md.
         .target(name: "ControlKit", dependencies: ["AgentKit"]),
 
+        // Command-line interface: `symterminal status [--json]`
+        // Connect to a running Symaira Terminal instance via ControlKit.
+        .executableTarget(name: "symterminal", dependencies: ["ControlKit"]),
+
         // Manual GUI smoke check for the engine pipeline (not run in CI):
         // `swift run TerminalSmoke`
         .executableTarget(name: "TerminalSmoke", dependencies: ["GhosttyBridge"]),
