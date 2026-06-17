@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### M4 — Polish & Launch (in progress)
 
+## [0.7.0] — 2026-06-17
+
+### Added
+- Multi-Agent Workflow Canvas: visual React Flow editor for wiring agent task connections and handoff pipelines (#97)
+- Confirmation dialog for distributed notification handoff (#143)
+- SwiftLint CI workflow with strict mode (#153)
+- Swift ecosystem Dependabot configuration (#159)
+
+### Fixed
+- OSC 7 directory path parsing with spaces (#146)
+- ProcessRunner thread starvation via blocking I/O (#149)
+- UsageHTTPServer partial TCP read framing (#151)
+- WorkspaceMonitor lsof parser for command names with spaces (#154)
+- SwiftLint violations across 48 files (#153)
+
+### Security
+- Enforce squash merge only in repository settings (#144)
+
+### Chores
+- Disable blank issues in GitHub issue templates (#145)
+- Ignore .omo/ in gitignore
+
 ## [0.6.0] — 2026-06-15
 
 ### Added
@@ -125,7 +147,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 26 unit tests across all modules
 - ADR-001: Terminal engine choice + pin strategy
 
-[Unreleased]: https://github.com/danieljustus/symaira-terminal/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/danieljustus/symaira-terminal/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/danieljustus/symaira-terminal/compare/v0.6.0...v0.7.0
+[0.6.0]: https://github.com/danieljustus/symaira-terminal/compare/v0.5.0...v0.6.0
 [0.4.0]: https://github.com/danieljustus/symaira-terminal/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/danieljustus/symaira-terminal/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/danieljustus/symaira-terminal/compare/v0.1.0...v0.2.0
