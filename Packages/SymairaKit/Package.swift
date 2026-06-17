@@ -13,7 +13,8 @@ let package = Package(
         .library(name: "ContextBank", targets: ["ContextBank"]),
         .library(name: "StackKit", targets: ["StackKit"]),
         .library(name: "UsageKit", targets: ["UsageKit"]),
-        .library(name: "SymairaUI", targets: ["SymairaUI"])
+        .library(name: "SymairaUI", targets: ["SymairaUI"]),
+        .library(name: "ControlKit", targets: ["ControlKit"])
     ],
     dependencies: [
         // Engine pin — exact version on purpose, libghostty's API is not stable
@@ -47,6 +48,11 @@ let package = Package(
             dependencies: ["TerminalCore", "AgentKit", "WorktreeKit", "ProviderKit", "ContextBank", "StackKit", "UsageKit"]
         ),
 
+        // Local headless control surface — observe and drive orchestration without the GUI.
+        // Consumed by the symterminal CLI and the MCP server. See ADR-002 and
+        // docs/design/agent-control-surface.md.
+        .target(name: "ControlKit", dependencies: ["AgentKit"]),
+
         // Manual GUI smoke check for the engine pipeline (not run in CI):
         // `swift run TerminalSmoke`
         .executableTarget(name: "TerminalSmoke", dependencies: ["GhosttyBridge"]),
@@ -62,6 +68,7 @@ let package = Package(
         .testTarget(name: "ContextBankTests", dependencies: ["ContextBank"]),
         .testTarget(name: "StackKitTests", dependencies: ["StackKit"]),
         .testTarget(name: "UsageKitTests", dependencies: ["UsageKit"]),
-        .testTarget(name: "SymairaUITests", dependencies: ["SymairaUI"])
+        .testTarget(name: "SymairaUITests", dependencies: ["SymairaUI"]),
+        .testTarget(name: "ControlKitTests", dependencies: ["ControlKit"])
     ]
 )
