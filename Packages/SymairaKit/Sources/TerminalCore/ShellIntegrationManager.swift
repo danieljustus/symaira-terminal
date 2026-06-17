@@ -36,4 +36,3 @@ public struct ShellIntegrationManager: Sendable {
 }
 
 private class BundleToken {}
-

@@ -107,18 +107,18 @@ public struct WorktreeManager: Sendable {
 
     public func createHandoffPackage(from worktree: Worktree, against baseRef: String = "HEAD") throws -> HandoffPackage {
         let rawDiff = try diff(worktree, against: baseRef)
-        
+
         let data = rawDiff.data(using: .utf8) ?? Data()
         guard let compressed = try? (data as NSData).compressed(using: .zlib) as Data else {
             throw NSError(domain: "WorktreeManager", code: 5, userInfo: [NSLocalizedDescriptionKey: "Failed to compress diff"])
         }
         let base64Diff = compressed.base64EncodedString()
-        
+
         // Generate summary: git diff --stat
         let statSummary = try git(["diff", "--stat", baseRef], cwd: worktree.path)
-        
+
         let riskNotes = checkRisks(in: rawDiff)
-        
+
         return HandoffPackage(
             sourceTaskID: worktree.taskID,
             gitDiffCompressedBase64: base64Diff,
@@ -131,19 +131,19 @@ public struct WorktreeManager: Sendable {
         guard let compressedData = Data(base64Encoded: package.gitDiffCompressedBase64) else {
             throw NSError(domain: "WorktreeManager", code: 3, userInfo: [NSLocalizedDescriptionKey: "Invalid base64 compressed diff"])
         }
-        
+
         guard let decompressedNSData = try? (compressedData as NSData).decompressed(using: .zlib),
               let decompressedString = String(data: decompressedNSData as Data, encoding: .utf8) else {
             throw NSError(domain: "WorktreeManager", code: 4, userInfo: [NSLocalizedDescriptionKey: "Decompression failed"])
         }
-        
+
         let tempFileURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".diff")
         try decompressedString.write(to: tempFileURL, atomically: true, encoding: .utf8)
-        
+
         defer {
             try? FileManager.default.removeItem(at: tempFileURL)
         }
-        
+
         try git(["apply", tempFileURL.path], cwd: worktree.path)
     }
 
@@ -154,10 +154,8 @@ public struct WorktreeManager: Sendable {
             "sk-[A-Za-z0-9_-]{20,}",
             "ghp_[A-Za-z0-9]{36}"
         ]
-        for pattern in secretPatterns {
-            if diff.range(of: pattern, options: .regularExpression) != nil {
-                risks.append("WARNING: Possible API key or credential leak detected in diff.")
-            }
+        for pattern in secretPatterns where diff.range(of: pattern, options: .regularExpression) != nil {
+            risks.append("WARNING: Possible API key or credential leak detected in diff.")
         }
         return risks.isEmpty ? "No high-risk secrets detected in the diff." : risks.joined(separator: "\n")
     }

@@ -31,7 +31,8 @@ public struct DiffView: View {
                 return DiffLineModel(text: line, type: .addition)
             } else if line.hasPrefix("-") {
                 return DiffLineModel(text: line, type: .deletion)
-            } else if line.hasPrefix("diff ") || line.hasPrefix("index ") || line.hasPrefix("new ") || line.hasPrefix("old ") || line.hasPrefix("@@") {
+            } else if line.hasPrefix("diff ") || line.hasPrefix("index ")
+                || line.hasPrefix("new ") || line.hasPrefix("old ") || line.hasPrefix("@@") {
                 return DiffLineModel(text: line, type: .header)
             } else {
                 return DiffLineModel(text: line, type: .context)

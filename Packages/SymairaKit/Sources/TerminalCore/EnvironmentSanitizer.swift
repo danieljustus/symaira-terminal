@@ -17,7 +17,7 @@ public enum EnvironmentSanitizer {
         "GOOGLE_APPLICATION_CREDENTIALS",
         // GitHub tokens leak push/repo access into nested agents.
         "GH_TOKEN",
-        "GITHUB_TOKEN",
+        "GITHUB_TOKEN"
     ]
 
     /// Variables whose name starts with any of these prefixes are stripped.
@@ -40,7 +40,7 @@ public enum EnvironmentSanitizer {
         "GROQ_",
         "MISTRAL_",
         "DEEPSEEK_",
-        "XAI_",
+        "XAI_"
     ]
 
     public static func sanitize(_ environment: [String: String]) -> [String: String] {

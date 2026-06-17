@@ -13,12 +13,12 @@ let package = Package(
         .library(name: "ContextBank", targets: ["ContextBank"]),
         .library(name: "StackKit", targets: ["StackKit"]),
         .library(name: "UsageKit", targets: ["UsageKit"]),
-        .library(name: "SymairaUI", targets: ["SymairaUI"]),
+        .library(name: "SymairaUI", targets: ["SymairaUI"])
     ],
     dependencies: [
         // Engine pin — exact version on purpose, libghostty's API is not stable
         // yet (ADR-001). Upgrades are deliberate, tested steps.
-        .package(url: "https://github.com/Lakr233/libghostty-spm.git", exact: "1.2.4"),
+        .package(url: "https://github.com/Lakr233/libghostty-spm.git", exact: "1.2.4")
     ],
     targets: [
         // Engine-neutral terminal primitives: OSC parsing, sessions, env hygiene.
@@ -31,7 +31,7 @@ let package = Package(
                 "TerminalCore",
                 .product(name: "GhosttyKit", package: "libghostty-spm"),
                 .product(name: "GhosttyTerminal", package: "libghostty-spm"),
-                .product(name: "GhosttyTheme", package: "libghostty-spm"),
+                .product(name: "GhosttyTheme", package: "libghostty-spm")
             ]
         ),
 
@@ -62,6 +62,6 @@ let package = Package(
         .testTarget(name: "ContextBankTests", dependencies: ["ContextBank"]),
         .testTarget(name: "StackKitTests", dependencies: ["StackKit"]),
         .testTarget(name: "UsageKitTests", dependencies: ["UsageKit"]),
-        .testTarget(name: "SymairaUITests", dependencies: ["SymairaUI"]),
+        .testTarget(name: "SymairaUITests", dependencies: ["SymairaUI"])
     ]
 )

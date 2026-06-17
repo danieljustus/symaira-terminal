@@ -19,10 +19,8 @@ final class ScrollbackBuffer: @unchecked Sendable {
         defer { lock.unlock() }
         let offset = buffer.count
         buffer.append(contentsOf: data)
-        for i in data.indices {
-            if data[i] == UInt8(ascii: "\n") {
-                lineOffsets.append(offset + i + 1)
-            }
+        for i in data.indices where data[i] == UInt8(ascii: "\n") {
+            lineOffsets.append(offset + i + 1)
         }
         pruneIfNeeded()
         cachedText = nil

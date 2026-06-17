@@ -65,7 +65,7 @@ public final class BrowserPane: NSObject {
             wv.topAnchor.constraint(equalTo: toolbar.bottomAnchor),
             wv.leadingAnchor.constraint(equalTo: container.leadingAnchor),
             wv.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            wv.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+            wv.bottomAnchor.constraint(equalTo: container.bottomAnchor)
         ])
 
         return container
@@ -129,21 +129,30 @@ public final class BrowserPane: NSObject {
         let toolbar = NSView()
 
         // Back button
-        let back = NSButton(image: NSImage(systemSymbolName: "chevron.left", accessibilityDescription: "Back")!, target: self, action: #selector(backClicked))
+        let back = NSButton(
+            image: NSImage(systemSymbolName: "chevron.left", accessibilityDescription: "Back")!,
+            target: self, action: #selector(backClicked)
+        )
         back.bezelStyle = .toolbar
         back.isBordered = false
         back.isEnabled = false
         self.backButton = back
 
         // Forward button
-        let fwd = NSButton(image: NSImage(systemSymbolName: "chevron.right", accessibilityDescription: "Forward")!, target: self, action: #selector(forwardClicked))
+        let fwd = NSButton(
+            image: NSImage(systemSymbolName: "chevron.right", accessibilityDescription: "Forward")!,
+            target: self, action: #selector(forwardClicked)
+        )
         fwd.bezelStyle = .toolbar
         fwd.isBordered = false
         fwd.isEnabled = false
         self.forwardButton = fwd
 
         // Reload button
-        let reload = NSButton(image: NSImage(systemSymbolName: "arrow.clockwise", accessibilityDescription: "Reload")!, target: self, action: #selector(reloadClicked))
+        let reload = NSButton(
+            image: NSImage(systemSymbolName: "arrow.clockwise", accessibilityDescription: "Reload")!,
+            target: self, action: #selector(reloadClicked)
+        )
         reload.bezelStyle = .toolbar
         reload.isBordered = false
         self.reloadButton = reload
@@ -185,7 +194,7 @@ public final class BrowserPane: NSObject {
             stack.leadingAnchor.constraint(equalTo: toolbar.leadingAnchor),
             stack.trailingAnchor.constraint(equalTo: toolbar.trailingAnchor),
             stack.bottomAnchor.constraint(equalTo: toolbar.bottomAnchor),
-            url.heightAnchor.constraint(equalToConstant: 24),
+            url.heightAnchor.constraint(equalToConstant: 24)
         ])
 
         return toolbar
@@ -246,7 +255,10 @@ extension BrowserPane: WKNavigationDelegate {
         urlField.stringValue = "Error: \(error.localizedDescription)"
     }
 
-    public func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+    public func webView(
+        _ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
+        decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
+    ) {
         // Allow all navigation including localhost/loopback — no restrictions
         decisionHandler(.allow)
     }

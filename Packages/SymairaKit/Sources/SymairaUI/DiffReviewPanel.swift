@@ -112,5 +112,3 @@ public struct DiffReviewPanel: View {
         }
     }
 }
-
-

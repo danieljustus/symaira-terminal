@@ -52,12 +52,12 @@ public struct ProviderChatClient: Sendable {
     /// without touching any other code. `ProviderSettingsView` surfaces these so
     /// users see the active default before they set a custom value.
     public static let defaultModels: [ProviderID: String] = [
-        .anthropic:        "claude-sonnet-4-20250514",
-        .openai:           "gpt-4o",
+        .anthropic: "claude-sonnet-4-20250514",
+        .openai: "gpt-4o",
         .openAICompatible: "",           // user must configure explicitly
-        .openrouter:       "anthropic/claude-sonnet-4",
-        .google:           "gemini-2.5-flash",
-        .ollama:           "llama3.1",
+        .openrouter: "anthropic/claude-sonnet-4",
+        .google: "gemini-2.5-flash",
+        .ollama: "llama3.1"
     ]
 
     private let keyStore: KeyStore
@@ -202,7 +202,7 @@ public struct ProviderChatClient: Sendable {
             .ollama: ProviderDescriptor(
                 endpoint: { _, _ in URL(string: "http://localhost:11434/api/generate")! },
                 authHeader: { _ in ["content-type": "application/json"] },
-                requestBody: { provider, systemPrompt, userMessage, maxTokens, profileConfig in
+                requestBody: { provider, systemPrompt, userMessage, _, profileConfig in
                     let model = profileConfig?.model ?? defaultModels[provider] ?? ""
                     return [
                         "model": model,
@@ -261,7 +261,7 @@ public struct ProviderChatClient: Sendable {
             }
             guard let url = URL(string: baseURLString),
                   let scheme = url.scheme?.lowercased(),
-                  (scheme == "https" || (scheme == "http" && url.host == "localhost")) else {
+                  scheme == "https" || (scheme == "http" && url.host == "localhost") else {
                 throw ProviderError.invalidBaseURL
             }
         }

@@ -28,7 +28,7 @@ final class TerminalPane: PaneContainer {
         get { surface?.outputTap }
         set { surface?.outputTap = newValue }
     }
-    
+
     public var pid: pid_t { surface?.pid ?? -1 }
 
     private(set) lazy var inputEditor: CommandInputEditor = {
@@ -37,29 +37,29 @@ final class TerminalPane: PaneContainer {
 
     private lazy var containerView: NSView = {
         let container = NSView()
-        
+
         if let terminalView = surface?.view {
             terminalView.translatesAutoresizingMaskIntoConstraints = false
             container.addSubview(terminalView)
         }
-        
+
         let inputBar = NSHostingView(rootView: CommandInputBar(editor: inputEditor))
         inputBar.translatesAutoresizingMaskIntoConstraints = false
         container.addSubview(inputBar)
-        
+
         NSLayoutConstraint.activate([
             container.subviews[0].topAnchor.constraint(equalTo: container.topAnchor),
             container.subviews[0].leadingAnchor.constraint(equalTo: container.leadingAnchor),
             container.subviews[0].trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            
+
             inputBar.topAnchor.constraint(equalTo: container.subviews[0].bottomAnchor),
             inputBar.leadingAnchor.constraint(equalTo: container.leadingAnchor),
             inputBar.trailingAnchor.constraint(equalTo: container.trailingAnchor),
             inputBar.bottomAnchor.constraint(equalTo: container.bottomAnchor),
             inputBar.heightAnchor.constraint(greaterThanOrEqualToConstant: 32),
-            inputBar.heightAnchor.constraint(lessThanOrEqualToConstant: 200),
+            inputBar.heightAnchor.constraint(lessThanOrEqualToConstant: 200)
         ])
-        
+
         return container
     }()
 

@@ -12,12 +12,12 @@ public struct UsageSnapshot: Equatable, Sendable {
 
     // MARK: - Convenience totals
 
-    public var totalInputTokens: Int        { samples.reduce(0) { $0 + $1.inputTokens } }
-    public var totalOutputTokens: Int       { samples.reduce(0) { $0 + $1.outputTokens } }
+    public var totalInputTokens: Int { samples.reduce(0) { $0 + $1.inputTokens } }
+    public var totalOutputTokens: Int { samples.reduce(0) { $0 + $1.outputTokens } }
     public var totalCacheCreationTokens: Int { samples.reduce(0) { $0 + $1.cacheCreationTokens } }
-    public var totalCacheReadTokens: Int    { samples.reduce(0) { $0 + $1.cacheReadTokens } }
-    public var totalTokens: Int             { samples.reduce(0) { $0 + $1.totalTokens } }
-    public var totalCostUSD: Decimal?       {
+    public var totalCacheReadTokens: Int { samples.reduce(0) { $0 + $1.cacheReadTokens } }
+    public var totalTokens: Int { samples.reduce(0) { $0 + $1.totalTokens } }
+    public var totalCostUSD: Decimal? {
         let costs = samples.compactMap(\.costUSD)
         guard !costs.isEmpty else { return nil }
         return costs.reduce(.zero, +)

@@ -49,7 +49,7 @@ final class TabBarView: NSView {
             scrollView.leadingAnchor.constraint(equalTo: leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: trailingAnchor),
             scrollView.bottomAnchor.constraint(equalTo: bottomAnchor),
-            scrollView.heightAnchor.constraint(equalToConstant: 28),
+            scrollView.heightAnchor.constraint(equalToConstant: 28)
         ])
 
         NSLayoutConstraint.activate([
@@ -57,7 +57,7 @@ final class TabBarView: NSView {
             stackView.leadingAnchor.constraint(equalTo: scrollView.contentView.leadingAnchor),
             stackView.trailingAnchor.constraint(equalTo: scrollView.contentView.trailingAnchor),
             stackView.bottomAnchor.constraint(equalTo: scrollView.contentView.bottomAnchor),
-            stackView.heightAnchor.constraint(equalTo: scrollView.contentView.heightAnchor),
+            stackView.heightAnchor.constraint(equalTo: scrollView.contentView.heightAnchor)
         ])
     }
 
@@ -85,7 +85,7 @@ final class TabBarView: NSView {
             button.translatesAutoresizingMaskIntoConstraints = false
             NSLayoutConstraint.activate([
                 button.heightAnchor.constraint(equalTo: stackView.heightAnchor),
-                button.widthAnchor.constraint(greaterThanOrEqualToConstant: 100),
+                button.widthAnchor.constraint(greaterThanOrEqualToConstant: 100)
             ])
         }
 
@@ -142,7 +142,7 @@ private final class TabButton: NSView {
 
             titleLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8),
             titleLabel.trailingAnchor.constraint(lessThanOrEqualTo: closeButton.leadingAnchor, constant: -4),
-            titleLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
+            titleLabel.centerYAnchor.constraint(equalTo: centerYAnchor)
         ])
 
         let clickGesture = NSClickGestureRecognizer(target: self, action: #selector(tabClicked))

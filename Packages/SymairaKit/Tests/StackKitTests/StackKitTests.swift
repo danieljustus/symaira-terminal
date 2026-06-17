@@ -48,7 +48,7 @@ import Foundation
                 path: nil,
                 version: nil,
                 mcpSupported: true
-            ),
+            )
         ]
 
         let preset = MCPPresetGenerator.generate(from: tools)
@@ -61,7 +61,7 @@ import Foundation
             "symvault": MCPPresetGenerator.MCPServerEntry(
                 command: "/opt/homebrew/bin/symvault",
                 args: ["serve", "--stdio"]
-            ),
+            )
         ])
 
         let data = try MCPPresetGenerator.encode(preset)
@@ -77,7 +77,7 @@ import Foundation
             "symvault": MCPPresetGenerator.MCPServerEntry(
                 command: "/usr/bin/symvault",
                 args: ["mcp"]
-            ),
+            )
         ])
 
         let data = try MCPPresetGenerator.encode(preset)
@@ -99,7 +99,7 @@ import Foundation
                 path: "/opt/homebrew/bin/symvault",
                 version: "v0.4.0",
                 mcpSupported: true
-            ),
+            )
         ]
 
         let commands = MCPClientInstaller.claudeCodeCommands(from: tools)
@@ -113,14 +113,14 @@ import Foundation
             "custom-server": MCPPresetGenerator.MCPServerEntry(
                 command: "/usr/bin/custom",
                 args: ["serve"]
-            ),
+            )
         ])
 
         let newPreset = MCPPresetGenerator.MCPPreset(mcpServers: [
             "symvault": MCPPresetGenerator.MCPServerEntry(
                 command: "/opt/homebrew/bin/symvault",
                 args: ["mcp"]
-            ),
+            )
         ])
 
         let merged = installer.merge(existing: existing, newPreset: newPreset)
@@ -134,14 +134,14 @@ import Foundation
             "symvault": MCPPresetGenerator.MCPServerEntry(
                 command: "/old/path/symvault",
                 args: ["old"]
-            ),
+            )
         ])
 
         let newPreset = MCPPresetGenerator.MCPPreset(mcpServers: [
             "symvault": MCPPresetGenerator.MCPServerEntry(
                 command: "/new/path/symvault",
                 args: ["new"]
-            ),
+            )
         ])
 
         let merged = installer.merge(existing: existing, newPreset: newPreset)

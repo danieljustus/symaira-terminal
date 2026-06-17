@@ -1,0 +1,88 @@
+# SwiftLint configuration for symaira-terminal
+# Added with CI enforcement (Closes #153)
+
+excluded:
+  - .build
+  - Packages/SymairaKit/.build
+  - DerivedData
+  - Pods
+  - Carthage
+
+# --- Disabled rules ---
+# Rules disabled because they produce too many violations in existing code
+# without proportional value, or are intentional project conventions.
+disabled_rules:
+  - todo                      # TODOs are intentional project management markers
+  - inclusive_language        # "master" appears in git/branch contexts where it's standard
+
+# --- Rule configurations ---
+# Relax thresholds for this mature codebase to avoid a massive refactor
+# while still catching regressions on new code.
+
+line_length:
+  warning: 270
+  error: 280
+  ignores_comments: true
+  ignores_urls: true
+
+identifier_name:
+  min_length:
+    warning: 1
+    error: 0
+  max_length:
+    warning: 60
+    error: 80
+  excluded:
+    - id
+    - i
+    - j
+    - k
+    - x
+    - y
+    - z
+    - n
+    - s
+    - e
+    - t
+    - r
+    - q
+    - c
+    - l
+    - v
+    - to
+    - on
+    - up
+
+type_name:
+  min_length:
+    warning: 2
+    error: 0
+  max_length:
+    warning: 60
+    error: 80
+
+cyclomatic_complexity:
+  warning: 15
+  error: 25
+  ignores_case_statements: true
+
+function_body_length:
+  warning: 180
+  error: 250
+
+function_parameter_count:
+  warning: 6
+  error: 8
+
+file_length:
+  warning: 900
+  error: 1200
+  ignore_comment_only_lines: true
+
+type_body_length:
+  warning: 810
+  error: 1000
+
+large_tuple:
+  warning: 4
+  error: 5

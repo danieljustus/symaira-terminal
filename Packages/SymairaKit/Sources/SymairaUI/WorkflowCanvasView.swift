@@ -4,9 +4,9 @@ import WebKit
 @MainActor
 public struct WorkflowCanvasView: View {
     @State private var webView = WKWebView()
-    
+
     public init() {}
-    
+
     public var body: some View {
         WorkflowCanvasWebViewRepresentable(webView: webView)
             .background(Color(red: 11/255.0, green: 13/255.0, blue: 17/255.0))
@@ -22,7 +22,7 @@ public struct WorkflowCanvasView: View {
                 }
             }
     }
-    
+
     private func loadLocalHTML() {
         // Find index.html inside the main app bundle Resources/WorkflowCanvas
         if let url = Bundle.main.url(forResource: "index", withExtension: "html", subdirectory: "WorkflowCanvas") {
@@ -39,34 +39,34 @@ public struct WorkflowCanvasView: View {
 @MainActor
 struct WorkflowCanvasWebViewRepresentable: NSViewRepresentable {
     let webView: WKWebView
-    
+
     func makeNSView(context: Context) -> WKWebView {
         let config = webView.configuration
         let contentController = config.userContentController
-        
+
         // Remove existing handlers to avoid duplicates
         contentController.removeScriptMessageHandler(forName: "symairaCanvas")
         contentController.add(context.coordinator, name: "symairaCanvas")
-        
+
         webView.navigationDelegate = context.coordinator
         return webView
     }
-    
+
     func updateNSView(_ nsView: WKWebView, context: Context) {
         // No update needed
     }
-    
+
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
     }
-    
+
     class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
         var parent: WorkflowCanvasWebViewRepresentable
-        
+
         init(_ parent: WorkflowCanvasWebViewRepresentable) {
             self.parent = parent
         }
-        
+
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             // Load saved workflow on finish
             let saved = UserDefaults.standard.string(forKey: "symaira.workflow.canvas") ?? ""
@@ -75,13 +75,13 @@ struct WorkflowCanvasWebViewRepresentable: NSViewRepresentable {
                 webView.evaluateJavaScript(js, completionHandler: nil)
             }
         }
-        
+
         func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
             guard let dict = message.body as? [String: Any],
                   let action = dict["action"] as? String else {
                 return
             }
-            
+
             if action == "save", let workflow = dict["workflow"] as? String {
                 UserDefaults.standard.set(workflow, forKey: "symaira.workflow.canvas")
             } else if action == "run", let workflow = dict["workflow"] as? String {
@@ -93,7 +93,7 @@ struct WorkflowCanvasWebViewRepresentable: NSViewRepresentable {
                 )
             }
         }
-        
+
         private func JSONStringEscape(_ str: String) -> String {
             guard let data = try? JSONSerialization.data(withJSONObject: [str], options: []),
                   let json = String(data: data, encoding: .utf8) else {

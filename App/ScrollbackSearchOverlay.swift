@@ -49,7 +49,7 @@ final class ScrollbackSearchOverlay: NSObject {
             matchLabel.leadingAnchor.constraint(equalTo: searchField.trailingAnchor, constant: 8),
             matchLabel.trailingAnchor.constraint(equalTo: panel.contentView!.trailingAnchor, constant: -12),
             matchLabel.centerYAnchor.constraint(equalTo: panel.contentView!.centerYAnchor),
-            matchLabel.widthAnchor.constraint(greaterThanOrEqualToConstant: 60),
+            matchLabel.widthAnchor.constraint(greaterThanOrEqualToConstant: 60)
         ])
 
         self.panel = panel

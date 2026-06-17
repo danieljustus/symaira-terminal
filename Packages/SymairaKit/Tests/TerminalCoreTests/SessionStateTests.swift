@@ -40,7 +40,7 @@ final class SessionStateTests: XCTestCase {
         let state = SessionState(
             panes: [
                 PaneState(executablePath: "/bin/zsh", workingDirectory: "/tmp"),
-                PaneState(executablePath: "/bin/bash", columns: 120, rows: 40),
+                PaneState(executablePath: "/bin/bash", columns: 120, rows: 40)
             ],
             layout: .split(
                 orientation: .horizontal,

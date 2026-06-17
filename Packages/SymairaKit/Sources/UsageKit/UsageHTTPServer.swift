@@ -67,21 +67,21 @@ public actor UsageHTTPServer {
 
         var requestData = Data()
         var headerTerminatorFound = false
-        
+
         while !headerTerminatorFound {
             let chunk = await withCheckedContinuation { (cont: CheckedContinuation<Data?, Never>) in
                 connection.receive(minimumIncompleteLength: 1, maximumLength: 4096) { data, _, _, _ in
                     cont.resume(returning: data)
                 }
             }
-            
+
             guard let chunk = chunk, !chunk.isEmpty else {
                 connection.cancel()
                 return
             }
-            
+
             requestData.append(chunk)
-            
+
             if let requestString = String(data: requestData, encoding: .utf8),
                requestString.contains("\r\n\r\n") {
                 headerTerminatorFound = true
@@ -100,7 +100,7 @@ public actor UsageHTTPServer {
         let (statusCode, body): (Int, Data)
         if !Self.isAllowedHost(host) {
             statusCode = 403
-            body = "{\"error\":\"forbidden host\"}".data(using: .utf8)!
+            body = Data("{\"error\":\"forbidden host\"}".utf8)
         } else {
             (statusCode, body) = await buildResponse(path: path)
         }
@@ -113,10 +113,8 @@ public actor UsageHTTPServer {
     /// Case-insensitive lookup of a single header value from the raw request lines.
     static func headerValue(named name: String, in lines: [String]) -> String? {
         let prefix = name.lowercased() + ":"
-        for line in lines.dropFirst() {
-            if line.lowercased().hasPrefix(prefix) {
-                return line.dropFirst(prefix.count).trimmingCharacters(in: .whitespaces)
-            }
+        for line in lines.dropFirst() where line.lowercased().hasPrefix(prefix) {
+            return line.dropFirst(prefix.count).trimmingCharacters(in: .whitespaces)
         }
         return nil
     }
@@ -154,11 +152,11 @@ public actor UsageHTTPServer {
             return (200, payload)
 
         case "/health":
-            let payload = "{\"status\":\"ok\",\"port\":\(port)}".data(using: .utf8)!
+            let payload = Data("{\"status\":\"ok\",\"port\":\(port)}".utf8)
             return (200, payload)
 
         default:
-            let payload = "{\"error\":\"not found\"}".data(using: .utf8)!
+            let payload = Data("{\"error\":\"not found\"}".utf8)
             return (404, payload)
         }
     }
@@ -173,7 +171,7 @@ public actor UsageHTTPServer {
             "totalCacheCreationTokens": snapshot.totalCacheCreationTokens,
             "totalCacheReadTokens": snapshot.totalCacheReadTokens,
             "totalTokens": snapshot.totalTokens,
-            "sampleCount": snapshot.samples.count,
+            "sampleCount": snapshot.samples.count
         ]
         if let cost = snapshot.totalCostUSD {
             obj["totalCostUSD"] = (cost as NSDecimalNumber).doubleValue
@@ -185,7 +183,7 @@ public actor UsageHTTPServer {
                 "displayName": provider.displayName,
                 "inputTokens": s.totalInputTokens,
                 "outputTokens": s.totalOutputTokens,
-                "totalTokens": s.totalTokens,
+                "totalTokens": s.totalTokens
             ]
             if let c = s.totalCostUSD { p["costUSD"] = (c as NSDecimalNumber).doubleValue }
             return p
@@ -201,7 +199,7 @@ public actor UsageHTTPServer {
                 "label": q.label,
                 "used": q.used,
                 "unit": q.unit.rawValue,
-                "fetchedAt": ISO8601DateFormatter().string(from: q.fetchedAt),
+                "fetchedAt": ISO8601DateFormatter().string(from: q.fetchedAt)
             ]
             if let limit = q.limit { entry["limit"] = limit }
             if let resets = q.resetsAt { entry["resetsAt"] = ISO8601DateFormatter().string(from: resets) }

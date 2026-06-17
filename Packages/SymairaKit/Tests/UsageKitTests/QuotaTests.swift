@@ -109,7 +109,7 @@ private struct StubQuotaFetcher: QuotaFetcher {
         )
         let registry = QuotaRegistry(fetchers: [
             StubQuotaFetcher(provider: UsageProviders.claudeCode, isEnabled: true, result: .success([q1])),
-            StubQuotaFetcher(provider: UsageProviders.codex, isEnabled: true, result: .success([q2])),
+            StubQuotaFetcher(provider: UsageProviders.codex, isEnabled: true, result: .success([q2]))
         ])
         let result = await registry.fetchAll()
         #expect(result.quotas.count == 2)
@@ -122,7 +122,7 @@ private struct StubQuotaFetcher: QuotaFetcher {
                 provider: UsageProviders.claudeCode,
                 isEnabled: false,
                 result: .failure(.notEnabled)
-            ),
+            )
         ])
         let result = await registry.fetchAll()
         #expect(result.quotas.isEmpty)
@@ -135,7 +135,7 @@ private struct StubQuotaFetcher: QuotaFetcher {
                 provider: UsageProviders.claudeCode,
                 isEnabled: true,
                 result: .failure(.networkUnavailable)
-            ),
+            )
         ])
         let result = await registry.fetchAll()
         #expect(result.quotas.isEmpty)
@@ -151,7 +151,7 @@ private struct StubQuotaFetcher: QuotaFetcher {
             StubQuotaFetcher(provider: UsageProviders.claudeCode, isEnabled: true,
                              result: .failure(.networkUnavailable)),
             StubQuotaFetcher(provider: UsageProviders.codex, isEnabled: true,
-                             result: .success([q])),
+                             result: .success([q]))
         ])
         let result = await registry.fetchAll()
         #expect(result.quotas.count == 1)

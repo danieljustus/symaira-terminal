@@ -54,6 +54,6 @@ public struct AgentProfile: Codable, Equatable, Sendable, Identifiable {
         "UI only with Tailwind v4",
         "Never commit .env files",
         "Run tests before pushing",
-        "Use conventional commits",
+        "Use conventional commits"
     ]
 }

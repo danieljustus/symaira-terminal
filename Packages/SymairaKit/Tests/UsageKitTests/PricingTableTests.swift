@@ -33,7 +33,7 @@ import Foundation
                 outputPerMillion: 75.0,
                 cacheWritePerMillion: 18.75,
                 cacheReadPerMillion: 1.50
-            ),
+            )
         ])
         let sample = makeSample(model: "claude-opus-4-5", input: 1_000_000, output: 1_000_000)
         let cost = table.cost(for: sample)
@@ -47,7 +47,7 @@ import Foundation
                 outputPerMillion: 0,
                 cacheWritePerMillion: 18.75,
                 cacheReadPerMillion: 1.50
-            ),
+            )
         ])
         let sample = makeSample(
             model: "claude-opus-4-5",
@@ -69,14 +69,14 @@ import Foundation
             "claude-haiku-4-5-20251001": ModelPricing(
                 inputPerMillion: 0.80,
                 outputPerMillion: 4.00
-            ),
+            )
         ])
         let sample = makeSample(model: "claude-haiku-4-5-20251001")
         #expect(table.cost(for: sample) == .zero)
     }
 
     @Test func parsingFromJSONData() throws {
-        let json = """
+        let json = Data("""
         {
           "_version": "2026-06-14",
           "models": {
@@ -88,7 +88,7 @@ import Foundation
             }
           }
         }
-        """.data(using: .utf8)!
+        """.utf8)
 
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("pricing-test-\(UUID().uuidString).json")

@@ -46,10 +46,8 @@ public struct UsageRegistry: Sendable {
     public func merge(_ samples: [UsageSample]) -> [UsageSample] {
         var seen = Set<String>()
         var deduped: [UsageSample] = []
-        for sample in samples {
-            if seen.insert(sample.id).inserted {
-                deduped.append(sample)
-            }
+        for sample in samples where seen.insert(sample.id).inserted {
+            deduped.append(sample)
         }
         return deduped.sorted { $0.timestamp < $1.timestamp }
     }

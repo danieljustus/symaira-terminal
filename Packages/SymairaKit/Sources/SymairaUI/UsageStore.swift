@@ -109,6 +109,6 @@ extension UsageRegistry {
     public static let defaultRegistry = UsageRegistry(readers: [
         ClaudeCodeReader(),
         CodexReader(),
-        GeminiCLIReader(),
+        GeminiCLIReader()
     ])
 }

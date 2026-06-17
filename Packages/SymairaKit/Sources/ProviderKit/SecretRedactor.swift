@@ -75,7 +75,7 @@ public struct SecretRedactor: Sendable {
             // Private key file paths
             ("(?i)(id_rsa|id_ed25519|id_ecdsa|\\.pem|\\.key)(?=[\\s\"':]|$)", "[REDACTED:key-file]"),
             // Base64-encoded blocks that look like keys (40+ chars, require delimiters)
-            ("(?<=[=: ])[A-Za-z0-9+/]{40,}={0,2}(?=[\\s\"':,])", "[REDACTED:base64-secret]"),
+            ("(?<=[=: ])[A-Za-z0-9+/]{40,}={0,2}(?=[\\s\"':,])", "[REDACTED:base64-secret]")
         ]
 
         return raw.compactMap { entry in

@@ -28,9 +28,9 @@ public struct RefreshConfig: Equatable, Sendable {
 
 /// Tracks the last-parse byte offset for a source file so only new bytes
 /// are read on subsequent refreshes (incremental tailing).
-public actor IncrementalReadCache: Sendable {
+public actor IncrementalReadCache {
     private var offsets: [String: Int64] = [:]      // path → byte offset
-    private var mtimes:  [String: Date]  = [:]      // path → last-modified date
+    private var mtimes: [String: Date]  = [:]      // path → last-modified date
 
     public init() {}
 

@@ -121,10 +121,6 @@ public final class SketchpadViewModel: ObservableObject {
 public struct SketchpadCanvasView: NSViewRepresentable {
     let canvas: SketchpadCanvas
 
-    init(canvas: SketchpadCanvas) {
-        self.canvas = canvas
-    }
-
     public func makeNSView(context: Context) -> NSView {
         canvas
     }

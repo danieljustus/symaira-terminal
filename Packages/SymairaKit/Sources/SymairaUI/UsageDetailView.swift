@@ -196,7 +196,7 @@ private struct ProviderUsageRow: View {
 
             // Token breakdown
             HStack(spacing: 12) {
-                TokenBadge(label: "In",  value: totals.inputTokens)
+                TokenBadge(label: "In", value: totals.inputTokens)
                 TokenBadge(label: "Out", value: totals.outputTokens)
                 if totals.cacheCreationTokens > 0 {
                     TokenBadge(label: "Cache↑", value: totals.cacheCreationTokens)

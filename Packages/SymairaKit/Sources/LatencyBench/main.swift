@@ -73,7 +73,8 @@ final class LatencyBench {
         results["keypress_to_render_p99_ms"] = p99
 
         print("Keypress-to-render (\(iterations) iterations):")
-        print("  avg=\(String(format: "%.2f", avg))ms  p50=\(String(format: "%.2f", p50))ms  p95=\(String(format: "%.2f", p95))ms  p99=\(String(format: "%.2f", p99))ms")
+        print("  avg=\(String(format: "%.2f", avg))ms  p50=\(String(format: "%.2f", p50))ms"
+            + "  p95=\(String(format: "%.2f", p95))ms  p99=\(String(format: "%.2f", p99))ms")
         print("  target: ≤ 8ms @ 120Hz (iTerm2 baseline)")
     }
 

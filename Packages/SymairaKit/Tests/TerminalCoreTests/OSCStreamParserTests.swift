@@ -38,7 +38,7 @@ private func feed(_ parser: inout OSCStreamParser, _ text: String) -> [OSCEvent]
             .semanticPrompt(.promptStart),
             .semanticPrompt(.commandStart),
             .semanticPrompt(.outputStart),
-            .semanticPrompt(.commandEnd(exitCode: 2)),
+            .semanticPrompt(.commandEnd(exitCode: 2))
         ])
     }
 
@@ -175,13 +175,13 @@ private func feed(_ parser: inout OSCStreamParser, _ text: String) -> [OSCEvent]
             "HF_TOKEN": "token",
             "TOGETHER_API_KEY": "key",
             "HUGGINGFACE_HUB_TOKEN": "token",
-            "TERM": "xterm-256color",
+            "TERM": "xterm-256color"
         ]
         let sanitized = EnvironmentSanitizer.sanitize(env)
         #expect(sanitized == [
             "PATH": "/usr/bin",
             "HOME": "/Users/dev",
-            "TERM": "xterm-256color",
+            "TERM": "xterm-256color"
         ])
     }
 
@@ -190,7 +190,7 @@ private func feed(_ parser: inout OSCStreamParser, _ text: String) -> [OSCEvent]
             "AWS_REGION": "us-east-1",
             "AWS_ACCESS_KEY_ID": "AKIAEXAMPLE",
             "AWS_SESSION_TOKEN": "token",
-            "AWS_SECRET_ACCESS_KEY": "secret",
+            "AWS_SECRET_ACCESS_KEY": "secret"
         ]
         // The whole AWS credential set must go; the non-secret region stays.
         #expect(EnvironmentSanitizer.sanitize(env) == ["AWS_REGION": "us-east-1"])
@@ -201,7 +201,7 @@ private func feed(_ parser: inout OSCStreamParser, _ text: String) -> [OSCEvent]
             "GOOGLE_APPLICATION_CREDENTIALS": "/path/creds.json",
             "GH_TOKEN": "gho_x",
             "GITHUB_TOKEN": "ghp_x",
-            "PATH": "/usr/bin",
+            "PATH": "/usr/bin"
         ]
         #expect(EnvironmentSanitizer.sanitize(env) == ["PATH": "/usr/bin"])
     }
@@ -212,7 +212,7 @@ private func feed(_ parser: inout OSCStreamParser, _ text: String) -> [OSCEvent]
             "MISTRAL_API_KEY": "x",
             "DEEPSEEK_API_KEY": "x",
             "XAI_API_KEY": "x",
-            "HOME": "/Users/dev",
+            "HOME": "/Users/dev"
         ]
         #expect(EnvironmentSanitizer.sanitize(env) == ["HOME": "/Users/dev"])
     }

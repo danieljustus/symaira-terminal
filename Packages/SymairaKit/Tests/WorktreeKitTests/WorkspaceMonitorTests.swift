@@ -12,7 +12,7 @@ final class WorkspaceMonitorTests: XCTestCase {
         456   123
         """
         let map = WorkspaceMonitor.parseProcessTree(output)
-        XCTAssertEqual(map[1],   0)
+        XCTAssertEqual(map[1], 0)
         XCTAssertEqual(map[123], 45)
         XCTAssertEqual(map[456], 123)
     }
@@ -40,9 +40,9 @@ python   5678   alice  10u  IPv6  23456      0t0  TCP *:8080 (LISTEN)
 """
         let ports = WorkspaceMonitor.parseListeningPorts(output)
         XCTAssertEqual(ports.count, 2)
-        XCTAssertEqual(ports[0].pid,  1234)
+        XCTAssertEqual(ports[0].pid, 1234)
         XCTAssertEqual(ports[0].port, 3000)
-        XCTAssertEqual(ports[1].pid,  5678)
+        XCTAssertEqual(ports[1].pid, 5678)
         XCTAssertEqual(ports[1].port, 8080)
     }
 

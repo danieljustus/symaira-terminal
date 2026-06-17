@@ -27,7 +27,7 @@ public enum AgentCatalog {
         KnownAgent(id: "gemini-cli", displayName: "Gemini CLI", executableNames: ["gemini"], supportsACP: true),
         KnownAgent(id: "aider", displayName: "Aider", executableNames: ["aider"], supportsACP: false),
         KnownAgent(id: "codex", displayName: "OpenAI Codex CLI", executableNames: ["codex"], supportsACP: false),
-        KnownAgent(id: "copilot-cli", displayName: "GitHub Copilot CLI", executableNames: ["copilot"], supportsACP: true),
+        KnownAgent(id: "copilot-cli", displayName: "GitHub Copilot CLI", executableNames: ["copilot"], supportsACP: true)
     ]
 
     /// Matches a process executable name (basename, e.g. from the pane's

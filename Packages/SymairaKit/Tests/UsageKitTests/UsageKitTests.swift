@@ -120,7 +120,7 @@ import Foundation
     @Test func totals() {
         let ss = snap([
             s(UsageProviders.claudeCode, input: 100, output: 50, cost: Decimal(string: "0.10")),
-            s(UsageProviders.codex,      input: 200, output: 80, cost: Decimal(string: "0.20")),
+            s(UsageProviders.codex, input: 200, output: 80, cost: Decimal(string: "0.20"))
         ])
         #expect(ss.totalInputTokens == 300)
         #expect(ss.totalOutputTokens == 130)
@@ -179,7 +179,7 @@ import Foundation
     @Test func snapshotFromNullReadersIsEmpty() async {
         let registry = UsageRegistry(readers: [
             NullUsageReader(provider: UsageProviders.claudeCode),
-            NullUsageReader(provider: UsageProviders.codex),
+            NullUsageReader(provider: UsageProviders.codex)
         ])
         let snapshot = await registry.snapshot(since: Date.distantPast)
         #expect(snapshot.samples.isEmpty)
