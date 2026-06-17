@@ -25,3 +25,50 @@ import Testing
         try store.deleteKey(provider: .openai, profile: "default")
     }
 }
+
+@Suite struct OAuthFeatureFlagTests {
+    @Test func openAIDefaultsToAPIKeyWhenFlagOff() {
+        OAuthFeature.isEnabled = false
+        #expect(.openai.authMethod == .apiKey)
+        #expect(.openai.supportsOAuth == false)
+        #expect(.openai.hasOAuthConfig == true)
+    }
+
+    @Test func googleDefaultsToAPIKeyWhenFlagOff() {
+        OAuthFeature.isEnabled = false
+        #expect(.google.authMethod == .apiKey)
+        #expect(.google.supportsOAuth == false)
+        #expect(.google.hasOAuthConfig == true)
+    }
+
+    @Test func anthropicAlwaysUsesAPIKey() {
+        OAuthFeature.isEnabled = false
+        #expect(.anthropic.authMethod == .apiKey)
+        #expect(.anthropic.supportsOAuth == false)
+        #expect(.anthropic.hasOAuthConfig == false)
+    }
+
+    @Test func openAIUsesOAuthWhenFlagOn() {
+        OAuthFeature.isEnabled = true
+        defer { OAuthFeature.isEnabled = false }
+
+        if case .oauth(let config) = .openai.authMethod {
+            #expect(config.clientId == "symaira-terminal")
+        } else {
+            Issue.record("Expected .oauth when flag is on")
+        }
+        #expect(.openai.supportsOAuth == true)
+    }
+
+    @Test func googleUsesOAuthWhenFlagOn() {
+        OAuthFeature.isEnabled = true
+        defer { OAuthFeature.isEnabled = false }
+
+        if case .oauth(let config) = .google.authMethod {
+            #expect(config.clientId == "symaira-terminal")
+        } else {
+            Issue.record("Expected .oauth when flag is on")
+        }
+        #expect(.google.supportsOAuth == true)
+    }
+}

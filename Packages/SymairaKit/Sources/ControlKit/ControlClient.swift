@@ -24,26 +24,26 @@ public struct ControlClient: Sendable {
     // MARK: - Read verbs
 
     public func snapshot() async throws -> OrchestrationSnapshot {
-        let body = try await send(.init(method: .snapshot))
-        guard let v = body.snapshot else { throw ControlClientError.noResponse }
+        let result = try await send(.init(method: .snapshot))
+        guard case .snapshot(let v) = result else { throw ControlClientError.noResponse }
         return v
     }
 
     public func panes() async throws -> [PaneSnapshot] {
-        let body = try await send(.init(method: .panes))
-        guard let v = body.panes else { throw ControlClientError.noResponse }
+        let result = try await send(.init(method: .panes))
+        guard case .panes(let v) = result else { throw ControlClientError.noResponse }
         return v
     }
 
     public func pendingApprovals() async throws -> [ApprovalSummary] {
-        let body = try await send(.init(method: .pendingApprovals))
-        guard let v = body.approvals else { throw ControlClientError.noResponse }
+        let result = try await send(.init(method: .pendingApprovals))
+        guard case .approvals(let v) = result else { throw ControlClientError.noResponse }
         return v
     }
 
     public func worktrees() async throws -> [WorktreeSnapshot] {
-        let body = try await send(.init(method: .worktrees))
-        guard let v = body.worktrees else { throw ControlClientError.noResponse }
+        let result = try await send(.init(method: .worktrees))
+        guard case .worktrees(let v) = result else { throw ControlClientError.noResponse }
         return v
     }
 
@@ -58,8 +58,8 @@ public struct ControlClient: Sendable {
             agentID: agentID,
             worktreeBranch: worktreeBranch,
             workingDirectory: workingDirectory)
-        let body = try await send(.init(method: .spawn, params: params))
-        guard let id = body.spawnedPaneID else { throw ControlClientError.noResponse }
+        let result = try await send(.init(method: .spawn, params: params))
+        guard case .spawned(let id) = result else { throw ControlClientError.noResponse }
         return id
     }
 
@@ -69,14 +69,15 @@ public struct ControlClient: Sendable {
     }
 
     public func blocked() async throws -> UUID? {
-        let body = try await send(.init(method: .blocked))
-        return body.blockedPaneID
+        let result = try await send(.init(method: .blocked))
+        guard case .blocked(let id) = result else { throw ControlClientError.noResponse }
+        return id
     }
 
     // MARK: - Transport
 
     /// Opens a connection, writes the request, reads the response, closes.
-    public func send(_ request: ControlRequest) async throws -> ControlResponseBody {
+    public func send(_ request: ControlRequest) async throws -> ControlResult {
         let fd = Darwin.socket(AF_UNIX, SOCK_STREAM, 0)
         guard fd >= 0 else { throw ControlClientError.notConnected }
         defer { Darwin.close(fd) }

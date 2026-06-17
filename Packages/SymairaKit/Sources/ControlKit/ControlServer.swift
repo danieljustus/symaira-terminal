@@ -224,19 +224,19 @@ public actor ControlServer {
     private static func dispatch(
         request: ControlRequest,
         provider: some OrchestrationControlProvider
-    ) async throws -> ControlResponseBody {
+    ) async throws -> ControlResult {
         guard let method = ControlMethod(rawValue: request.method) else {
             throw ControlRPCError.methodNotFound
         }
         switch method {
         case .snapshot:
-            return .of(snapshot: try await provider.snapshot())
+            return .snapshot(try await provider.snapshot())
         case .panes:
-            return .of(panes: try await provider.panes())
+            return .panes(try await provider.panes())
         case .pendingApprovals:
-            return .of(approvals: try await provider.pendingApprovals())
+            return .approvals(try await provider.pendingApprovals())
         case .worktrees:
-            return .of(worktrees: try await provider.worktrees())
+            return .worktrees(try await provider.worktrees())
         case .spawn:
             guard let agentID = request.params?.agentID else {
                 throw ControlRPCError.invalidParams

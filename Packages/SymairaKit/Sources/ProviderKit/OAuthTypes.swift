@@ -101,6 +101,22 @@ public struct PKCEChallenge: Sendable {
     }
 }
 
+// MARK: - OAuth Feature Flag
+
+/// Controls whether OAuth sign-in is exposed in the UI and available for
+/// providers. When `false`, OpenAI and Google fall back to API-key mode.
+///
+/// OAuth is gated because:
+/// - Client IDs are placeholders (no real public-client config exists yet)
+/// - PKCE verifier plumbing was incomplete
+///
+/// Set to `true` once real OAuth client registrations are in place and the
+/// full flow has been end-to-end tested.
+public enum OAuthFeature {
+    /// Master switch for OAuth. Currently **off** — providers use API-key mode.
+    public static var isEnabled: Bool = false
+}
+
 // MARK: - Common OAuth Provider Configurations
 
 extension OAuthConfig {

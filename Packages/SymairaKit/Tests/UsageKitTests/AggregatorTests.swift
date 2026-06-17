@@ -127,6 +127,25 @@ private func sample(ts: Date, input: Int = 10, output: Int = 5, model: String = 
         #expect(current.remaining(at: testNow) > 0)
     }
 
+    @Test func distantPastAnchorReturnsPromptly() {
+        let s = sample(ts: testNow.addingTimeInterval(-1 * 3600))
+        let windows = agg.billingWindows(
+            samples: [s], now: testNow, windowStart: Date.distantPast
+        )
+        #expect(!windows.isEmpty)
+        let current = windows.last!
+        #expect(current.isActive(at: testNow))
+        #expect(current.totals.sampleCount == 1)
+    }
+
+    @Test func distantPastAnchorWithNoSamplesReturnsCurrentWindow() {
+        let windows = agg.billingWindows(
+            samples: [], now: testNow, windowStart: Date.distantPast
+        )
+        #expect(windows.count == 1)
+        #expect(windows[0].isActive(at: testNow))
+    }
+
     @Test func windowAcrossBoundaryCountsOnlyCurrentWindow() {
         let anchor = testNow.addingTimeInterval(-6 * 3600)  // 6h ago → two windows
         let oldSample     = sample(ts: testNow.addingTimeInterval(-5.5 * 3600))  // previous window

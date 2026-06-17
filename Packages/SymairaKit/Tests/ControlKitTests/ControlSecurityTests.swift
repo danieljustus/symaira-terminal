@@ -66,18 +66,29 @@ struct ControlSecurityTests {
         #expect(allMethods.count == 7, "Verb count must not grow without review")
     }
 
-    /// Verify no control response body field can carry an approval decision.
-    @Test func responseBodyHasNoApprovalDecisionField() {
-        // ControlResponseBody must not have an approveDecision or denyDecision field.
-        // We verify the field list via Mirror reflection.
-        let body = ControlResponseBody.ok
-        let mirror = Mirror(reflecting: body)
-        let fieldNames = mirror.children.compactMap(\.label)
-        let forbidden = fieldNames.filter {
-            $0.lowercased().contains("approve") || $0.lowercased().contains("deny")
+    /// Verify no control result case can carry an approval decision.
+    @Test func responseBodyHasNoApprovalDecisionCase() {
+        let allResults: [ControlResult] = [
+            .snapshot(OrchestrationSnapshot()),
+            .panes([]),
+            .worktrees([]),
+            .approvals([]),
+            .spawned(UUID()),
+            .focused(UUID()),
+            .blocked(nil),
+            .ok
+        ]
+        for result in allResults {
+            switch result {
+            case .snapshot, .panes, .worktrees, .approvals,
+                 .spawned, .focused, .blocked, .ok:
+                break
+            // If an approve/deny case were added to ControlResult,
+            // Swift's exhaustiveness check would force a case here,
+            // making this test fail to compile — the structural guarantee.
+            }
         }
-        #expect(forbidden.isEmpty,
-            "ControlResponseBody must not contain approve/deny fields: \(forbidden)")
+        #expect(allResults.count == 8, "Result case count must not grow without review")
     }
 
     // MARK: - Spawn rejects missing agentID

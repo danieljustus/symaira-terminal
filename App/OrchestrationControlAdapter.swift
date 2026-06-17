@@ -67,11 +67,34 @@ final class OrchestrationControlAdapter: OrchestrationControlProvider {
     }
 
     func spawn(agentID: String, worktreeBranch: String?, workingDirectory: String?) async throws -> UUID {
+        guard let agent = AgentCatalog.lookup(id: agentID) else {
+            let known = AgentCatalog.all.map(\.id).joined(separator: ", ")
+            throw ControlRPCError(
+                code: -32000,
+                message: "Unknown agent ID '\(agentID)'. Valid agents: \(known)")
+        }
+
+        guard let execName = agent.executableNames.first,
+              let execPath = AgentCatalog.resolveExecutablePath(named: execName) else {
+            throw ControlRPCError(
+                code: -32000,
+                message: "Agent '\(agentID)' executable '\(agent.executableNames.first ?? "?")' not found in PATH")
+        }
+
+        if let cwd = workingDirectory {
+            var isDir: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: cwd, isDirectory: &isDir),
+                  isDir.boolValue else {
+                throw ControlRPCError(
+                    code: -32602,
+                    message: "Working directory does not exist or is not a directory: \(cwd)")
+            }
+        }
+
         var config = TerminalSurfaceConfiguration()
-        // TerminalSurfaceConfiguration already defaults to sanitizedProcessEnvironment(),
-        // but we set it explicitly here to make the security contract visible.
         config.environment = EnvironmentSanitizer.sanitizedProcessEnvironment()
-        config.command = agentID
+        config.executablePath = execPath
+        config.arguments = []
 
         if let cwd = workingDirectory.map(URL.init(fileURLWithPath:)) {
             config.workingDirectory = cwd

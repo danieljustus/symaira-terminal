@@ -1,6 +1,110 @@
 import ControlKit
 import Foundation
 
+// MARK: - Argument parser
+
+struct CLIArgumentParser {
+    enum FlagKind {
+        case flag
+        case value
+    }
+
+    struct FlagSpec {
+        let name: String
+        let kind: FlagKind
+
+        init(_ name: String, _ kind: FlagKind = .flag) {
+            self.name = name
+            self.kind = kind
+        }
+    }
+
+    let allowedFlags: [FlagSpec]
+    let positionalArity: Int
+
+    struct ParseResult {
+        let positionals: [String]
+        let values: [String: String]
+        let booleans: Set<String>
+
+        func hasFlag(_ name: String) -> Bool { booleans.contains(name) }
+    }
+
+    func parse(_ args: [String]) throws -> ParseResult {
+        var positionals: [String] = []
+        var values: [String: String] = [:]
+        var booleans: Set<String> = []
+
+        var i = 0
+        while i < args.count {
+            let arg = args[i]
+
+            if arg == "--" {
+                i += 1
+                while i < args.count {
+                    positionals.append(args[i])
+                    i += 1
+                }
+                break
+            }
+
+            if arg.hasPrefix("-") {
+                guard let spec = allowedFlags.first(where: { $0.name == arg }) else {
+                    throw CLIUsageError.unknownFlag(arg)
+                }
+
+                switch spec.kind {
+                case .flag:
+                    booleans.insert(arg)
+                case .value:
+                    i += 1
+                    guard i < args.count else {
+                        throw CLIUsageError.missingValue(arg)
+                    }
+                    guard !args[i].hasPrefix("-") else {
+                        throw CLIUsageError.missingValue(arg)
+                    }
+                    values[arg] = args[i]
+                }
+            } else {
+                positionals.append(arg)
+            }
+
+            i += 1
+        }
+
+        guard positionals.count == positionalArity else {
+            throw CLIUsageError.wrongPositionalArity(
+                expected: positionalArity, got: positionals.count)
+        }
+
+        return ParseResult(positionals: positionals, values: values, booleans: booleans)
+    }
+}
+
+enum CLIUsageError: Error, CustomStringConvertible {
+    case unknownFlag(String)
+    case missingValue(String)
+    case wrongPositionalArity(expected: Int, got: Int)
+
+    var description: String {
+        switch self {
+        case .unknownFlag(let flag):
+            return "unknown option '\(flag)'"
+        case .missingValue(let flag):
+            return "'\(flag)' requires a value"
+        case .wrongPositionalArity(let expected, let got):
+            if expected == 0 {
+                return "unexpected argument (expected none, got \(got))"
+            } else if expected == 1 {
+                return "expected exactly 1 argument, got \(got)"
+            } else {
+                return "expected exactly \(expected) arguments, got \(got)"
+            }
+        }
+    }
+}
+
 // MARK: - Top-level CLI
 
 struct SymterminalCLI {
@@ -53,13 +157,31 @@ struct SymterminalCLI {
 struct StatusCommand {
     let flags: [String]
 
+    private static let parser = CLIArgumentParser(
+        allowedFlags: [
+            .init("--json"),
+            .init("--help"),
+            .init("-h"),
+        ],
+        positionalArity: 0
+    )
+
     func run() async {
-        if flags.contains("--help") || flags.contains("-h") {
+        let parsed: CLIArgumentParser.ParseResult
+        do {
+            parsed = try Self.parser.parse(flags)
+        } catch {
+            fputs("Error: \(error)\n", stderr)
+            fputs("Usage: symterminal status [--json]\n", stderr)
+            exit(1)
+        }
+
+        if parsed.hasFlag("--help") || parsed.hasFlag("-h") {
             printHelp()
             return
         }
 
-        let jsonMode = flags.contains("--json")
+        let jsonMode = parsed.hasFlag("--json")
         let client = ControlClient()
 
         do {
@@ -180,19 +302,39 @@ struct StatusCommand {
 struct SpawnCommand {
     let flags: [String]
 
+    private static let parser = CLIArgumentParser(
+        allowedFlags: [
+            .init("--agent", .value),
+            .init("--worktree", .value),
+            .init("--cwd", .value),
+            .init("--help"),
+            .init("-h"),
+        ],
+        positionalArity: 0
+    )
+
     func run() async {
-        if flags.contains("--help") || flags.contains("-h") {
+        let parsed: CLIArgumentParser.ParseResult
+        do {
+            parsed = try Self.parser.parse(flags)
+        } catch {
+            fputs("Error: \(error)\n", stderr)
+            fputs("Usage: symterminal spawn --agent <id> [--worktree <branch>] [--cwd <path>]\n", stderr)
+            exit(1)
+        }
+
+        if parsed.hasFlag("--help") || parsed.hasFlag("-h") {
             printHelp(); return
         }
 
-        guard let agentID = flag("--agent") else {
+        guard let agentID = parsed.values["--agent"] else {
             fputs("Error: --agent <id> is required.\n", stderr)
             fputs("Run 'symterminal spawn --help' for usage.\n", stderr)
             exit(1)
         }
 
-        let worktree = flag("--worktree")
-        let cwd = flag("--cwd")
+        let worktree = parsed.values["--worktree"]
+        let cwd = parsed.values["--cwd"]
         let client = ControlClient()
 
         do {
@@ -206,11 +348,6 @@ struct SpawnCommand {
         } catch {
             fputs("Error: \(error)\n", stderr); exit(1)
         }
-    }
-
-    private func flag(_ name: String) -> String? {
-        guard let idx = flags.firstIndex(of: name), idx + 1 < flags.count else { return nil }
-        return flags[idx + 1]
     }
 
     private func printHelp() {
@@ -239,12 +376,30 @@ struct SpawnCommand {
 struct BlockedCommand {
     let flags: [String]
 
+    private static let parser = CLIArgumentParser(
+        allowedFlags: [
+            .init("--json"),
+            .init("--help"),
+            .init("-h"),
+        ],
+        positionalArity: 0
+    )
+
     func run() async {
-        if flags.contains("--help") || flags.contains("-h") {
+        let parsed: CLIArgumentParser.ParseResult
+        do {
+            parsed = try Self.parser.parse(flags)
+        } catch {
+            fputs("Error: \(error)\n", stderr)
+            fputs("Usage: symterminal blocked [--json]\n", stderr)
+            exit(1)
+        }
+
+        if parsed.hasFlag("--help") || parsed.hasFlag("-h") {
             printHelp(); return
         }
 
-        let jsonMode = flags.contains("--json")
+        let jsonMode = parsed.hasFlag("--json")
         let client = ControlClient()
 
         do {
@@ -294,16 +449,31 @@ struct BlockedCommand {
 struct FocusCommand {
     let flags: [String]
 
+    private static let parser = CLIArgumentParser(
+        allowedFlags: [
+            .init("--help"),
+            .init("-h"),
+        ],
+        positionalArity: 1
+    )
+
     func run() async {
-        if flags.contains("--help") || flags.contains("-h") {
+        let parsed: CLIArgumentParser.ParseResult
+        do {
+            parsed = try Self.parser.parse(flags)
+        } catch {
+            fputs("Error: \(error)\n", stderr)
+            fputs("Usage: symterminal focus <pane-id>\n", stderr)
+            exit(1)
+        }
+
+        if parsed.hasFlag("--help") || parsed.hasFlag("-h") {
             printHelp(); return
         }
 
-        // First positional argument is the pane ID
-        let positional = flags.filter { !$0.hasPrefix("-") }
-        guard let paneIDString = positional.first, let paneID = UUID(uuidString: paneIDString) else {
-            fputs("Error: <pane-id> is required and must be a valid UUID.\n", stderr)
-            fputs("Run 'symterminal focus --help' for usage.\n", stderr)
+        let paneIDString = parsed.positionals[0]
+        guard let paneID = UUID(uuidString: paneIDString) else {
+            fputs("Error: '<pane-id>' must be a valid UUID, got '\(paneIDString)'.\n", stderr)
             fputs("Tip: use 'symterminal status --json | jq .panes[].id' to list pane IDs.\n", stderr)
             exit(1)
         }

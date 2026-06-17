@@ -142,30 +142,47 @@ public struct UsageAggregator: Sendable {
     /// `windowStart` is the reference epoch for window alignment. For Claude Pro/Max,
     /// each window begins at the time of the first message in that session block;
     /// here we align to the provided anchor so callers can pass the user's known
-    /// subscription-reset time or just `Date.distantPast` for a simple rolling window.
+    /// subscription-reset time. Pass `Date.distantPast` to cover all history — the
+    /// starting window is computed arithmetically, not iterated.
     public func billingWindows(
         samples: [UsageSample],
         now: Date,
         windowStart: Date
     ) -> [BillingWindow] {
         var windows: [BillingWindow] = []
-        var cursor = windowStart
 
-        // Advance cursor past windows before any sample.
+        // Compute the first relevant window arithmetically (O(1)) instead of
+        // stepping from windowStart, which was unbounded for distant anchors.
+        let cursor: Date
         if let firstSample = samples.map(\.timestamp).min() {
-            while cursor.addingTimeInterval(billingWindowDuration) < firstSample {
-                cursor = cursor.addingTimeInterval(billingWindowDuration)
+            // Jump to the window that could contain the first sample.
+            let gap = firstSample.timeIntervalSince(windowStart) - billingWindowDuration
+            if gap > 0 {
+                let steps = Int(ceil(gap / billingWindowDuration))
+                cursor = windowStart.addingTimeInterval(TimeInterval(steps) * billingWindowDuration)
+            } else {
+                cursor = windowStart
+            }
+        } else {
+            // No samples — jump directly to the window containing `now`.
+            let gap = now.timeIntervalSince(windowStart) - billingWindowDuration
+            if gap > 0 {
+                let steps = Int(ceil(gap / billingWindowDuration))
+                cursor = windowStart.addingTimeInterval(TimeInterval(steps) * billingWindowDuration)
+            } else {
+                cursor = windowStart
             }
         }
 
         // Build windows up to and including the current one.
-        while cursor <= now {
-            let end = cursor.addingTimeInterval(billingWindowDuration)
-            let bucket = samples.filter { $0.timestamp >= cursor && $0.timestamp < end }
-            if !bucket.isEmpty || (cursor <= now && end > now) {
-                windows.append(BillingWindow(start: cursor, end: end, totals: totals(samples: bucket)))
+        var c = cursor
+        while c <= now {
+            let end = c.addingTimeInterval(billingWindowDuration)
+            let bucket = samples.filter { $0.timestamp >= c && $0.timestamp < end }
+            if !bucket.isEmpty || (c <= now && end > now) {
+                windows.append(BillingWindow(start: c, end: end, totals: totals(samples: bucket)))
             }
-            cursor = end
+            c = end
         }
         return windows
     }

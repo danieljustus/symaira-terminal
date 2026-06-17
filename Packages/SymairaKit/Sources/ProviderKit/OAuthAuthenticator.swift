@@ -156,6 +156,18 @@ public struct OAuthTokenClient: Sendable {
     }
 }
 
+/// Result of an OAuth authorization request, containing the browser URL
+/// and the PKCE code verifier needed for token exchange.
+public struct OAuthAuthorizationResult: Sendable {
+    public let url: URL
+    public let codeVerifier: String
+
+    public init(url: URL, codeVerifier: String) {
+        self.url = url
+        self.codeVerifier = codeVerifier
+    }
+}
+
 /// Presents the OAuth 2.0 PKCE browser flow using ASWebAuthenticationSession.
 @MainActor
 public final class OAuthAuthenticator: NSObject {
@@ -167,7 +179,7 @@ public final class OAuthAuthenticator: NSObject {
     }
 
     /// Present the OAuth sign-in flow.
-    public func authorize(config: OAuthConfig) async throws -> URL {
+    public func authorize(config: OAuthConfig) async throws -> OAuthAuthorizationResult {
         let challenge = PKCEChallenge.generate()
         let redirectURI = "\(config.redirectURIScheme)://callback"
 
@@ -193,7 +205,7 @@ public final class OAuthAuthenticator: NSObject {
 
         let callbackURLScheme = config.redirectURIScheme
 
-        return try await withCheckedThrowingContinuation { continuation in
+        let callbackURL = try await withCheckedThrowingContinuation { continuation in
             self.continuation = continuation
 
             let session = ASWebAuthenticationSession(
@@ -227,6 +239,8 @@ public final class OAuthAuthenticator: NSObject {
                 return
             }
         }
+
+        return OAuthAuthorizationResult(url: callbackURL, codeVerifier: challenge.verifier)
     }
 }
 

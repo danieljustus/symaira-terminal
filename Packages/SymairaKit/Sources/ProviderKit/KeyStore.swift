@@ -13,28 +13,71 @@ public enum ProviderID: String, CaseIterable, Sendable, Codable {
 }
 
 extension ProviderID {
-    /// The authentication method for this provider.
-    public var authMethod: AuthMethod {
+    /// The authentication methods architecturally supported by this provider.
+    ///
+    /// This is the **single source of truth** for auth modes. Both
+    /// `ProviderSettingsView` and `OnboardingView` read this list to decide
+    /// which credential UI to present. `ProviderChatClient` uses it to resolve
+    /// the appropriate `ProviderCredential`.
+    ///
+    /// A provider may list multiple modes (e.g. `[.apiKey, .oauth(...)]`).
+    /// The UI should present all supported options; `authMethod` picks the
+    /// currently active one (respecting feature flags).
+    public var supportedAuthModes: [AuthMethod] {
         switch self {
-        case .openai:
-            return .oauth(.openAI)
-        case .google:
-            return .oauth(.google)
         case .anthropic, .openrouter, .ollama, .openAICompatible:
-            return .apiKey
+            return [.apiKey]
+        case .openai:
+            return [.apiKey, .oauth(.openAI)]
+        case .google:
+            return [.apiKey, .oauth(.google)]
         }
     }
 
-    /// Whether this provider supports OAuth sign-in.
+    /// The currently active authentication method for this provider.
+    ///
+    /// Respects `OAuthFeature.isEnabled` — returns the first OAuth mode from
+    /// `supportedAuthModes` when the flag is on, otherwise falls back to
+    /// `.apiKey`. Prefer `supportedAuthModes` when building UI that should
+    /// show all available options.
+    public var authMethod: AuthMethod {
+        for mode in supportedAuthModes {
+            if case .oauth(let config) = mode, OAuthFeature.isEnabled {
+                return .oauth(config)
+            }
+        }
+        return .apiKey
+    }
+
+    /// Whether this provider supports OAuth sign-in (currently active).
     public var supportsOAuth: Bool {
         if case .oauth = authMethod { return true }
         return false
     }
 
+    /// Whether this provider accepts a static API key.
+    public var supportsAPIKey: Bool {
+        supportedAuthModes.contains { mode in
+            if case .apiKey = mode { return true }
+            return false
+        }
+    }
+
     /// The OAuth configuration for this provider, if available.
     public var oauthConfig: OAuthConfig? {
-        if case .oauth(let config) = authMethod { return config }
+        for mode in supportedAuthModes {
+            if case .oauth(let config) = mode { return config }
+        }
         return nil
+    }
+
+    /// Whether this provider has OAuth configuration defined, even when the
+    /// feature flag is off. Used for "coming soon" hints in the UI.
+    public var hasOAuthConfig: Bool {
+        for mode in supportedAuthModes {
+            if case .oauth = mode { return true }
+        }
+        return false
     }
 }
 

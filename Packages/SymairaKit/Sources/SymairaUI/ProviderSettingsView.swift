@@ -76,12 +76,13 @@ struct ProviderRow: View {
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
-                    } else {
+                    }
+                    if provider.supportsAPIKey {
                         if let key = store.key(for: provider) {
                             Text(isRevealed ? key : maskedKey(key))
                                 .font(.caption)
                                 .foregroundColor(.secondary)
-                        } else {
+                        } else if !provider.supportsOAuth {
                             Text("No key set")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
@@ -92,10 +93,17 @@ struct ProviderRow: View {
                             .font(.caption2)
                             .foregroundColor(.secondary)
                     }
-                    if let error = oauthError {
-                        Text(error)
-                            .font(.caption2)
-                            .foregroundColor(.red)
+                    if oauthError != nil || (provider.hasOAuthConfig && !provider.supportsOAuth) {
+                        if provider.hasOAuthConfig && !provider.supportsOAuth {
+                            Text("OAuth coming soon — add an API key for now")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                        if let error = oauthError {
+                            Text(error)
+                                .font(.caption2)
+                                .foregroundColor(.red)
+                        }
                     }
                 }
 
@@ -125,35 +133,38 @@ struct ProviderRow: View {
                         .buttonStyle(.plain)
                         .disabled(isSigningIn)
                     }
-                } else if store.hasKey(for: provider) {
-                    Button {
-                        isRevealed.toggle()
-                    } label: {
-                        Image(systemName: isRevealed ? "eye.slash" : "eye")
-                    }
-                    .buttonStyle(.plain)
+                }
+                if provider.supportsAPIKey {
+                    if store.hasKey(for: provider) {
+                        Button {
+                            isRevealed.toggle()
+                        } label: {
+                            Image(systemName: isRevealed ? "eye.slash" : "eye")
+                        }
+                        .buttonStyle(.plain)
 
-                    Button {
-                        isEditing = true
-                    } label: {
-                        Image(systemName: "pencil")
-                    }
-                    .buttonStyle(.plain)
+                        Button {
+                            isEditing = true
+                        } label: {
+                            Image(systemName: "pencil")
+                        }
+                        .buttonStyle(.plain)
 
-                    Button {
-                        store.deleteKey(for: provider)
-                    } label: {
-                        Image(systemName: "trash")
-                            .foregroundColor(.red)
+                        Button {
+                            store.deleteKey(for: provider)
+                        } label: {
+                            Image(systemName: "trash")
+                                .foregroundColor(.red)
+                        }
+                        .buttonStyle(.plain)
+                    } else {
+                        Button {
+                            isEditing = true
+                        } label: {
+                            Image(systemName: "plus")
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
-                } else {
-                    Button {
-                        isEditing = true
-                    } label: {
-                        Image(systemName: "plus")
-                    }
-                    .buttonStyle(.plain)
                 }
             }
             .contentShape(Rectangle())

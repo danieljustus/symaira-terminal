@@ -49,4 +49,35 @@ import Testing
         #expect(AgentCatalog.detect(processName: "claude")?.id == "claude-code")
         #expect(AgentCatalog.detect(processName: "vim") == nil)
     }
+
+    @Test func lookupReturnsKnownAgentByID() {
+        let claude = AgentCatalog.lookup(id: "claude-code")
+        #expect(claude != nil)
+        #expect(claude?.displayName == "Claude Code")
+        #expect(claude?.executableNames == ["claude"])
+
+        let opencode = AgentCatalog.lookup(id: "opencode")
+        #expect(opencode != nil)
+        #expect(opencode?.supportsACP == true)
+    }
+
+    @Test func lookupRejectsUnknownIDs() {
+        #expect(AgentCatalog.lookup(id: "unknown-agent") == nil)
+        #expect(AgentCatalog.lookup(id: "rm -rf /") == nil)
+        #expect(AgentCatalog.lookup(id: "") == nil)
+        #expect(AgentCatalog.lookup(id: "claude-code; rm -rf /") == nil)
+    }
+
+    @Test func resolveExecutablePathFindsAbsolutePaths() {
+        let result = AgentCatalog.resolveExecutablePath(named: "/bin/ls")
+        #expect(result == "/bin/ls")
+    }
+
+    @Test func resolveExecutablePathRejectsNonexistent() {
+        #expect(AgentCatalog.resolveExecutablePath(named: "/nonexistent/path/agent") == nil)
+    }
+
+    @Test func resolveExecutablePathRejectsDirectories() {
+        #expect(AgentCatalog.resolveExecutablePath(named: "/tmp") == nil)
+    }
 }
