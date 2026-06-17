@@ -69,7 +69,7 @@ public struct KeychainKeyStore: KeyStore {
         let query: [CFString: Any] = [
             kSecClass: kSecClassGenericPassword,
             kSecAttrService: Self.service,
-            kSecAttrAccount: account,
+            kSecAttrAccount: account
         ]
         let attributes: [CFString: Any] = [kSecValueData: Data(key.utf8)]
         var status = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
@@ -87,7 +87,7 @@ public struct KeychainKeyStore: KeyStore {
             kSecAttrService: Self.service,
             kSecAttrAccount: Self.account(provider: provider, profile: profile),
             kSecReturnData: true,
-            kSecMatchLimit: kSecMatchLimitOne,
+            kSecMatchLimit: kSecMatchLimitOne
         ]
         var item: CFTypeRef?
         let status = SecItemCopyMatching(query as CFDictionary, &item)
@@ -102,7 +102,7 @@ public struct KeychainKeyStore: KeyStore {
         let query: [CFString: Any] = [
             kSecClass: kSecClassGenericPassword,
             kSecAttrService: Self.service,
-            kSecAttrAccount: Self.account(provider: provider, profile: profile),
+            kSecAttrAccount: Self.account(provider: provider, profile: profile)
         ]
         let status = SecItemDelete(query as CFDictionary)
         guard status == errSecSuccess || status == errSecItemNotFound else {

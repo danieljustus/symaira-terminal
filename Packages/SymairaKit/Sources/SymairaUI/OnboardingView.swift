@@ -127,7 +127,10 @@ public struct OnboardingView: View {
             Text("Step 2: Shell integration (optional)")
                 .font(.headline)
 
-            Text("Enable OSC 133 shell integration for command blocks, prompt navigation, and agent status. Add this line to your shell config, then restart your shell.")
+            Text(
+                "Enable OSC 133 shell integration for command blocks, prompt navigation, "
+                + "and agent status. Add this line to your shell config, then restart your shell."
+            )
                 .foregroundColor(.secondary)
 
             if let path = shellIntegrationPath {

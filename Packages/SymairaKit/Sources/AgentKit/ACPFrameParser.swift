@@ -14,7 +14,7 @@ struct ACPFrameParser {
 
     mutating func nextMessage() -> [String: Any]? {
         while true {
-            guard let headerEndRange = buffer.range(of: "\r\n\r\n".data(using: .utf8)!) else {
+            guard let headerEndRange = buffer.range(of: Data("\r\n\r\n".utf8)) else {
                 return nil
             }
             let headerData = buffer[buffer.startIndex..<headerEndRange.lowerBound]

@@ -48,7 +48,7 @@ public struct OAuthTokenClient: Sendable {
             "code": code,
             "redirect_uri": redirectURI,
             "client_id": config.clientId,
-            "code_verifier": codeVerifier,
+            "code_verifier": codeVerifier
         ]
 
         request.httpBody = body
@@ -96,7 +96,7 @@ public struct OAuthTokenClient: Sendable {
         let body = [
             "grant_type": "refresh_token",
             "refresh_token": refreshToken,
-            "client_id": config.clientId,
+            "client_id": config.clientId
         ]
 
         request.httpBody = body
@@ -184,7 +184,7 @@ public final class OAuthAuthenticator: NSObject {
             URLQueryItem(name: "redirect_uri", value: redirectURI),
             URLQueryItem(name: "scope", value: config.scopes.joined(separator: " ")),
             URLQueryItem(name: "code_challenge", value: challenge.challenge),
-            URLQueryItem(name: "code_challenge_method", value: "S256"),
+            URLQueryItem(name: "code_challenge_method", value: "S256")
         ]
 
         guard let authURL = components.url else {

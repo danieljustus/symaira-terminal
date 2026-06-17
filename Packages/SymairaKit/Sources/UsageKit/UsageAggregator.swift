@@ -32,12 +32,12 @@ public struct UsageTotals: Equatable, Sendable {
     public static func sum(_ totals: [UsageTotals]) -> UsageTotals {
         let costs = totals.compactMap(\.costUSD)
         return UsageTotals(
-            inputTokens:          totals.reduce(0) { $0 + $1.inputTokens },
-            outputTokens:         totals.reduce(0) { $0 + $1.outputTokens },
-            cacheCreationTokens:  totals.reduce(0) { $0 + $1.cacheCreationTokens },
-            cacheReadTokens:      totals.reduce(0) { $0 + $1.cacheReadTokens },
-            costUSD:              costs.isEmpty ? nil : costs.reduce(.zero, +),
-            sampleCount:          totals.reduce(0) { $0 + $1.sampleCount }
+            inputTokens: totals.reduce(0) { $0 + $1.inputTokens },
+            outputTokens: totals.reduce(0) { $0 + $1.outputTokens },
+            cacheCreationTokens: totals.reduce(0) { $0 + $1.cacheCreationTokens },
+            cacheReadTokens: totals.reduce(0) { $0 + $1.cacheReadTokens },
+            costUSD: costs.isEmpty ? nil : costs.reduce(.zero, +),
+            sampleCount: totals.reduce(0) { $0 + $1.sampleCount }
         )
     }
 }
@@ -189,12 +189,12 @@ public struct UsageAggregator: Sendable {
     private func totals(samples: [UsageSample]) -> UsageTotals {
         let costs = samples.compactMap { pricing.cost(for: $0) }
         return UsageTotals(
-            inputTokens:         samples.reduce(0) { $0 + $1.inputTokens },
-            outputTokens:        samples.reduce(0) { $0 + $1.outputTokens },
+            inputTokens: samples.reduce(0) { $0 + $1.inputTokens },
+            outputTokens: samples.reduce(0) { $0 + $1.outputTokens },
             cacheCreationTokens: samples.reduce(0) { $0 + $1.cacheCreationTokens },
-            cacheReadTokens:     samples.reduce(0) { $0 + $1.cacheReadTokens },
-            costUSD:             costs.isEmpty ? nil : costs.reduce(.zero, +),
-            sampleCount:         samples.count
+            cacheReadTokens: samples.reduce(0) { $0 + $1.cacheReadTokens },
+            costUSD: costs.isEmpty ? nil : costs.reduce(.zero, +),
+            sampleCount: samples.count
         )
     }
 }

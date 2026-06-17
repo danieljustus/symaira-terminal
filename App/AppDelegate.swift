@@ -118,7 +118,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             splitView.topAnchor.constraint(equalTo: contentView.topAnchor),
             splitView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
             splitView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
-            splitView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
+            splitView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor)
         ])
 
         // Sidebar View Setup
@@ -192,7 +192,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             tabBar.topAnchor.constraint(equalTo: mainArea.topAnchor),
             tabBar.leadingAnchor.constraint(equalTo: mainArea.leadingAnchor),
             tabBar.trailingAnchor.constraint(equalTo: mainArea.trailingAnchor),
-            tabBar.heightAnchor.constraint(equalToConstant: 28),
+            tabBar.heightAnchor.constraint(equalToConstant: 28)
         ])
 
         let paneContainer = NSView()
@@ -202,7 +202,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             paneContainer.topAnchor.constraint(equalTo: tabBar.bottomAnchor),
             paneContainer.leadingAnchor.constraint(equalTo: mainArea.leadingAnchor),
             paneContainer.trailingAnchor.constraint(equalTo: mainArea.trailingAnchor),
-            paneContainer.bottomAnchor.constraint(equalTo: mainArea.bottomAnchor),
+            paneContainer.bottomAnchor.constraint(equalTo: mainArea.bottomAnchor)
         ])
 
         manager.attach(to: paneContainer)
@@ -277,7 +277,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let mainMenu = NSMenu()
 
         let appMenu = NSMenu()
-        appMenu.addItem(NSMenuItem(title: "About Symaira Terminal", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: ""))
+        appMenu.addItem(NSMenuItem(
+            title: "About Symaira Terminal",
+            action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)),
+            keyEquivalent: ""
+        ))
         appMenu.addItem(.separator())
         let keepAwakeItem = NSMenuItem(title: "Keep Mac Awake", action: #selector(toggleKeepAwake), keyEquivalent: "")
         keepAwakeItem.target = self
@@ -465,27 +469,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let manager = paneManager else { return }
         let parentMap = await workspaceMonitor.cachedProcessTree()
         let listeningPorts = await workspaceMonitor.cachedListeningPorts()
-        
+
         var updatedItems: [PaneStatusInfo] = []
         let currentPanes = manager.panes
-        
+
         for (index, pane) in currentPanes.enumerated() {
             let paneID = pane.paneID
             let title = oscEventHandler.title(for: paneID)
             let status = pane.agentStatus
             let isActive = (pane === manager.currentPane)
-            
+
             let cwd = oscEventHandler.cwd(for: paneID)
                 ?? pane.configuration.workingDirectory
                 ?? URL(fileURLWithPath: NSHomeDirectory())
-            
+
             let gitResult = await workspaceMonitor.cachedGitAndPRInfo(for: cwd)
-            
+
             let shellPID = pane.pid
             let panePorts = listeningPorts.filter { portInfo in
                 WorkspaceMonitor.isDescendant(pid: portInfo.pid, parentPID: shellPID, parentMap: parentMap)
             }.map { $0.port }
-            
+
             let info = PaneStatusInfo(
                 id: paneID,
                 index: index,
@@ -504,18 +508,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             )
             updatedItems.append(info)
         }
-        
+
         // Refresh worktree store dirty states
         if let store = sidebarViewModel?.worktreeStore {
             store.refreshDirtyState(for: store.worktrees)
         }
-        
+
         await MainActor.run {
             self.sidebarViewModel?.paneItems = updatedItems
             self.checkActiveAgents()
         }
     }
-
 
     @objc private func togglePalette() {
         showPalette.toggle()
@@ -621,7 +624,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             CommandPaletteItem(name: "Fork Session", shortcut: "⌘⇧F", category: "Session") { [weak self] in self?.forkSession() },
             CommandPaletteItem(name: "Toggle Dictation", shortcut: nil, category: "Input") { [weak self] in self?.toggleDictation() },
             CommandPaletteItem(name: "Open Sketchpad", shortcut: nil, category: "Input") { [weak self] in self?.showSketchpad() },
-            CommandPaletteItem(name: "Open Workflow Canvas", shortcut: nil, category: "Workflow") { [weak self] in self?.showWorkflowCanvas() },
+            CommandPaletteItem(name: "Open Workflow Canvas", shortcut: nil, category: "Workflow") { [weak self] in self?.showWorkflowCanvas() }
         ]
 
         let paletteView = CommandPalette(isPresented: .constant(true), items: items)
@@ -800,7 +803,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             name: Notification.Name("com.symaira.terminal.runWorkflow"),
             object: nil
         )
-        
+
         DistributedNotificationCenter.default().addObserver(
             self,
             selector: #selector(handleHandoffNotification(_:)),
@@ -816,10 +819,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
               let workflow = try? JSONDecoder().decode(WorkflowData.self, from: data) else {
             return
         }
-        
+
         let targetNodeIDs = Set(workflow.edges.map(\.target))
         let startingNodes = workflow.nodes.filter { !targetNodeIDs.contains($0.id) }
-        
+
         guard let nodeToRun = startingNodes.first ?? workflow.nodes.first else { return }
         runNode(nodeToRun)
     }
@@ -829,38 +832,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
               let taskID = userInfo["taskID"] as? String else {
             return
         }
-        
+
         let summary = userInfo["summary"] as? String ?? ""
-        
+
         guard let savedWorkflowJSON = UserDefaults.standard.string(forKey: "symaira.workflow.canvas"),
               let data = savedWorkflowJSON.data(using: .utf8),
               let workflow = try? JSONDecoder().decode(WorkflowData.self, from: data),
               let sourceNode = workflow.nodes.first(where: { $0.data.path == taskID }) else {
             return
         }
-        
+
         let edgesFromSource = workflow.edges.filter { $0.source == sourceNode.id }
         let targetNodeNames = edgesFromSource.compactMap { edge -> String? in
             guard let targetNode = workflow.nodes.first(where: { $0.id == edge.target }) else { return nil }
             return targetNode.data.label ?? targetNode.data.path ?? "Unknown"
         }
-        
+
         showHandoffConfirmation(
             sourceName: sourceNode.data.label ?? sourceNode.data.path ?? "Unknown",
             targetNames: targetNodeNames,
             summary: summary
         ) { [weak self] approved in
             guard approved, let self = self else { return }
-            
+
             self.updateNodeStatus(nodeID: sourceNode.id, status: "done")
-            
+
             for edge in edgesFromSource {
                 guard let targetNode = workflow.nodes.first(where: { $0.id == edge.target }) else { continue }
                 self.executeHandoff(from: sourceNode, to: targetNode, summary: summary)
             }
         }
     }
-    
+
     private func showHandoffConfirmation(
         sourceName: String,
         targetNames: [String],
@@ -872,17 +875,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             alert.messageText = "Handoff Request"
             alert.informativeText = """
                 A distributed notification requests a workflow handoff.
-                
+
                 Source: \(sourceName)
                 Target(s): \(targetNames.joined(separator: ", "))
                 \(summary.isEmpty ? "" : "Summary: \(summary)")
-                
+
                 Do you want to proceed?
                 """
             alert.alertStyle = .warning
             alert.addButton(withTitle: "Allow")
             alert.addButton(withTitle: "Deny")
-            
+
             let response = alert.runModal()
             completion(response == .alertFirstButtonReturn)
         }
@@ -894,14 +897,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
               let worktreeManager = paneManager.worktreeManager else {
             return
         }
-        
+
         guard let sourceWT = worktreeStore.worktrees.first(where: { $0.taskID == sourceNode.data.path }) else {
             return
         }
-        
+
         do {
             let package = try worktreeManager.createHandoffPackage(from: sourceWT)
-            
+
             let targetPath = targetNode.data.path ?? "task-\(UUID().uuidString.prefix(8))"
             let targetWT: Worktree
             if let existing = worktreeStore.worktrees.first(where: { $0.taskID == targetPath }) {
@@ -909,17 +912,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             } else {
                 targetWT = try worktreeStore.create(taskID: targetPath)
             }
-            
+
             try worktreeManager.applyHandoffPackage(package, to: targetWT)
-            
+
             let newPane = paneManager.createPane(inDirectory: targetWT.path)
-            
+
             if let prompt = targetNode.data.prompt, !prompt.isEmpty {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                     newPane.surface?.sendText(prompt + "\n")
                 }
             }
-            
+
             updateNodeStatus(nodeID: targetNode.id, status: "active")
         } catch {
             NSLog("symaira: handoff failed: \(error.localizedDescription)")
@@ -931,7 +934,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
               let paneManager = self.paneManager else {
             return
         }
-        
+
         let path = node.data.path ?? "task-\(UUID().uuidString.prefix(8))"
         let wt: Worktree
         do {
@@ -940,15 +943,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             } else {
                 wt = try worktreeStore.create(taskID: path)
             }
-            
+
             let pane = paneManager.createPane(inDirectory: wt.path)
-            
+
             if let prompt = node.data.prompt, !prompt.isEmpty {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                     pane.surface?.sendText(prompt + "\n")
                 }
             }
-            
+
             updateNodeStatus(nodeID: node.id, status: "active")
         } catch {
             NSLog("symaira: failed to run workflow node: \(error.localizedDescription)")

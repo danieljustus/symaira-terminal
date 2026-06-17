@@ -18,7 +18,7 @@ public struct PaneStatusInfo: Identifiable, Equatable {
     public let prTitle: String?
     public let prStatus: String?
     public let listeningPorts: [UInt16]
-    
+
     public init(
         id: UUID,
         index: Int,
@@ -56,7 +56,7 @@ public struct PaneStatusInfo: Identifiable, Equatable {
 public final class SidebarViewModel: ObservableObject {
     @Published public var paneItems: [PaneStatusInfo] = []
     @Published public var worktreeStore: WorktreeStore
-    
+
     public init(worktreeStore: WorktreeStore) {
         self.worktreeStore = worktreeStore
     }
@@ -66,13 +66,13 @@ public struct WorkspaceSidebar: View {
     @ObservedObject public var viewModel: SidebarViewModel
     public let onSelectPane: (UUID) -> Void
     public let onOpenPort: (UInt16) -> Void
-    
+
     // Worktree callbacks
     public let onSelectWorktree: (Worktree) -> Void
     public let onCreateWorktree: () -> Void
     public let onRemoveWorktree: (Worktree) -> Void
-    
-    @State private var hoveredPaneID: UUID? = nil
+
+    @State private var hoveredPaneID: UUID?
 
     public init(
         viewModel: SidebarViewModel,
@@ -89,7 +89,7 @@ public struct WorkspaceSidebar: View {
         self.onCreateWorktree = onCreateWorktree
         self.onRemoveWorktree = onRemoveWorktree
     }
-    
+
     public var body: some View {
         VStack(spacing: 0) {
             // Header
@@ -99,7 +99,7 @@ public struct WorkspaceSidebar: View {
                     .foregroundColor(.secondary)
                     .tracking(1.5)
                 Spacer()
-                
+
                 // Active agent indicators summary
                 let activeCount = viewModel.paneItems.filter { $0.status == .running || $0.status == .awaitingApproval }.count
                 if activeCount > 0 {
@@ -119,7 +119,7 @@ public struct WorkspaceSidebar: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            
+
             // Main list split into tabs and worktrees
             List {
                 Section {
@@ -150,7 +150,7 @@ public struct WorkspaceSidebar: View {
                         .font(.system(size: 10, weight: .semibold))
                         .foregroundColor(.secondary.opacity(0.8))
                 }
-                
+
                 WorktreeListView(
                     store: viewModel.worktreeStore,
                     onSelect: onSelectWorktree,
@@ -168,7 +168,7 @@ struct PaneTabCard: View {
     let pane: PaneStatusInfo
     let isHovered: Bool
     let onOpenPort: (UInt16) -> Void
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             // Top Row: Title, Status Indicator, Active Checkmark
@@ -183,28 +183,28 @@ struct PaneTabCard: View {
                             .scaleEffect(pane.status == .awaitingApproval || pane.status == .error ? 1.8 : 1.0)
                             .opacity(pane.status == .awaitingApproval || pane.status == .error ? 0.3 : 0.0)
                     )
-                
+
                 // Tab label & directory/title
                 Text("\(pane.index + 1)")
                     .font(.system(.subheadline, design: .monospaced))
                     .fontWeight(.bold)
                     .foregroundColor(pane.isActive ? .primary : .secondary)
-                
+
                 let folderName = pane.cwd?.lastPathComponent ?? "Terminal"
                 Text(pane.title == "Terminal" ? folderName : pane.title)
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundColor(pane.isActive ? .primary : .primary.opacity(0.8))
                     .lineLimit(1)
-                
+
                 Spacer()
-                
+
                 if pane.isActive {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.system(size: 11))
                         .foregroundColor(.accentColor)
                 }
             }
-            
+
             // CWD Subtitle
             if let cwd = pane.cwd {
                 let displayPath = cwd.path.replacingOccurrences(of: NSHomeDirectory(), with: "~")
@@ -213,7 +213,7 @@ struct PaneTabCard: View {
                     .foregroundColor(pane.isActive ? .primary.opacity(0.7) : .secondary)
                     .lineLimit(1)
             }
-            
+
             // Git row
             if let branch = pane.gitBranch {
                 HStack(spacing: 8) {
@@ -229,7 +229,7 @@ struct PaneTabCard: View {
                         }
                     }
                     .foregroundColor(pane.isActive ? .primary.opacity(0.8) : .secondary)
-                    
+
                     // Ahead / Behind indicators
                     if pane.gitAhead > 0 || pane.gitBehind > 0 {
                         HStack(spacing: 3) {
@@ -246,7 +246,7 @@ struct PaneTabCard: View {
                     }
                 }
             }
-            
+
             // Pull Request Progress badge
             if let prNum = pane.prNumber, let prTitle = pane.prTitle, let prState = pane.prStatus {
                 HStack(spacing: 4) {
@@ -265,7 +265,7 @@ struct PaneTabCard: View {
                 .cornerRadius(4)
                 .help(prTitle)
             }
-            
+
             // Ports Row
             if !pane.listeningPorts.isEmpty {
                 HStack(spacing: 4) {
@@ -314,7 +314,7 @@ struct PaneTabCard: View {
         )
         .padding(.vertical, 2)
     }
-    
+
     private func prBadgeColor(for state: String) -> Color {
         switch state.lowercased() {
         case "approved": return .green

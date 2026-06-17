@@ -13,7 +13,7 @@ import Testing
     @Test func profileLookup() {
         let config = WorkspaceConfig(profiles: [
             WorkspaceConfig.ProfileConfig(name: "default"),
-            WorkspaceConfig.ProfileConfig(name: "work"),
+            WorkspaceConfig.ProfileConfig(name: "work")
         ])
         #expect(config.profile(named: "work")?.name == "work")
         #expect(config.profile(named: "missing") == nil)
@@ -21,6 +21,7 @@ import Testing
 
     @Test func profileConfigHasNoKeys() {
         let profile = WorkspaceConfig.ProfileConfig(name: "default")
+        // swiftlint:disable:next force_try
         let encoded = try! JSONEncoder().encode(profile)
         let json = String(data: encoded, encoding: .utf8)!
         #expect(!json.contains("providerKeys"))
@@ -53,8 +54,8 @@ import Testing
             "activeProfile": "default",
             "profiles": [
                 ["name": "default", "providerKeys": ["anthropic": "sk-ant-secret", "openai": "sk-openai-secret"]],
-                ["name": "work", "providerKeys": ["google": "goog-key"]],
-            ],
+                ["name": "work", "providerKeys": ["google": "goog-key"]]
+            ]
         ]
         let data = try JSONSerialization.data(withJSONObject: legacyJSON)
         try data.write(to: configDir.appendingPathComponent("config.json"))
@@ -100,7 +101,7 @@ import Testing
     @Test func agentProfileLookup() {
         let config = WorkspaceConfig(agentProfiles: [
             WorkspaceConfig.AgentProfileConfig(name: "default"),
-            WorkspaceConfig.AgentProfileConfig(name: "production", mode: "yolo"),
+            WorkspaceConfig.AgentProfileConfig(name: "production", mode: "yolo")
         ])
         #expect(config.agentProfile(named: "production")?.mode == "yolo")
         #expect(config.agentProfile(named: "missing") == nil)

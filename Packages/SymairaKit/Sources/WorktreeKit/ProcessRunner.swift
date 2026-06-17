@@ -108,15 +108,15 @@ public struct ProcessRunner: Sendable {
     static func drain(_ fd: Int32) -> Data {
         let flags = fcntl(fd, F_GETFL)
         guard flags != -1 else { return Data() }
-        
+
         fcntl(fd, F_SETFL, flags | O_NONBLOCK)
-        
+
         var data = Data()
         var buf = [UInt8](repeating: 0, count: 65536)
-        
+
         while true {
             let n = buf.withUnsafeMutableBytes { read(fd, $0.baseAddress, $0.count) }
-            
+
             if n > 0 {
                 data.append(contentsOf: buf[0..<n])
             } else if n == -1 {
@@ -129,7 +129,7 @@ public struct ProcessRunner: Sendable {
                 break
             }
         }
-        
+
         fcntl(fd, F_SETFL, flags)
         return data
     }

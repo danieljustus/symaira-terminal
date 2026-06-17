@@ -53,7 +53,7 @@ final class ACPFrameParserTests: XCTestCase {
     func testSplitBody() {
         var parser = ACPFrameParser()
         let full = frame(#"{"jsonrpc":"2.0","method":"test"}"#)
-        let headerEnd = full.range(of: "\r\n\r\n".data(using: .utf8)!)!.upperBound
+        let headerEnd = full.range(of: Data("\r\n\r\n".utf8))!.upperBound
         parser.feed(full[..<headerEnd])
         XCTAssertNil(parser.nextMessage())
 

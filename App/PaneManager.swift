@@ -131,7 +131,7 @@ final class PaneManager {
                 splitView.topAnchor.constraint(equalTo: hostView.topAnchor),
                 splitView.leadingAnchor.constraint(equalTo: hostView.leadingAnchor),
                 splitView.trailingAnchor.constraint(equalTo: hostView.trailingAnchor),
-                splitView.bottomAnchor.constraint(equalTo: hostView.bottomAnchor),
+                splitView.bottomAnchor.constraint(equalTo: hostView.bottomAnchor)
             ])
 
             currentView.translatesAutoresizingMaskIntoConstraints = true
@@ -282,32 +282,32 @@ final class PaneManager {
     }
 
     // MARK: - Directional Navigation
-    
+
     enum FocusDirection {
         case left, right, up, down
     }
-    
+
     func focus(in direction: FocusDirection) {
         guard let currentPane = currentPane, panes.count > 1 else { return }
-        
+
         let currentFrame = currentPane.view.convert(currentPane.view.bounds, to: nil)
         let currentCenter = NSPoint(x: currentFrame.midX, y: currentFrame.midY)
-        
-        var bestCandidate: TerminalPane? = nil
+
+        var bestCandidate: TerminalPane?
         var minDistance = Double.infinity
-        
+
         for pane in panes {
             if pane === currentPane { continue }
             let candidateFrame = pane.view.convert(pane.view.bounds, to: nil)
             let candidateCenter = NSPoint(x: candidateFrame.midX, y: candidateFrame.midY)
-            
+
             let dx = candidateCenter.x - currentCenter.x
             let dy = candidateCenter.y - currentCenter.y
-            
+
             var isCandidate = false
             var primaryDelta: Double = 0
             var secondaryDelta: Double = 0
-            
+
             switch direction {
             case .left:
                 if dx < -1 {
@@ -334,7 +334,7 @@ final class PaneManager {
                     secondaryDelta = dx
                 }
             }
-            
+
             if isCandidate {
                 // Calculate distance with a penalty for misalignment on the secondary axis
                 let dist = primaryDelta + 4.0 * abs(secondaryDelta)
@@ -344,14 +344,14 @@ final class PaneManager {
                 }
             }
         }
-        
+
         if let target = bestCandidate, let idx = panes.firstIndex(where: { $0 === target }) {
             selectPane(at: idx)
         }
     }
 
     // MARK: - Zoom (Maximize / Restore)
-    
+
     func toggleZoom() {
         if zoomedPane != nil {
             zoomedPane = nil
@@ -360,7 +360,6 @@ final class PaneManager {
         }
         rebuildLayout()
     }
-
 
     func splitHorizontal() {
         split(orientation: .horizontal)
@@ -401,7 +400,7 @@ final class PaneManager {
                 splitView.topAnchor.constraint(equalTo: hostView.topAnchor),
                 splitView.leadingAnchor.constraint(equalTo: hostView.leadingAnchor),
                 splitView.trailingAnchor.constraint(equalTo: hostView.trailingAnchor),
-                splitView.bottomAnchor.constraint(equalTo: hostView.bottomAnchor),
+                splitView.bottomAnchor.constraint(equalTo: hostView.bottomAnchor)
             ])
 
             cur.view.translatesAutoresizingMaskIntoConstraints = true
@@ -428,10 +427,8 @@ final class PaneManager {
     }
 
     private func findSplitView(for pane: TerminalPane) -> NSSplitView? {
-        for (_, splitView) in splitViews {
-            if splitView.subviews.contains(where: { $0 === pane.view }) {
-                return splitView
-            }
+        for (_, splitView) in splitViews where splitView.subviews.contains(where: { $0 === pane.view }) {
+            return splitView
         }
         return nil
     }
@@ -449,7 +446,7 @@ final class PaneManager {
                 view.topAnchor.constraint(equalTo: hostView.topAnchor),
                 view.leadingAnchor.constraint(equalTo: hostView.leadingAnchor),
                 view.trailingAnchor.constraint(equalTo: hostView.trailingAnchor),
-                view.bottomAnchor.constraint(equalTo: hostView.bottomAnchor),
+                view.bottomAnchor.constraint(equalTo: hostView.bottomAnchor)
             ])
             return
         }
@@ -462,7 +459,7 @@ final class PaneManager {
                 view.topAnchor.constraint(equalTo: hostView.topAnchor),
                 view.leadingAnchor.constraint(equalTo: hostView.leadingAnchor),
                 view.trailingAnchor.constraint(equalTo: hostView.trailingAnchor),
-                view.bottomAnchor.constraint(equalTo: hostView.bottomAnchor),
+                view.bottomAnchor.constraint(equalTo: hostView.bottomAnchor)
             ])
             return
         }
@@ -492,7 +489,7 @@ final class PaneManager {
                     splitView.topAnchor.constraint(equalTo: hostView.topAnchor),
                     splitView.leadingAnchor.constraint(equalTo: hostView.leadingAnchor),
                     splitView.trailingAnchor.constraint(equalTo: hostView.trailingAnchor),
-                    splitView.bottomAnchor.constraint(equalTo: hostView.bottomAnchor),
+                    splitView.bottomAnchor.constraint(equalTo: hostView.bottomAnchor)
                 ])
                 splitViews[UUID()] = splitView
             }
@@ -520,7 +517,7 @@ final class PaneManager {
             mainSplitView.topAnchor.constraint(equalTo: hostView.topAnchor),
             mainSplitView.leadingAnchor.constraint(equalTo: hostView.leadingAnchor),
             mainSplitView.trailingAnchor.constraint(equalTo: hostView.trailingAnchor),
-            mainSplitView.bottomAnchor.constraint(equalTo: hostView.bottomAnchor),
+            mainSplitView.bottomAnchor.constraint(equalTo: hostView.bottomAnchor)
         ])
         splitViews[UUID()] = mainSplitView
     }

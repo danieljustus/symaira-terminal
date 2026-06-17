@@ -128,7 +128,7 @@ public struct OSCStreamParser: Sendable {
             if let url = URL(string: rest), url.scheme == "file" {
                 return .workingDirectory(url)
             }
-            
+
             if rest.hasPrefix("file://") {
                 let pathString = rest.replacingOccurrences(of: "file://localhost", with: "")
                     .replacingOccurrences(of: "file://", with: "")
@@ -136,7 +136,7 @@ public struct OSCStreamParser: Sendable {
                 let url = URL(fileURLWithPath: decodedPath)
                 return .workingDirectory(url)
             }
-            
+
             return .unhandled(code: 7, payload: rest)
         case 8:
             return parseHyperlink(rest)
