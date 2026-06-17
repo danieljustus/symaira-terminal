@@ -17,6 +17,12 @@ struct SymterminalCLI {
         switch args[0] {
         case "status":
             await StatusCommand(flags: Array(args.dropFirst())).run()
+        case "spawn":
+            await SpawnCommand(flags: Array(args.dropFirst())).run()
+        case "blocked":
+            await BlockedCommand(flags: Array(args.dropFirst())).run()
+        case "focus":
+            await FocusCommand(flags: Array(args.dropFirst())).run()
         default:
             fputs("symterminal: unknown command '\(args[0])'\n", stderr)
             fputs("Run 'symterminal --help' for usage.\n", stderr)
@@ -30,6 +36,9 @@ struct SymterminalCLI {
 
         Commands:
           status     Show the orchestration snapshot of the running app
+          spawn      Open a new pane running a named agent
+          blocked    Report (and focus) the longest-blocked pane
+          focus      Select a pane by ID
 
         Options:
           -h, --help  Show this help message
@@ -162,6 +171,172 @@ struct StatusCommand {
           symterminal status           # human-readable table
           symterminal status --json    # JSON for scripting / status bars
           symterminal status --json | jq '.panes[].agentStatus'
+        """)
+    }
+}
+
+// MARK: - spawn command
+
+struct SpawnCommand {
+    let flags: [String]
+
+    func run() async {
+        if flags.contains("--help") || flags.contains("-h") {
+            printHelp(); return
+        }
+
+        guard let agentID = flag("--agent") else {
+            fputs("Error: --agent <id> is required.\n", stderr)
+            fputs("Run 'symterminal spawn --help' for usage.\n", stderr)
+            exit(1)
+        }
+
+        let worktree = flag("--worktree")
+        let cwd = flag("--cwd")
+        let client = ControlClient()
+
+        do {
+            let paneID = try await client.spawn(
+                agentID: agentID, worktreeBranch: worktree, workingDirectory: cwd)
+            print("Spawned pane \(paneID) running '\(agentID)'")
+        } catch ControlClientError.connectionRefused {
+            fputs("Error: Symaira Terminal is not running.\n", stderr); exit(1)
+        } catch ControlClientError.rpcError(let err) {
+            fputs("Error: \(err.message) (code \(err.code))\n", stderr); exit(1)
+        } catch {
+            fputs("Error: \(error)\n", stderr); exit(1)
+        }
+    }
+
+    private func flag(_ name: String) -> String? {
+        guard let idx = flags.firstIndex(of: name), idx + 1 < flags.count else { return nil }
+        return flags[idx + 1]
+    }
+
+    private func printHelp() {
+        print("""
+        Usage: symterminal spawn --agent <id> [--worktree <branch>] [--cwd <path>]
+
+        Open a new pane in Symaira Terminal running the named agent.
+        The agent process inherits a sanitized environment (no provider secrets).
+
+        Options:
+          --agent <id>       Agent command or identifier (required)
+          --worktree <branch> Open the pane in the worktree for this branch
+          --cwd <path>       Set the working directory for the new pane
+          -h, --help         Show this help message
+
+        Examples:
+          symterminal spawn --agent claude-code
+          symterminal spawn --agent opencode --worktree symaira/task-42
+          symterminal spawn --agent aider --cwd /path/to/repo
+        """)
+    }
+}
+
+// MARK: - blocked command
+
+struct BlockedCommand {
+    let flags: [String]
+
+    func run() async {
+        if flags.contains("--help") || flags.contains("-h") {
+            printHelp(); return
+        }
+
+        let jsonMode = flags.contains("--json")
+        let client = ControlClient()
+
+        do {
+            let paneID = try await client.blocked()
+            if let id = paneID {
+                if jsonMode {
+                    print("{\n  \"blockedPaneID\": \"\(id)\"\n}")
+                } else {
+                    print("Focused longest-blocked pane: \(id)")
+                }
+            } else {
+                if jsonMode {
+                    print("{\n  \"blockedPaneID\": null\n}")
+                } else {
+                    print("No panes are currently blocked.")
+                }
+            }
+        } catch ControlClientError.connectionRefused {
+            fputs("Error: Symaira Terminal is not running.\n", stderr); exit(1)
+        } catch ControlClientError.rpcError(let err) {
+            fputs("Error: \(err.message) (code \(err.code))\n", stderr); exit(1)
+        } catch {
+            fputs("Error: \(error)\n", stderr); exit(1)
+        }
+    }
+
+    private func printHelp() {
+        print("""
+        Usage: symterminal blocked [options]
+
+        Report (and focus in the GUI) the pane that has been awaiting approval
+        the longest. Equivalent to Cmd+Shift+U in the app.
+
+        Options:
+          --json      Output result as JSON
+          -h, --help  Show this help message
+
+        Exit codes:
+          0  Success (whether or not a blocked pane was found)
+          1  Symaira Terminal is not running, or another error occurred
+        """)
+    }
+}
+
+// MARK: - focus command
+
+struct FocusCommand {
+    let flags: [String]
+
+    func run() async {
+        if flags.contains("--help") || flags.contains("-h") {
+            printHelp(); return
+        }
+
+        // First positional argument is the pane ID
+        let positional = flags.filter { !$0.hasPrefix("-") }
+        guard let paneIDString = positional.first, let paneID = UUID(uuidString: paneIDString) else {
+            fputs("Error: <pane-id> is required and must be a valid UUID.\n", stderr)
+            fputs("Run 'symterminal focus --help' for usage.\n", stderr)
+            fputs("Tip: use 'symterminal status --json | jq .panes[].id' to list pane IDs.\n", stderr)
+            exit(1)
+        }
+
+        let client = ControlClient()
+
+        do {
+            try await client.focus(paneID: paneID)
+            print("Focused pane \(paneID)")
+        } catch ControlClientError.connectionRefused {
+            fputs("Error: Symaira Terminal is not running.\n", stderr); exit(1)
+        } catch ControlClientError.rpcError(let err) {
+            fputs("Error: \(err.message) (code \(err.code))\n", stderr); exit(1)
+        } catch {
+            fputs("Error: \(error)\n", stderr); exit(1)
+        }
+    }
+
+    private func printHelp() {
+        print("""
+        Usage: symterminal focus <pane-id>
+
+        Make the given pane the active (current) pane in Symaira Terminal.
+        Use 'symterminal status --json | jq .panes[].id' to list available pane IDs.
+
+        Arguments:
+          <pane-id>   UUID of the pane to focus (required)
+
+        Options:
+          -h, --help  Show this help message
+
+        Examples:
+          symterminal focus 550E8400-E29B-41D4-A716-446655440000
         """)
     }
 }
