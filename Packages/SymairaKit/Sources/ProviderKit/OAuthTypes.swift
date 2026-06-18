@@ -2,7 +2,7 @@ import Foundation
 import CommonCrypto
 
 /// Authentication method for a provider.
-public enum AuthMethod: Sendable, Codable {
+public enum AuthMethod: Sendable, Codable, Equatable {
     /// Static API key (existing BYOK model).
     case apiKey
     /// OAuth 2.0 with PKCE (browser-based sign-in).
@@ -10,7 +10,7 @@ public enum AuthMethod: Sendable, Codable {
 }
 
 /// Configuration for an OAuth 2.0 provider.
-public struct OAuthConfig: Sendable, Codable {
+public struct OAuthConfig: Sendable, Codable, Equatable {
     /// The OAuth client ID registered with the provider.
     public let clientId: String
 
