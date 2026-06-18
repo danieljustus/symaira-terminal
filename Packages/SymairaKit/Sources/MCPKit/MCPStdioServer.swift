@@ -138,7 +138,7 @@ actor MCPStdioServer {
             var allLines: [String] = []
             for pid in paneIDs {
                 if let scrollback = try? await client.readScrollback(paneID: pid, lines: lines) {
-                    allLines.append(contentsOf: scrollback.components(separatedBy: "\n"))
+                    allLines.append(contentsOf: scrollback)
                 }
             }
             let text = allLines.isEmpty ? "(no output)" : allLines.suffix(lines).joined(separator: "\n")
