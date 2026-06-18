@@ -14,7 +14,8 @@ let package = Package(
         .library(name: "StackKit", targets: ["StackKit"]),
         .library(name: "UsageKit", targets: ["UsageKit"]),
         .library(name: "SymairaUI", targets: ["SymairaUI"]),
-        .library(name: "ControlKit", targets: ["ControlKit"])
+        .library(name: "ControlKit", targets: ["ControlKit"]),
+        .library(name: "MCPKit", targets: ["MCPKit"])
     ],
     dependencies: [
         // Engine pin — exact version on purpose, libghostty's API is not stable
@@ -53,9 +54,12 @@ let package = Package(
         // docs/design/agent-control-surface.md.
         .target(name: "ControlKit", dependencies: ["AgentKit"]),
 
-        // Command-line interface: `symterminal status [--json]`
+        // MCP server for symterminal — exposes orchestration tools via MCP protocol.
+        .target(name: "MCPKit", dependencies: ["ControlKit"]),
+
+        // Command-line interface: `symterminal status [--json]`, `symterminal mcp`
         // Connect to a running Symaira Terminal instance via ControlKit.
-        .executableTarget(name: "symterminal", dependencies: ["ControlKit"]),
+        .executableTarget(name: "symterminal", dependencies: ["ControlKit", "MCPKit"]),
 
         // Manual GUI smoke check for the engine pipeline (not run in CI):
         // `swift run TerminalSmoke`
@@ -73,6 +77,7 @@ let package = Package(
         .testTarget(name: "StackKitTests", dependencies: ["StackKit"]),
         .testTarget(name: "UsageKitTests", dependencies: ["UsageKit"]),
         .testTarget(name: "SymairaUITests", dependencies: ["SymairaUI"]),
-        .testTarget(name: "ControlKitTests", dependencies: ["ControlKit"])
+        .testTarget(name: "ControlKitTests", dependencies: ["ControlKit"]),
+        .testTarget(name: "MCPKitTests", dependencies: ["MCPKit"])
     ]
 )
