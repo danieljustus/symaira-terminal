@@ -1,0 +1,200 @@
+#!/usr/bin/env bash
+# symterm — CLI wrapper for Symaira Terminal
+#
+# Usage:
+#   symterm [.]               Open Symaira Terminal in the current or given directory
+#   symterm <path>            Open Symaira Terminal in <path>
+#   symterm +tab [<command>]  Open a new tab (optionally running <command>)
+#   symterm --version         Print version
+#   symterm --help            Print this help
+#
+# Install: run `scripts/install.sh` to symlink this script to /usr/local/bin/symterm
+
+set -euo pipefail
+
+SYMTERM_VERSION="0.1.0"
+APP_BUNDLE="SymairaTerminal"
+APP_NAME="Symaira Terminal"
+URL_SCHEME="symaira-terminal"
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+die() {
+    echo "symterm: $*" >&2
+    exit 1
+}
+
+app_path() {
+    # Locate the .app bundle: first in /Applications, then ~/Applications,
+    # then anywhere Spotlight can find it.
+    for candidate in \
+        "/Applications/${APP_BUNDLE}.app" \
+        "${HOME}/Applications/${APP_BUNDLE}.app"
+    do
+        if [ -d "$candidate" ]; then
+            echo "$candidate"
+            return 0
+        fi
+    done
+
+    local found
+    found=$(mdfind "kMDItemCFBundleIdentifier == 'com.symaira.terminal'" 2>/dev/null | head -1)
+    if [ -n "$found" ]; then
+        echo "$found"
+        return 0
+    fi
+
+    return 1
+}
+
+require_app() {
+    if ! app_path >/dev/null 2>&1; then
+        die "${APP_NAME} is not installed. Download it from https://symaira.com or build it from source."
+    fi
+}
+
+# ---------------------------------------------------------------------------
+# Open the app in a directory via URL scheme
+# symaira-terminal://open?path=<percent-encoded-absolute-path>
+# ---------------------------------------------------------------------------
+
+open_dir() {
+    local target_path="$1"
+
+    # Resolve to an absolute path
+    if [ "$target_path" = "." ] || [ -z "$target_path" ]; then
+        target_path="$PWD"
+    else
+        target_path="$(cd "$target_path" 2>/dev/null && pwd)" \
+            || die "Cannot resolve path: $target_path"
+    fi
+
+    require_app
+
+    # Percent-encode the path (RFC 3986: encode everything except unreserved chars)
+    local encoded_path
+    encoded_path="$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "$target_path")"
+
+    local url="${URL_SCHEME}://open?path=${encoded_path}"
+    open "$url"
+}
+
+# ---------------------------------------------------------------------------
+# Open a new tab, optionally running a command
+# symaira-terminal://new-tab[?command=<percent-encoded-command>]
+# ---------------------------------------------------------------------------
+
+open_new_tab() {
+    local cmd="${1:-}"
+    require_app
+
+    local url
+    if [ -n "$cmd" ]; then
+        local encoded_cmd
+        encoded_cmd="$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "$cmd")"
+        url="${URL_SCHEME}://new-tab?command=${encoded_cmd}"
+    else
+        url="${URL_SCHEME}://new-tab"
+    fi
+
+    open "$url"
+}
+
+# ---------------------------------------------------------------------------
+# Fallback: open via `open -a` for basic directory launch (no URL scheme)
+# Used when the URL scheme is not yet registered (e.g. app not fully installed)
+# ---------------------------------------------------------------------------
+
+open_dir_fallback() {
+    local target_path="$1"
+
+    if [ "$target_path" = "." ] || [ -z "$target_path" ]; then
+        target_path="$PWD"
+    else
+        target_path="$(cd "$target_path" 2>/dev/null && pwd)" \
+            || die "Cannot resolve path: $target_path"
+    fi
+
+    local bundle
+    bundle="$(app_path)" || die "${APP_NAME} is not installed."
+    open -a "$bundle" --args "$target_path"
+}
+
+# ---------------------------------------------------------------------------
+# Print version
+# ---------------------------------------------------------------------------
+
+print_version() {
+    echo "symterm ${SYMTERM_VERSION}"
+}
+
+# ---------------------------------------------------------------------------
+# Print help
+# ---------------------------------------------------------------------------
+
+print_help() {
+    cat <<EOF
+symterm ${SYMTERM_VERSION} — CLI wrapper for ${APP_NAME}
+
+Usage:
+  symterm [<path>]            Open ${APP_NAME} in <path> (default: current directory)
+  symterm .                   Open ${APP_NAME} in the current directory
+  symterm +tab [<command>]    Open a new tab, optionally running <command>
+  symterm --version           Print version and exit
+  symterm --help              Print this help and exit
+
+Examples:
+  symterm                     Opens ${APP_NAME} in the current working directory
+  symterm ~/projects/myapp    Opens ${APP_NAME} in ~/projects/myapp
+  symterm .                   Opens ${APP_NAME} in the current working directory
+  symterm +tab                Opens a new tab in ${APP_NAME}
+  symterm +tab 'npm run dev'  Opens a new tab running 'npm run dev'
+
+URL scheme:
+  symterm communicates with the app via the ${URL_SCHEME}:// URL scheme.
+  Make sure ${APP_NAME} is installed and has registered the scheme.
+
+Installation:
+  Run 'scripts/install.sh' from the repository root, or copy this script
+  to /usr/local/bin/symterm and make it executable:
+    cp scripts/symterm /usr/local/bin/symterm
+    chmod +x /usr/local/bin/symterm
+
+EOF
+}
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+
+main() {
+    if [ $# -eq 0 ]; then
+        # No arguments: open in current directory
+        open_dir "."
+        return 0
+    fi
+
+    case "$1" in
+        --help|-h)
+            print_help
+            ;;
+        --version|-V)
+            print_version
+            ;;
+        +tab)
+            shift
+            open_new_tab "${1:-}"
+            ;;
+        -*)
+            die "Unknown option: $1 (try --help)"
+            ;;
+        *)
+            # Treat positional argument as a path
+            open_dir "$1"
+            ;;
+    esac
+}
+
+main "$@"

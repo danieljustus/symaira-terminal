@@ -60,6 +60,37 @@ Or right-click the app → "Open" → "Open" to bypass Gatekeeper.
 
 Once installed, launch Symaira Terminal from your Applications folder or via Spotlight.
 
+### `symterm` CLI
+
+`symterm` lets you open Symaira Terminal from any shell, IDE integrated terminal, or
+script — the same way `code .` opens VS Code.
+
+#### Install
+
+```bash
+# From the repository root:
+bash scripts/install.sh          # symlinks symterm → /usr/local/bin/symterm
+
+# Or copy manually:
+cp scripts/symterm /usr/local/bin/symterm
+chmod +x /usr/local/bin/symterm
+```
+
+#### Usage
+
+```bash
+symterm                          # Open Symaira Terminal in the current directory
+symterm .                        # Same as above
+symterm ~/projects/myapp         # Open in a specific directory
+symterm +tab                     # Open a new tab
+symterm +tab 'npm run dev'       # Open a new tab and run a command
+symterm --help                   # Print help
+symterm --version                # Print version
+```
+
+`symterm` communicates with the app through the `symaira-terminal://` URL scheme.
+The app registers this scheme automatically when it is launched for the first time.
+
 ### Basic Workflow
 
 1. **Open a pane** — Click the `+` button or use `Cmd+T` to create a new terminal pane
