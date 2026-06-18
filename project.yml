@@ -30,6 +30,8 @@ targets:
         product: WorktreeKit
       - package: SymairaKit
         product: SymairaUI
+      - package: SymairaKit
+        product: ControlKit
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.symaira.terminal
