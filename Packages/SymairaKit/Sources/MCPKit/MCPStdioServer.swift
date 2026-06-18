@@ -7,15 +7,15 @@ enum MCPStdioError: Error, Sendable {
     case connectionFailed(String)
 }
 
-actor MCPStdioServer {
+public actor MCPStdioServer {
     private let client: ControlClient
     private static let maxFrameSize = 1_048_576
 
-    init(client: ControlClient = ControlClient()) {
+    public init(client: ControlClient = ControlClient()) {
         self.client = client
     }
 
-    func run() async {
+    public func run() async {
         let decoder = JSONDecoder()
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
