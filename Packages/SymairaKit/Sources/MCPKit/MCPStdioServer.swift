@@ -9,6 +9,7 @@ enum MCPStdioError: Error, Sendable {
 
 actor MCPStdioServer {
     private let client: ControlClient
+    private static let maxFrameSize = 1_048_576
 
     init(client: ControlClient = ControlClient()) {
         self.client = client
@@ -20,12 +21,20 @@ actor MCPStdioServer {
         encoder.dateEncodingStrategy = .iso8601
 
         var pending = Data()
-        var buf = [UInt8](repeating: 0, count: 4096)
+        var buf = [UInt8](repeating: 0, count: 65_536)
 
         while !Task.isCancelled {
             let n = buf.withUnsafeMutableBytes { Darwin.read(STDIN_FILENO, $0.baseAddress!, $0.count) }
             guard n > 0 else { break }
             pending.append(contentsOf: buf.prefix(n))
+
+            if pending.count > Self.maxFrameSize {
+                let errorResponse = MCPResponse(
+                    id: nil,
+                    error: MCPError(code: -32600, message: "Frame too large"))
+                writeResponse(errorResponse, encoder: encoder)
+                break
+            }
 
             while let nlIdx = pending.firstIndex(of: 0x0a) {
                 let line = Data(pending[pending.startIndex..<nlIdx])
