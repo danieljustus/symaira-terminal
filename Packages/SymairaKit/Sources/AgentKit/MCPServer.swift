@@ -155,12 +155,10 @@ public final class MCPServer: @unchecked Sendable {
 
                 if let headersString = String(data: headersData, encoding: .utf8) {
                     var contentLength = 0
-                    for line in headersString.components(separatedBy: "\r\n") {
-                        if line.lowercased().hasPrefix("content-length:") {
-                            let parts = line.components(separatedBy: ":")
-                            if parts.count > 1 {
-                                contentLength = Int(parts[1].trimmingCharacters(in: .whitespaces)) ?? 0
-                            }
+                    for line in headersString.components(separatedBy: "\r\n") where line.lowercased().hasPrefix("content-length:") {
+                        let parts = line.components(separatedBy: ":")
+                        if parts.count > 1 {
+                            contentLength = Int(parts[1].trimmingCharacters(in: .whitespaces)) ?? 0
                         }
                     }
 
