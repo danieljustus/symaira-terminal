@@ -138,7 +138,7 @@ struct ControlServerClientTests {
         requestData = try enc.encode(badRequest)
         // Overwrite method in the JSON to an unknown value
         guard var json = try JSONSerialization.jsonObject(with: requestData) as? [String: Any] else {
-            XCTFail("Failed to deserialize JSON as dictionary")
+            Issue.record("Failed to deserialize JSON as dictionary")
             return
         }
         json["method"] = "control/nonexistent"
