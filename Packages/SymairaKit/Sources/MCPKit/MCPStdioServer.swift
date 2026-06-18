@@ -134,7 +134,13 @@ actor MCPStdioServer {
                     isError: true)
             }
             let snapshot = try await client.snapshot()
-            let allLines = snapshot.panes.flatMap { _ -> [String] in [] }
+            let paneIDs = paneID.map { [$0] } ?? snapshot.panes.map(\.id)
+            var allLines: [String] = []
+            for pid in paneIDs {
+                if let scrollback = try? await client.readScrollback(paneID: pid, lines: lines) {
+                    allLines.append(contentsOf: scrollback.components(separatedBy: "\n"))
+                }
+            }
             let text = allLines.isEmpty ? "(no output)" : allLines.suffix(lines).joined(separator: "\n")
             return MCPResult(content: [MCPContent(type: "text", text: text)], isError: false)
 

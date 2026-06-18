@@ -26,6 +26,7 @@ public enum ControlMethod: String, Sendable {
     case spawn = "control/spawn"
     case focus = "control/focus"
     case blocked = "control/blocked"
+    case readScrollback = "control/readScrollback"
 }
 
 /// Optional parameters carried by write-verb requests.
@@ -80,6 +81,7 @@ public struct ControlResponseBody: Codable, Sendable {
     public var focusedPaneID: UUID?
     public var blockedPaneID: UUID?
     public var ok: Bool?
+    public var scrollbackLines: [String]?
 
     public static func of(snapshot: OrchestrationSnapshot) -> Self {
         var b = Self(); b.snapshot = snapshot; return b
@@ -104,6 +106,9 @@ public struct ControlResponseBody: Codable, Sendable {
     }
     public static var ok: Self {
         var b = Self(); b.ok = true; return b
+    }
+    public static func scrollback(_ lines: [String]) -> Self {
+        var b = Self(); b.scrollbackLines = lines; return b
     }
 }
 
