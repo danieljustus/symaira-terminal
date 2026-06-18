@@ -11,7 +11,7 @@ private final class MCPConnectionCounter: @unchecked Sendable {
     var current: Int { lock.withLock { count } }
 
     func increment() -> Int { lock.withLock { count += 1; return count } }
-    func decrement()         { lock.withLock { count -= 1 } }
+    func decrement() { lock.withLock { count -= 1 } }
 }
 
 // MARK: - MCPServer

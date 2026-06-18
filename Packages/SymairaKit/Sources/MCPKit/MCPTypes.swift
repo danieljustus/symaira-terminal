@@ -49,9 +49,9 @@ struct AnyCodable: Codable, Sendable {
 
     init(from decoder: Decoder) throws {
         let c = try decoder.singleValueContainer()
-        if let v = try? c.decode(Int.self)    { value = v; return }
+        if let v = try? c.decode(Int.self) { value = v; return }
         if let v = try? c.decode(Double.self) { value = v; return }
-        if let v = try? c.decode(Bool.self)   { value = v; return }
+        if let v = try? c.decode(Bool.self) { value = v; return }
         if let v = try? c.decode(String.self) { value = v; return }
         value = ""
     }
