@@ -51,19 +51,19 @@ struct ControlSecurityTests {
     @Test func controlMethodHasNoApproveOrDenyVerb() {
         let allMethods: [ControlMethod] = [
             .snapshot, .panes, .pendingApprovals, .worktrees,
-            .spawn, .focus, .blocked
+            .spawn, .focus, .blocked, .readScrollback
         ]
         for method in allMethods {
             switch method {
             case .snapshot, .panes, .pendingApprovals, .worktrees,
-                 .spawn, .focus, .blocked:
+                 .spawn, .focus, .blocked, .readScrollback:
                 break
             // If an approve/deny case were added to ControlMethod,
             // Swift's exhaustiveness check would force a case here,
             // making this test fail to compile — the structural guarantee.
             }
         }
-        #expect(allMethods.count == 7, "Verb count must not grow without review")
+        #expect(allMethods.count == 8, "Verb count must not grow without review")
     }
 
     /// Verify no control response body field can carry an approval decision.

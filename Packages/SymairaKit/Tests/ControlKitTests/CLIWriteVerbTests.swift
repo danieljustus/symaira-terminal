@@ -5,20 +5,9 @@ import Testing
 @Suite("CLI write verbs — spawn, blocked, focus")
 struct CLIWriteVerbTests {
 
-    // MARK: - Spawn command argument parsing
+    // MARK: - Spawn argument parsing
 
-    @Test("SpawnCommand requires --agent flag")
-    func spawnRequiresAgent() async {
-        let cmd = SpawnCommand(flags: ["--worktree", "main"])
-        var stderrCapture = ""
-        // We can't easily capture stderr in tests, but we verify the logic:
-        // Without --agent, the command should detect the missing flag.
-        // The actual exit(1) makes this hard to test in-process, so we test
-        // the argument extraction logic indirectly via the control client.
-        #expect(cmd.flags.firstIndex(of: "--agent") == nil)
-    }
-
-    @Test("SpawnCommand extracts agent ID from flags")
+    @Test("Spawn extracts agent ID from flags")
     func spawnExtractsAgentID() {
         let flags = ["--agent", "claude-code", "--worktree", "task-1", "--cwd", "/tmp"]
         guard let agentIndex = flags.firstIndex(of: "--agent"),
