@@ -161,7 +161,7 @@ struct StatusCommand {
         allowedFlags: [
             .init("--json"),
             .init("--help"),
-            .init("-h"),
+            .init("-h")
         ],
         positionalArity: 0
     )
@@ -308,7 +308,7 @@ struct SpawnCommand {
             .init("--worktree", .value),
             .init("--cwd", .value),
             .init("--help"),
-            .init("-h"),
+            .init("-h")
         ],
         positionalArity: 0
     )
@@ -380,7 +380,7 @@ struct BlockedCommand {
         allowedFlags: [
             .init("--json"),
             .init("--help"),
-            .init("-h"),
+            .init("-h")
         ],
         positionalArity: 0
     )
@@ -452,7 +452,7 @@ struct FocusCommand {
     private static let parser = CLIArgumentParser(
         allowedFlags: [
             .init("--help"),
-            .init("-h"),
+            .init("-h")
         ],
         positionalArity: 1
     )

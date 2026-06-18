@@ -119,7 +119,7 @@ private enum CommandParsers {
             .init("--worktree", .value),
             .init("--cwd", .value),
             .init("--help"),
-            .init("-h"),
+            .init("-h")
         ],
         positionalArity: 0
     )
@@ -193,7 +193,7 @@ struct CLIArgumentParserTests {
         let result = try CommandParsers.spawn.parse([
             "--agent", "opencode",
             "--worktree", "symaira/task-1",
-            "--cwd", "/tmp/repo",
+            "--cwd", "/tmp/repo"
         ])
         #expect(result.values["--agent"] == "opencode")
         #expect(result.values["--worktree"] == "symaira/task-1")
