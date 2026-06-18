@@ -114,7 +114,7 @@ public struct PKCEChallenge: Sendable {
 /// full flow has been end-to-end tested.
 public enum OAuthFeature {
     /// Master switch for OAuth. Currently **off** — providers use API-key mode.
-    public static var isEnabled: Bool = false
+    nonisolated(unsafe) public static var isEnabled: Bool = false
 }
 
 // MARK: - Common OAuth Provider Configurations
