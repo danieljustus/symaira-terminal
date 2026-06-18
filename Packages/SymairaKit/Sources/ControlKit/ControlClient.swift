@@ -136,7 +136,7 @@ public struct ControlClient: Sendable {
 ///
 /// Usage:
 ///
-///     let client = try await PersistentControlClient(socketPath: path)
+///     let client = try await PersistentControlClient.connect(socketPath: path)
 ///     let snapshot = try await client.snapshot()
 ///     let panes = try await client.panes()
 ///     await client.close()
@@ -148,13 +148,21 @@ public actor PersistentControlClient {
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
 
-    public init(socketPath: String = ControlServer.defaultSocketPath) throws {
+    private init(socketPath: String) {
         self.socketPath = socketPath
         self.encoder = JSONEncoder()
         self.encoder.dateEncodingStrategy = .iso8601
         self.decoder = JSONDecoder()
         self.decoder.dateDecodingStrategy = .iso8601
-        try connect()
+    }
+
+    /// Create a connected client. The connection is established during creation.
+    public static func connect(
+        socketPath: String = ControlServer.defaultSocketPath
+    ) async throws -> PersistentControlClient {
+        let client = PersistentControlClient(socketPath: socketPath)
+        try await client.connect()
+        return client
     }
 
     deinit {
