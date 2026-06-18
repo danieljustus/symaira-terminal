@@ -66,3 +66,5 @@ targets:
         SWIFT_VERSION: "6.0"
         SWIFT_STRICT_CONCURRENCY: complete
         TEST_HOST: "$(BUILT_PRODUCTS_DIR)/SymairaTerminal.app/Contents/MacOS/SymairaTerminal"
+        GENERATE_INFOPLIST_FILE: YES
+
