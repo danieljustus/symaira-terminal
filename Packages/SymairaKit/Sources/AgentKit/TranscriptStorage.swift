@@ -126,18 +126,26 @@ public struct TranscriptStorage: @unchecked Sendable {
     public func list(limit: Int? = nil, offset: Int = 0) -> [TranscriptEntry] {
         guard let files = try? fileManager.contentsOfDirectory(
             at: storageDirectory,
-            includingPropertiesForKeys: nil
+            includingPropertiesForKeys: [.contentModificationDateKey]
         ) else { return [] }
 
-        let sorted = files
-            .filter { $0.pathExtension == "json" }
-            .compactMap { try? Data(contentsOf: $0) }
-            .compactMap { try? decoder.decode(TranscriptEntry.self, from: $0) }
-            .sorted { $0.timestamp > $1.timestamp }
+        let jsonFiles = files.filter { $0.pathExtension == "json" }
+        let fileDates: [(url: URL, date: Date)] = jsonFiles.compactMap { url in
+            guard let attrs = try? url.resourceValues(forKeys: [.contentModificationDateKey]),
+                  let date = attrs.contentModificationDate else { return nil }
+            return (url, date)
+        }
+
+        let sorted = fileDates.sorted { $0.date > $1.date }
 
         let start = min(offset, sorted.count)
         let end = limit.map { min(start + $0, sorted.count) } ?? sorted.count
-        return Array(sorted[start..<end])
+        let slice = sorted[start..<end]
+
+        return slice.compactMap { entry in
+            guard let data = try? Data(contentsOf: entry.url) else { return nil }
+            return try? decoder.decode(TranscriptEntry.self, from: data)
+        }
     }
 
     public func delete(id: String) throws {
