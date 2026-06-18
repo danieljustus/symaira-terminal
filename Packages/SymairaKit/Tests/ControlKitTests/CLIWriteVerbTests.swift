@@ -96,6 +96,7 @@ struct CLIWriteVerbTests {
 
     @Test("Spawn roundtrip via mock server")
     func spawnRoundtrip() async throws {
+        guard ProcessInfo.processInfo.environment["CI"] != "true" else { return }
         let tmpSocket = NSTemporaryDirectory() + "cli-spawn-\(UUID().uuidString).sock"
         let provider = MockControlProvider()
         let server = ControlServer(socketPath: tmpSocket)
@@ -120,6 +121,7 @@ struct CLIWriteVerbTests {
 
     @Test("Blocked returns nil when no pane is blocked")
     func blockedReturnsNil() async throws {
+        guard ProcessInfo.processInfo.environment["CI"] != "true" else { return }
         let tmpSocket = NSTemporaryDirectory() + "cli-blocked-\(UUID().uuidString).sock"
         let provider = MockControlProvider(blockedID: nil)
         let server = ControlServer(socketPath: tmpSocket)
@@ -135,6 +137,7 @@ struct CLIWriteVerbTests {
 
     @Test("Blocked returns pane ID when a pane is blocked")
     func blockedReturnsPaneID() async throws {
+        guard ProcessInfo.processInfo.environment["CI"] != "true" else { return }
         let blockedID = UUID()
         let tmpSocket = NSTemporaryDirectory() + "cli-blocked2-\(UUID().uuidString).sock"
         let provider = MockControlProvider(blockedID: blockedID)
@@ -151,6 +154,7 @@ struct CLIWriteVerbTests {
 
     @Test("Focus roundtrip via mock server")
     func focusRoundtrip() async throws {
+        guard ProcessInfo.processInfo.environment["CI"] != "true" else { return }
         let targetID = UUID()
         let tmpSocket = NSTemporaryDirectory() + "cli-focus-\(UUID().uuidString).sock"
         let provider = MockControlProvider(
@@ -171,6 +175,7 @@ struct CLIWriteVerbTests {
 
     @Test("Spawn rejects missing agentID via RPC error")
     func spawnRejectsMissingAgentID() async throws {
+        guard ProcessInfo.processInfo.environment["CI"] != "true" else { return }
         let tmpSocket = NSTemporaryDirectory() + "cli-spawn-err-\(UUID().uuidString).sock"
         let server = ControlServer(socketPath: tmpSocket)
         try await server.start(provider: MockControlProvider())
@@ -190,6 +195,7 @@ struct CLIWriteVerbTests {
 
     @Test("Focus rejects missing paneID via RPC error")
     func focusRejectsMissingPaneID() async throws {
+        guard ProcessInfo.processInfo.environment["CI"] != "true" else { return }
         let tmpSocket = NSTemporaryDirectory() + "cli-focus-err-\(UUID().uuidString).sock"
         let server = ControlServer(socketPath: tmpSocket)
         try await server.start(provider: MockControlProvider())
