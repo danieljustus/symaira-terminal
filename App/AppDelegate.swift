@@ -34,6 +34,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var onboardingWindow: NSWindow?
     private var sketchpadWindow: NSWindow?
     private var serviceProvider: TerminalServiceProvider?
+    private var mcpServer: MCPServer?
 
     // Saved at launch — self.window must not be accessed during termination
     // (use-after-free crash in objc_retain when AppKit tears down the window).
@@ -55,6 +56,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let repoURL = URL(fileURLWithPath: NSHomeDirectory())
         let manager = PaneManager(engine: engine, repositoryURL: repoURL)
         self.paneManager = manager
+
+        do {
+            let server = try MCPServer(port: 8888, delegate: manager)
+            server.start()
+            self.mcpServer = server
+        } catch {
+            NSLog("symaira: failed to start MCP server: \(error)")
+        }
 
         manager.onPaneChanged = { [weak self] pane in
             self?.updateTitle(pane: pane)
