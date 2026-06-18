@@ -6,9 +6,9 @@ enum MCPTool: String, CaseIterable {
     case listAgents = "list_agents"
     case readPaneOutput = "read_pane_output"
     case getPendingApprovals = "get_pending_approvals"
-    case spawn = "spawn"
-    case focus = "focus"
-    case blocked = "blocked"
+    case spawn
+    case focus
+    case blocked
 
     var definition: MCPToolDefinition {
         switch self {

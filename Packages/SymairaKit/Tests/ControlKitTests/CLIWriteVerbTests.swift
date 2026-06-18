@@ -22,12 +22,12 @@ struct CLIWriteVerbTests {
     func spawnExtractsOptionalFlags() {
         let flags = ["--agent", "aider", "--worktree", "symaira/task-1", "--cwd", "~/project"]
 
-        var worktreeBranch: String? = nil
+        var worktreeBranch: String?
         if let idx = flags.firstIndex(of: "--worktree"), idx + 1 < flags.count {
             worktreeBranch = flags[idx + 1]
         }
 
-        var workingDirectory: String? = nil
+        var workingDirectory: String?
         if let idx = flags.firstIndex(of: "--cwd"), idx + 1 < flags.count {
             workingDirectory = flags[idx + 1]
         }
@@ -39,7 +39,7 @@ struct CLIWriteVerbTests {
     @Test("SpawnCommand works with only --agent")
     func spawnMinimalFlags() {
         let flags = ["--agent", "open-code"]
-        var worktreeBranch: String? = nil
+        var worktreeBranch: String?
         if let idx = flags.firstIndex(of: "--worktree"), idx + 1 < flags.count {
             worktreeBranch = flags[idx + 1]
         }

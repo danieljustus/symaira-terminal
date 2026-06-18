@@ -141,6 +141,6 @@ struct MCPToolDefinition: Codable, Sendable {
 
     enum CodingKeys: String, CodingKey {
         case name, description
-        case inputSchema = "inputSchema"
+        case inputSchema
     }
 }

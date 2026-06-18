@@ -198,13 +198,13 @@ struct SpawnCommand {
         }
         let agentID = flags[agentIndex + 1]
 
-        var worktreeBranch: String? = nil
+        var worktreeBranch: String?
         if let branchIndex = flags.firstIndex(of: "--worktree"),
            branchIndex + 1 < flags.count {
             worktreeBranch = flags[branchIndex + 1]
         }
 
-        var workingDirectory: String? = nil
+        var workingDirectory: String?
         if let cwdIndex = flags.firstIndex(of: "--cwd"),
            cwdIndex + 1 < flags.count {
             workingDirectory = flags[cwdIndex + 1]

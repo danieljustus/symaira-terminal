@@ -70,8 +70,8 @@ public struct SecretRedactor: Sendable {
     private static func mightContainSecret(_ text: String) -> Bool {
         guard text.utf8.count < 200 else { return true }
         let lower = text.lowercased()
-        for prefix in secretPrefixes {
-            if lower.contains(prefix.lowercased()) { return true }
+        for prefix in secretPrefixes where lower.contains(prefix.lowercased()) {
+            return true
         }
         return false
     }
