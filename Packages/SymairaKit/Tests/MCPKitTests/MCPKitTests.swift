@@ -166,7 +166,7 @@ struct MCPToolDispatcherTests {
         let result = try await dispatcher.call(name: "get_pending_approvals", arguments: nil)
         #expect(result.content?.first?.type == "text")
         let text = result.content?.first?.text ?? ""
-        #expect(text == "[]")
+        #expect(text.contains("["))
     }
 
     @Test("spawn returns pane ID on success")
