@@ -74,6 +74,13 @@ public struct ControlClient: Sendable {
         return id
     }
 
+    public func readScrollback(paneID: UUID?, lines: Int = 200) async throws -> [String] {
+        let params = ControlParams(paneID: paneID)
+        let result = try await send(.init(method: .readScrollback, params: params))
+        guard case .scrollback(let lines) = result else { throw ControlClientError.noResponse }
+        return lines
+    }
+
     // MARK: - Transport
 
     /// Opens a connection, writes the request, reads the response, closes.
