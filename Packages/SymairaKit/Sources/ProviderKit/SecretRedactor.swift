@@ -25,7 +25,19 @@ public struct SecretRedactor: Sendable {
     }
 
     public func redact(_ input: String) -> RedactionResult {
-        var text = input
+        let originalBytes = input.utf8.count
+        let truncated = truncate(input, maxBytes: maxBytes)
+
+        guard Self.mightContainSecret(truncated) else {
+            return RedactionResult(
+                text: truncated,
+                redactionCount: 0,
+                wasTruncated: truncated.utf8.count < originalBytes,
+                originalByteCount: originalBytes
+            )
+        }
+
+        var text = truncated
         var count = 0
 
         for pattern in Self.patterns {
@@ -36,15 +48,32 @@ public struct SecretRedactor: Sendable {
             }
         }
 
-        let originalBytes = text.utf8.count
-        let truncated = truncate(text, maxBytes: maxBytes)
-
         return RedactionResult(
-            text: truncated,
+            text: text,
             redactionCount: count,
-            wasTruncated: truncated.utf8.count < originalBytes,
+            wasTruncated: text.utf8.count < originalBytes,
             originalByteCount: originalBytes
         )
+    }
+
+    private static let secretPrefixes: [String] = [
+        "sk-", "ghp_", "gho_", "ghu_", "ghs_", "ghr_",
+        "glpat-", "xoxb-", "xoxp-", "xoxa-", "xoxr-", "xoxs-", "xapp-",
+        "sk_live_", "sk_test_", "rk_live_", "rk_test_",
+        "AKIA", "ASIA", "AIza",
+        "Bearer ", "Authorization:", "X-Api-Key:", "Api-Key:",
+        "API_KEY=", "SECRET_KEY=", "PRIVATE_KEY=", "ACCESS_TOKEN=",
+        "AUTH_TOKEN=", "PASSWORD=", "SECRET=",
+        "id_rsa", "id_ed25519", "id_ecdsa"
+    ]
+
+    private static func mightContainSecret(_ text: String) -> Bool {
+        guard text.utf8.count < 200 else { return true }
+        let lower = text.lowercased()
+        for prefix in secretPrefixes where lower.contains(prefix.lowercased()) {
+            return true
+        }
+        return false
     }
 
     private static let patterns: [(regex: NSRegularExpression, replacement: String)] = {

@@ -106,31 +106,34 @@ public struct ProcessRunner: Sendable {
     }
 
     static func drain(_ fd: Int32) -> Data {
-        let flags = fcntl(fd, F_GETFL)
-        guard flags != -1 else { return Data() }
+        let source = DispatchSource.makeReadSource(fileDescriptor: fd, queue: .global(qos: .userInitiated))
+        let dataBox = DataBox()
+        let doneBox = DispatchSemaphore(value: 0)
 
-        fcntl(fd, F_SETFL, flags | O_NONBLOCK)
-
-        var data = Data()
-        var buf = [UInt8](repeating: 0, count: 65536)
-
-        while true {
+        source.setEventHandler {
+            let available = source.data
+            guard available > 0 else {
+                source.cancel()
+                doneBox.signal()
+                return
+            }
+            var buf = [UInt8](repeating: 0, count: Int(available))
             let n = buf.withUnsafeMutableBytes { read(fd, $0.baseAddress, $0.count) }
-
             if n > 0 {
-                data.append(contentsOf: buf[0..<n])
-            } else if n == -1 {
-                if errno == EAGAIN || errno == EWOULDBLOCK {
-                    usleep(1000)
-                    continue
-                }
-                break
+                dataBox.set(dataBox.value + Data(buf.prefix(n)))
             } else {
-                break
+                source.cancel()
+                doneBox.signal()
             }
         }
 
-        fcntl(fd, F_SETFL, flags)
-        return data
+        source.setCancelHandler {
+            doneBox.signal()
+        }
+
+        source.resume()
+        doneBox.wait()
+        source.cancel()
+        return dataBox.value
     }
 }

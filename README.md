@@ -119,6 +119,37 @@ gemini "update README with new auth flow"
 
 Each agent runs in its own pane with independent status tracking. The workspace sidebar shows all active agents at a glance.
 
+### symterminal CLI
+
+`symterminal` is a command-line companion that connects to the running app and
+reports its orchestration state — useful for scripts, tmux status bars, and CI.
+
+**Install / put on PATH**
+
+After building or installing the app, link the binary to a directory in your `$PATH`:
+
+```bash
+# Option A — build from source (requires Swift 6.1+)
+cd Packages/SymairaKit
+swift build -c release --target symterminal
+ln -sf "$(pwd)/.build/release/symterminal" /usr/local/bin/symterminal
+
+# Option B — link from the app bundle (after brew install --cask symterminal)
+ln -sf /Applications/Symaira\ Terminal.app/Contents/MacOS/symterminal /usr/local/bin/symterminal
+```
+
+**Usage**
+
+```bash
+symterminal status           # human-readable snapshot
+symterminal status --json    # JSON output for scripting
+
+# Example: show which panes are awaiting approval
+symterminal status --json | jq '[.panes[] | select(.agentStatus == "awaitingApproval") | .title]'
+```
+
+If Symaira Terminal is not running, `symterminal` exits 1 with a clear message on stderr.
+
 ### BYOK (Bring Your Own Key)
 
 Configure your API providers in Settings (`Cmd+,`):

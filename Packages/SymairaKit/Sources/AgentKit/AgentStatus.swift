@@ -1,7 +1,7 @@
 import Foundation
 
 /// Lifecycle state of an agent session, driving pane rings and the sidebar.
-public enum AgentStatus: String, Equatable, Sendable, CaseIterable {
+public enum AgentStatus: String, Codable, Equatable, Sendable, CaseIterable {
     case idle
     case running
     case awaitingApproval
@@ -11,7 +11,7 @@ public enum AgentStatus: String, Equatable, Sendable, CaseIterable {
 
 /// Where a status observation came from. Higher trust wins on conflict:
 /// structured ACP events beat OSC notifications beat output heuristics.
-public enum StatusSource: Int, Comparable, Sendable {
+public enum StatusSource: Int, Codable, Comparable, Sendable {
     case heuristic = 0
     case osc = 1
     case acp = 2
