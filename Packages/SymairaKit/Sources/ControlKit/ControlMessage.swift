@@ -71,7 +71,6 @@ public struct ControlResponse: Codable, Sendable {
     }
 }
 
-<<<<<<< HEAD
 /// A typed result from the control surface — exactly one case per response.
 /// Invalid states (multiple payloads, or no payload) are unrepresentable.
 public enum ControlResult: Sendable {
