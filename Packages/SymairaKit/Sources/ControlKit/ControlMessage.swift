@@ -82,6 +82,7 @@ public enum ControlResult: Sendable {
     case focused(UUID)
     case blocked(UUID?)
     case ok
+    case scrollback([String])
 }
 
 // MARK: - Codable (wire-compatible with old ControlResponseBody JSON)
@@ -98,6 +99,7 @@ extension ControlResult: Codable {
         case focusedPaneID
         case blockedPaneID
         case ok
+        case scrollbackLines
     }
 
     public init(from decoder: Decoder) throws {
@@ -119,6 +121,8 @@ extension ControlResult: Codable {
             self = .blocked(v)
         } else if let v = try container.decodeIfPresent(Bool.self, forKey: .ok), v {
             self = .ok
+        } else if let v = try container.decodeIfPresent([String].self, forKey: .scrollbackLines) {
+            self = .scrollback(v)
         } else {
             throw DecodingError.dataCorrupted(
                 .init(codingPath: decoder.codingPath, debugDescription: "No known result field present"))
@@ -136,6 +140,7 @@ extension ControlResult: Codable {
         case .focused(let v): try container.encode(v, forKey: .focusedPaneID)
         case .blocked(let v): try container.encode(v, forKey: .blockedPaneID)
         case .ok: try container.encode(true, forKey: .ok)
+        case .scrollback(let v): try container.encode(v, forKey: .scrollbackLines)
         }
     }
 }

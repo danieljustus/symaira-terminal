@@ -255,6 +255,11 @@ public actor ControlServer {
         case .blocked:
             let id = try await provider.blocked()
             return .blocked(id)
+        case .readScrollback:
+            let result = try await provider.readScrollback(
+                paneID: request.params?.paneID,
+                lines: 200)
+            return .scrollback(result.lines)
         }
     }
 }
