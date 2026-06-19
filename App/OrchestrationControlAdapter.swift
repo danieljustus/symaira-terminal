@@ -125,25 +125,6 @@ final class OrchestrationControlAdapter: OrchestrationControlProvider {
         return target.paneID
     }
 
-    func readScrollback(paneID: UUID?, lines: Int) async throws -> ScrollbackResult {
-        guard let pid = paneID,
-              let pane = paneManager.panes.first(where: { $0.paneID == pid }) else {
-            return ScrollbackResult(paneID: paneID, lines: [])
-        }
-        let text = pane.scrollbackBuffer.currentText ?? ""
-        let allLines = text.components(separatedBy: "\n")
-        return ScrollbackResult(paneID: pid, lines: Array(allLines.suffix(lines)))
-    }
-
-    func requestOpenTab(command: String) async throws -> TabRequestResult {
-        let requestID = UUID()
-        var config = TerminalSurfaceConfiguration()
-        config.environment = EnvironmentSanitizer.sanitizedProcessEnvironment()
-        config.command = command
-        paneManager.createPane(at: config)
-        return TabRequestResult(requestID: requestID, status: "opened")
-    }
-
     // MARK: - Helpers
 
     private func makePaneSnapshot(_ pane: TerminalPane) -> PaneSnapshot {

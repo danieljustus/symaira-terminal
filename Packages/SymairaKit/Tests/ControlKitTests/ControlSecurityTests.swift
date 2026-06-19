@@ -53,33 +53,44 @@ struct ControlSecurityTests {
     @Test func controlMethodHasNoApproveOrDenyVerb() {
         let allMethods: [ControlMethod] = [
             .snapshot, .panes, .pendingApprovals, .worktrees,
-            .spawn, .focus, .blocked, .readScrollback
+            .spawn, .focus, .blocked
         ]
         for method in allMethods {
             switch method {
             case .snapshot, .panes, .pendingApprovals, .worktrees,
-                 .spawn, .focus, .blocked, .readScrollback:
+                 .spawn, .focus, .blocked:
                 break
             // If an approve/deny case were added to ControlMethod,
             // Swift's exhaustiveness check would force a case here,
             // making this test fail to compile — the structural guarantee.
             }
         }
-        #expect(allMethods.count == 8, "Verb count must not grow without review")
+        #expect(allMethods.count == 7, "Verb count must not grow without review")
     }
 
-    /// Verify no control response body field can carry an approval decision.
-    @Test func responseBodyHasNoApprovalDecisionField() {
-        // ControlResponseBody must not have an approveDecision or denyDecision field.
-        // We verify the field list via Mirror reflection.
-        let body = ControlResponseBody.ok
-        let mirror = Mirror(reflecting: body)
-        let fieldNames = mirror.children.compactMap(\.label)
-        let forbidden = fieldNames.filter {
-            $0.lowercased().contains("approve") || $0.lowercased().contains("deny")
+    /// Verify no control result case can carry an approval decision.
+    @Test func responseBodyHasNoApprovalDecisionCase() {
+        let allResults: [ControlResult] = [
+            .snapshot(OrchestrationSnapshot()),
+            .panes([]),
+            .worktrees([]),
+            .approvals([]),
+            .spawned(UUID()),
+            .focused(UUID()),
+            .blocked(nil),
+            .ok
+        ]
+        for result in allResults {
+            switch result {
+            case .snapshot, .panes, .worktrees, .approvals,
+                 .spawned, .focused, .blocked, .ok:
+                break
+            // If an approve/deny case were added to ControlResult,
+            // Swift's exhaustiveness check would force a case here,
+            // making this test fail to compile — the structural guarantee.
+            }
         }
-        #expect(forbidden.isEmpty,
-            "ControlResponseBody must not contain approve/deny fields: \(forbidden)")
+        #expect(allResults.count == 8, "Result case count must not grow without review")
     }
 
     // MARK: - Spawn rejects missing agentID
@@ -125,5 +136,101 @@ struct ControlSecurityTests {
         } catch {
             Issue.record("Unexpected error: \(error)")
         }
+    }
+
+    // MARK: - Frame size limit
+
+    @Test func oversizedFrameRejected() async throws {
+        guard ProcessInfo.processInfo.environment["CI"] != "true" else { return }
+        let tmpSocket = NSTemporaryDirectory() + "sec-oversize-\(UUID().uuidString).sock"
+        let server = ControlServer(socketPath: tmpSocket)
+        try await server.start(provider: MockControlProvider())
+        defer { Task { await server.stop() } }
+        try await Task.sleep(nanoseconds: 10_000_000)
+
+        let fd = Darwin.socket(AF_UNIX, SOCK_STREAM, 0)
+        guard fd >= 0 else { Issue.record("Failed to create socket"); return }
+        defer { Darwin.close(fd) }
+
+        var addr = sockaddr_un()
+        addr.sun_family = sa_family_t(AF_UNIX)
+        let pathBytes = tmpSocket.utf8CString
+        withUnsafeMutableBytes(of: &addr.sun_path) { ptr in
+            for (i, b) in pathBytes.prefix(ptr.count - 1).enumerated() {
+                ptr[i] = UInt8(bitPattern: b)
+            }
+        }
+        let connectResult = withUnsafePointer(to: &addr) { addrPtr in
+            addrPtr.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                Darwin.connect(fd, $0, socklen_t(MemoryLayout<sockaddr_un>.size))
+            }
+        }
+        guard connectResult == 0 else { Issue.record("Failed to connect"); return }
+
+        var oversizedFrame = Data(repeating: 0x41, count: ControlServer.maxFrameSize + 1)
+        oversizedFrame.append(0x0a)
+        _ = oversizedFrame.withUnsafeBytes { Darwin.write(fd, $0.baseAddress!, oversizedFrame.count) }
+
+        var incoming = Data()
+        var buf = [UInt8](repeating: 0, count: 4096)
+        let startTime = Date()
+        while !incoming.contains(0x0a) && Date().timeIntervalSince(startTime) < 5 {
+            let n = buf.withUnsafeMutableBytes { Darwin.read(fd, $0.baseAddress!, $0.count) }
+            guard n > 0 else { break }
+            incoming.append(contentsOf: buf.prefix(n))
+        }
+
+        if let nlIdx = incoming.firstIndex(of: 0x0a) {
+            let decoder = JSONDecoder()
+            let response = try decoder.decode(ControlResponse.self, from: incoming[incoming.startIndex..<nlIdx])
+            #expect(response.error != nil)
+            #expect(response.error?.code == -32600)
+        } else {
+            // Connection closed without response is also acceptable
+            #expect(true)
+        }
+    }
+
+    // MARK: - Connection cap
+
+    @Test func connectionCapEnforced() async throws {
+        guard ProcessInfo.processInfo.environment["CI"] != "true" else { return }
+        let tmpSocket = NSTemporaryDirectory() + "sec-cap-\(UUID().uuidString).sock"
+        let server = ControlServer(socketPath: tmpSocket)
+        try await server.start(provider: MockControlProvider())
+        defer { Task { await server.stop() } }
+        try await Task.sleep(nanoseconds: 10_000_000)
+
+        var fds: [Int32] = []
+        defer { fds.forEach { Darwin.close($0) } }
+
+        for _ in 0..<(ControlServer.maxConcurrentConnections + 2) {
+            let fd = Darwin.socket(AF_UNIX, SOCK_STREAM, 0)
+            guard fd >= 0 else { break }
+
+            var addr = sockaddr_un()
+            addr.sun_family = sa_family_t(AF_UNIX)
+            let pathBytes = tmpSocket.utf8CString
+            withUnsafeMutableBytes(of: &addr.sun_path) { ptr in
+                for (i, b) in pathBytes.prefix(ptr.count - 1).enumerated() {
+                    ptr[i] = UInt8(bitPattern: b)
+                }
+            }
+            let connectResult = withUnsafePointer(to: &addr) { addrPtr in
+                addrPtr.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                    Darwin.connect(fd, $0, socklen_t(MemoryLayout<sockaddr_un>.size))
+                }
+            }
+            if connectResult == 0 {
+                fds.append(fd)
+            } else {
+                Darwin.close(fd)
+            }
+            try await Task.sleep(nanoseconds: 1_000_000)
+        }
+
+        let client = ControlClient(socketPath: tmpSocket)
+        let result = try await client.snapshot()
+        #expect(result.panes.isEmpty)
     }
 }

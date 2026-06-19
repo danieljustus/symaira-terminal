@@ -13,9 +13,8 @@ actor MockControlProvider: OrchestrationControlProvider {
     var focusedIDs: [UUID] = []
     var blockedID: UUID?
 
-    init(snapshot: OrchestrationSnapshot = OrchestrationSnapshot(), blockedID: UUID? = nil) {
+    init(snapshot: OrchestrationSnapshot = OrchestrationSnapshot()) {
         self.fixedSnapshot = snapshot
-        self.blockedID = blockedID
     }
 
     func snapshot() async throws -> OrchestrationSnapshot { fixedSnapshot }
@@ -37,14 +36,6 @@ actor MockControlProvider: OrchestrationControlProvider {
     }
 
     func blocked() async throws -> UUID? { blockedID }
-
-    func readScrollback(paneID: UUID?, lines: Int) async throws -> ScrollbackResult {
-        ScrollbackResult(paneID: paneID, lines: [])
-    }
-
-    func requestOpenTab(command: String) async throws -> TabRequestResult {
-        TabRequestResult()
-    }
 }
 
 // MARK: - Test suite

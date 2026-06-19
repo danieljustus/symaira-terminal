@@ -1,6 +1,31 @@
 import Darwin
 import Foundation
 
+/// Thread-safe counter for tracking active connections across detached tasks.
+private final class ConnectionCounter: @unchecked Sendable {
+    private var count: Int = 0
+    private let lock = NSLock()
+
+    var current: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return count
+    }
+
+    func increment() -> Int {
+        lock.lock()
+        defer { lock.unlock() }
+        count += 1
+        return count
+    }
+
+    func decrement() {
+        lock.lock()
+        defer { lock.unlock() }
+        count -= 1
+    }
+}
+
 /// Binds the control surface Unix domain socket and dispatches JSON-RPC 2.0 requests
 /// to an `OrchestrationControlProvider` implementation supplied by the App.
 ///
@@ -9,6 +34,17 @@ import Foundation
 ///
 /// Transport details: ADR-002 and docs/design/agent-control-surface.md.
 public actor ControlServer {
+
+    // MARK: - Security limits
+
+    /// Maximum frame size in bytes (1 MiB). Oversized frames are rejected with a JSON-RPC error.
+    public static let maxFrameSize = 1_048_576
+
+    /// Idle timeout in seconds. Connections with no data for this duration are closed.
+    public static let idleTimeoutSeconds: Int = 30
+
+    /// Maximum concurrent connections. New connections are rejected when at cap.
+    public static let maxConcurrentConnections = 16
 
     public static var defaultSocketPath: String {
         let support = FileManager.default.urls(
@@ -19,6 +55,7 @@ public actor ControlServer {
     public let socketPath: String
     private var serverFD: Int32 = -1
     private var acceptTask: Task<Void, Never>?
+    private let connectionCounter = ConnectionCounter()
 
     public init(socketPath: String = ControlServer.defaultSocketPath) {
         self.socketPath = socketPath
@@ -62,9 +99,12 @@ public actor ControlServer {
         }
 
         serverFD = fd
-        // Accept loop runs off the actor so blocking accept() doesn't stall it.
-        acceptTask = Task.detached { [socketPath] in
-            await Self.acceptLoop(serverFD: fd, socketPath: socketPath, provider: provider)
+        acceptTask = Task.detached { [socketPath, connectionCounter] in
+            await Self.acceptLoop(
+                serverFD: fd,
+                socketPath: socketPath,
+                provider: provider,
+                counter: connectionCounter)
         }
     }
 
@@ -84,12 +124,22 @@ public actor ControlServer {
     private static func acceptLoop(
         serverFD: Int32,
         socketPath: String,
-        provider: some OrchestrationControlProvider
+        provider: some OrchestrationControlProvider,
+        counter: ConnectionCounter
     ) async {
         while !Task.isCancelled {
             let clientFD = Darwin.accept(serverFD, nil, nil)
             guard clientFD >= 0 else { break }
+
+            let connCount = counter.increment()
+            guard connCount <= ControlServer.maxConcurrentConnections else {
+                counter.decrement()
+                Darwin.close(clientFD)
+                continue
+            }
+
             Task.detached {
+                defer { counter.decrement() }
                 await handleConnection(fd: clientFD, provider: provider)
             }
         }
@@ -100,6 +150,9 @@ public actor ControlServer {
         provider: some OrchestrationControlProvider
     ) async {
         defer { Darwin.close(fd) }
+
+        var timeout = timeval(tv_sec: Self.idleTimeoutSeconds, tv_usec: 0)
+        setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
 
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
@@ -114,7 +167,19 @@ public actor ControlServer {
             guard n > 0 else { break }
             pending.append(contentsOf: buf.prefix(n))
 
-            // Process every complete line (delimited by \n)
+            if pending.count > Self.maxFrameSize {
+                let errorResponse = ControlResponse(
+                    error: ControlRPCError(
+                        code: -32600,
+                        message: "Invalid Request: frame exceeds \(Self.maxFrameSize) byte limit"),
+                    id: nil)
+                if var data = try? encoder.encode(errorResponse) {
+                    data.append(0x0a)
+                    data.withUnsafeBytes { _ = Darwin.write(fd, $0.baseAddress!, data.count) }
+                }
+                break
+            }
+
             while let nlIdx = pending.firstIndex(of: 0x0a) {
                 let lineSlice = pending[pending.startIndex..<nlIdx]
                 pending.removeSubrange(pending.startIndex...nlIdx)
@@ -159,19 +224,19 @@ public actor ControlServer {
     private static func dispatch(
         request: ControlRequest,
         provider: some OrchestrationControlProvider
-    ) async throws -> ControlResponseBody {
+    ) async throws -> ControlResult {
         guard let method = ControlMethod(rawValue: request.method) else {
             throw ControlRPCError.methodNotFound
         }
         switch method {
         case .snapshot:
-            return .of(snapshot: try await provider.snapshot())
+            return .snapshot(try await provider.snapshot())
         case .panes:
-            return .of(panes: try await provider.panes())
+            return .panes(try await provider.panes())
         case .pendingApprovals:
-            return .of(approvals: try await provider.pendingApprovals())
+            return .approvals(try await provider.pendingApprovals())
         case .worktrees:
-            return .of(worktrees: try await provider.worktrees())
+            return .worktrees(try await provider.worktrees())
         case .spawn:
             guard let agentID = request.params?.agentID else {
                 throw ControlRPCError.invalidParams
@@ -190,11 +255,6 @@ public actor ControlServer {
         case .blocked:
             let id = try await provider.blocked()
             return .blocked(id)
-        case .readScrollback:
-            let result = try await provider.readScrollback(
-                paneID: request.params?.paneID,
-                lines: 200)
-            return .scrollback(result.lines)
         }
     }
 }

@@ -1,6 +1,109 @@
 import ControlKit
 import Foundation
-import MCPKit
+
+// MARK: - Argument parser
+
+struct CLIArgumentParser {
+    enum FlagKind {
+        case flag
+        case value
+    }
+
+    struct FlagSpec {
+        let name: String
+        let kind: FlagKind
+
+        init(_ name: String, _ kind: FlagKind = .flag) {
+            self.name = name
+            self.kind = kind
+        }
+    }
+
+    let allowedFlags: [FlagSpec]
+    let positionalArity: Int
+
+    struct ParseResult {
+        let positionals: [String]
+        let values: [String: String]
+        let booleans: Set<String>
+
+        func hasFlag(_ name: String) -> Bool { booleans.contains(name) }
+    }
+
+    func parse(_ args: [String]) throws -> ParseResult {
+        var positionals: [String] = []
+        var values: [String: String] = [:]
+        var booleans: Set<String> = []
+
+        var i = 0
+        while i < args.count {
+            let arg = args[i]
+
+            if arg == "--" {
+                i += 1
+                while i < args.count {
+                    positionals.append(args[i])
+                    i += 1
+                }
+                break
+            }
+
+            if arg.hasPrefix("-") {
+                guard let spec = allowedFlags.first(where: { $0.name == arg }) else {
+                    throw CLIUsageError.unknownFlag(arg)
+                }
+
+                switch spec.kind {
+                case .flag:
+                    booleans.insert(arg)
+                case .value:
+                    i += 1
+                    guard i < args.count else {
+                        throw CLIUsageError.missingValue(arg)
+                    }
+                    guard !args[i].hasPrefix("-") else {
+                        throw CLIUsageError.missingValue(arg)
+                    }
+                    values[arg] = args[i]
+                }
+            } else {
+                positionals.append(arg)
+            }
+
+            i += 1
+        }
+
+        guard positionals.count == positionalArity else {
+            throw CLIUsageError.wrongPositionalArity(
+                expected: positionalArity, got: positionals.count)
+        }
+
+        return ParseResult(positionals: positionals, values: values, booleans: booleans)
+    }
+}
+
+enum CLIUsageError: Error, CustomStringConvertible {
+    case unknownFlag(String)
+    case missingValue(String)
+    case wrongPositionalArity(expected: Int, got: Int)
+
+    var description: String {
+        switch self {
+        case .unknownFlag(let flag):
+            return "unknown option '\(flag)'"
+        case .missingValue(let flag):
+            return "'\(flag)' requires a value"
+        case .wrongPositionalArity(let expected, let got):
+            if expected == 0 {
+                return "unexpected argument (expected none, got \(got))"
+            } else if expected == 1 {
+                return "expected exactly 1 argument, got \(got)"
+            } else {
+                return "expected exactly \(expected) arguments, got \(got)"
+            }
+        }
+    }
+}
 
 // MARK: - Top-level CLI
 
@@ -24,8 +127,6 @@ struct SymterminalCLI {
             await BlockedCommand(flags: Array(args.dropFirst())).run()
         case "focus":
             await FocusCommand(flags: Array(args.dropFirst())).run()
-        case "mcp":
-            await MCPCommand(flags: Array(args.dropFirst())).run()
         default:
             fputs("symterminal: unknown command '\(args[0])'\n", stderr)
             fputs("Run 'symterminal --help' for usage.\n", stderr)
@@ -38,11 +139,10 @@ struct SymterminalCLI {
         Usage: symterminal <command> [options]
 
         Commands:
-          status               Show the orchestration snapshot of the running app
-          spawn --agent <id>   Open a new pane running the named agent
-          blocked              Report (and focus) the longest-blocked agent
-          focus <pane-id>      Select an existing pane by its UUID
-          mcp                  Start an MCP server over stdio (for AI agent integration)
+          status     Show the orchestration snapshot of the running app
+          spawn      Open a new pane running a named agent
+          blocked    Report (and focus) the longest-blocked pane
+          focus      Select a pane by ID
 
         Options:
           -h, --help  Show this help message
@@ -57,13 +157,31 @@ struct SymterminalCLI {
 struct StatusCommand {
     let flags: [String]
 
+    private static let parser = CLIArgumentParser(
+        allowedFlags: [
+            .init("--json"),
+            .init("--help"),
+            .init("-h")
+        ],
+        positionalArity: 0
+    )
+
     func run() async {
-        if flags.contains("--help") || flags.contains("-h") {
+        let parsed: CLIArgumentParser.ParseResult
+        do {
+            parsed = try Self.parser.parse(flags)
+        } catch {
+            fputs("Error: \(error)\n", stderr)
+            fputs("Usage: symterminal status [--json]\n", stderr)
+            exit(1)
+        }
+
+        if parsed.hasFlag("--help") || parsed.hasFlag("-h") {
             printHelp()
             return
         }
 
-        let jsonMode = flags.contains("--json")
+        let jsonMode = parsed.hasFlag("--json")
         let client = ControlClient()
 
         do {
@@ -184,92 +302,71 @@ struct StatusCommand {
 struct SpawnCommand {
     let flags: [String]
 
+    private static let parser = CLIArgumentParser(
+        allowedFlags: [
+            .init("--agent", .value),
+            .init("--worktree", .value),
+            .init("--cwd", .value),
+            .init("--help"),
+            .init("-h")
+        ],
+        positionalArity: 0
+    )
+
     func run() async {
-        if flags.contains("--help") || flags.contains("-h") {
-            printHelp()
-            return
+        let parsed: CLIArgumentParser.ParseResult
+        do {
+            parsed = try Self.parser.parse(flags)
+        } catch {
+            fputs("Error: \(error)\n", stderr)
+            fputs("Usage: symterminal spawn --agent <id> [--worktree <branch>] [--cwd <path>]\n", stderr)
+            exit(1)
         }
 
-        guard let agentIndex = flags.firstIndex(of: "--agent"),
-              agentIndex + 1 < flags.count else {
+        if parsed.hasFlag("--help") || parsed.hasFlag("-h") {
+            printHelp(); return
+        }
+
+        guard let agentID = parsed.values["--agent"] else {
             fputs("Error: --agent <id> is required.\n", stderr)
             fputs("Run 'symterminal spawn --help' for usage.\n", stderr)
             exit(1)
         }
-        let agentID = flags[agentIndex + 1]
 
-        var worktreeBranch: String?
-        if let branchIndex = flags.firstIndex(of: "--worktree"),
-           branchIndex + 1 < flags.count {
-            worktreeBranch = flags[branchIndex + 1]
-        }
-
-        var workingDirectory: String?
-        if let cwdIndex = flags.firstIndex(of: "--cwd"),
-           cwdIndex + 1 < flags.count {
-            workingDirectory = flags[cwdIndex + 1]
-        }
-
-        let jsonMode = flags.contains("--json")
+        let worktree = parsed.values["--worktree"]
+        let cwd = parsed.values["--cwd"]
         let client = ControlClient()
 
         do {
             let paneID = try await client.spawn(
-                agentID: agentID,
-                worktreeBranch: worktreeBranch,
-                workingDirectory: workingDirectory)
-            if jsonMode {
-                let result: [String: String] = [
-                    "paneID": paneID.uuidString,
-                    "agentID": agentID
-                ]
-                let data = try JSONSerialization.data(
-                    withJSONObject: result, options: [.prettyPrinted, .sortedKeys])
-                print(String(data: data, encoding: .utf8)!)
-            } else {
-                print("Spawned pane \(paneID.uuidString) running '\(agentID)'.")
-                if let branch = worktreeBranch {
-                    print("Worktree branch: \(branch)")
-                }
-                if let cwd = workingDirectory {
-                    print("Working directory: \(cwd)")
-                }
-            }
+                agentID: agentID, worktreeBranch: worktree, workingDirectory: cwd)
+            print("Spawned pane \(paneID) running '\(agentID)'")
         } catch ControlClientError.connectionRefused {
-            fputs("Error: Symaira Terminal is not running (no listener on control socket).\n", stderr)
-            fputs("Start the app and try again.\n", stderr)
-            exit(1)
+            fputs("Error: Symaira Terminal is not running.\n", stderr); exit(1)
         } catch ControlClientError.rpcError(let err) {
-            fputs("Error: \(err.message) (code \(err.code))\n", stderr)
-            exit(1)
+            fputs("Error: \(err.message) (code \(err.code))\n", stderr); exit(1)
         } catch {
-            fputs("Error: \(error)\n", stderr)
-            exit(1)
+            fputs("Error: \(error)\n", stderr); exit(1)
         }
     }
 
     private func printHelp() {
         print("""
-        Usage: symterminal spawn --agent <id> [options]
+        Usage: symterminal spawn --agent <id> [--worktree <branch>] [--cwd <path>]
 
-        Open a new terminal pane running the named agent, optionally in an
-        isolated git worktree.
+        Open a new pane in Symaira Terminal running the named agent.
+        The agent process inherits a sanitized environment (no provider secrets).
 
         Options:
-          --agent <id>        Agent identifier (required, e.g. "claude-code")
-          --worktree <branch> Branch name for worktree-isolated launch
-          --cwd <path>        Working directory for the new pane
-          --json              Output the result as JSON
-          -h, --help          Show this help message
-
-        Exit codes:
-          0  Success — pane created
-          1  Error (app not running, missing params, invalid agent)
+          --agent <id>       Agent command or identifier (required)
+          --worktree <branch> Open the pane in the worktree for this branch
+          --cwd <path>       Set the working directory for the new pane
+          -h, --help         Show this help message
 
         Examples:
           symterminal spawn --agent claude-code
-          symterminal spawn --agent aider --worktree symaira/task-1 --cwd ~/project
-          symterminal spawn --agent open-code --json | jq '.paneID'
+          symterminal spawn --agent opencode --worktree symaira/task-42
+          symterminal spawn --agent aider --cwd /path/to/repo
         """)
     }
 }
@@ -279,44 +376,53 @@ struct SpawnCommand {
 struct BlockedCommand {
     let flags: [String]
 
+    private static let parser = CLIArgumentParser(
+        allowedFlags: [
+            .init("--json"),
+            .init("--help"),
+            .init("-h")
+        ],
+        positionalArity: 0
+    )
+
     func run() async {
-        if flags.contains("--help") || flags.contains("-h") {
-            printHelp()
-            return
+        let parsed: CLIArgumentParser.ParseResult
+        do {
+            parsed = try Self.parser.parse(flags)
+        } catch {
+            fputs("Error: \(error)\n", stderr)
+            fputs("Usage: symterminal blocked [--json]\n", stderr)
+            exit(1)
         }
 
-        let jsonMode = flags.contains("--json")
+        if parsed.hasFlag("--help") || parsed.hasFlag("-h") {
+            printHelp(); return
+        }
+
+        let jsonMode = parsed.hasFlag("--json")
         let client = ControlClient()
 
         do {
-            let blockedID = try await client.blocked()
-            if jsonMode {
-                if let id = blockedID {
-                    let result: [String: String] = ["paneID": id.uuidString]
-                    let data = try JSONSerialization.data(
-                        withJSONObject: result, options: [.prettyPrinted, .sortedKeys])
-                    print(String(data: data, encoding: .utf8)!)
+            let paneID = try await client.blocked()
+            if let id = paneID {
+                if jsonMode {
+                    print("{\n  \"blockedPaneID\": \"\(id)\"\n}")
                 } else {
-                    print("{}")
+                    print("Focused longest-blocked pane: \(id)")
                 }
             } else {
-                if let id = blockedID {
-                    print("Longest-blocked pane: \(id.uuidString)")
-                    print("(Pane has been focused.)")
+                if jsonMode {
+                    print("{\n  \"blockedPaneID\": null\n}")
                 } else {
                     print("No panes are currently blocked.")
                 }
             }
         } catch ControlClientError.connectionRefused {
-            fputs("Error: Symaira Terminal is not running (no listener on control socket).\n", stderr)
-            fputs("Start the app and try again.\n", stderr)
-            exit(1)
+            fputs("Error: Symaira Terminal is not running.\n", stderr); exit(1)
         } catch ControlClientError.rpcError(let err) {
-            fputs("Error: \(err.message) (code \(err.code))\n", stderr)
-            exit(1)
+            fputs("Error: \(err.message) (code \(err.code))\n", stderr); exit(1)
         } catch {
-            fputs("Error: \(error)\n", stderr)
-            exit(1)
+            fputs("Error: \(error)\n", stderr); exit(1)
         }
     }
 
@@ -324,20 +430,16 @@ struct BlockedCommand {
         print("""
         Usage: symterminal blocked [options]
 
-        Report the pane that has been awaiting approval longest, and focus it.
-        Exits cleanly with a message when no pane is blocked.
+        Report (and focus in the GUI) the pane that has been awaiting approval
+        the longest. Equivalent to Cmd+Shift+U in the app.
 
         Options:
-          --json    Output the result as JSON (pane ID or empty object)
+          --json      Output result as JSON
           -h, --help  Show this help message
 
         Exit codes:
-          0  Success (blocked pane found, or no panes blocked)
+          0  Success (whether or not a blocked pane was found)
           1  Symaira Terminal is not running, or another error occurred
-
-        Examples:
-          symterminal blocked           # focus longest-blocked agent
-          symterminal blocked --json    # JSON output for scripting
         """)
     }
 }
@@ -347,115 +449,64 @@ struct BlockedCommand {
 struct FocusCommand {
     let flags: [String]
 
+    private static let parser = CLIArgumentParser(
+        allowedFlags: [
+            .init("--help"),
+            .init("-h")
+        ],
+        positionalArity: 1
+    )
+
     func run() async {
-        if flags.contains("--help") || flags.contains("-h") {
-            printHelp()
-            return
-        }
-
-        // The pane ID is the first positional argument (not prefixed with --)
-        guard let paneArg = flags.first, !paneArg.hasPrefix("-") else {
-            fputs("Error: <pane-id> is required.\n", stderr)
-            fputs("Run 'symterminal focus --help' for usage.\n", stderr)
+        let parsed: CLIArgumentParser.ParseResult
+        do {
+            parsed = try Self.parser.parse(flags)
+        } catch {
+            fputs("Error: \(error)\n", stderr)
+            fputs("Usage: symterminal focus <pane-id>\n", stderr)
             exit(1)
         }
 
-        guard let paneID = UUID(uuidString: paneArg) else {
-            fputs("Error: '\(paneArg)' is not a valid UUID.\n", stderr)
+        if parsed.hasFlag("--help") || parsed.hasFlag("-h") {
+            printHelp(); return
+        }
+
+        let paneIDString = parsed.positionals[0]
+        guard let paneID = UUID(uuidString: paneIDString) else {
+            fputs("Error: '<pane-id>' must be a valid UUID, got '\(paneIDString)'.\n", stderr)
+            fputs("Tip: use 'symterminal status --json | jq .panes[].id' to list pane IDs.\n", stderr)
             exit(1)
         }
 
-        let jsonMode = flags.contains("--json")
         let client = ControlClient()
 
         do {
             try await client.focus(paneID: paneID)
-            if jsonMode {
-                let result: [String: String] = ["paneID": paneID.uuidString]
-                let data = try JSONSerialization.data(
-                    withJSONObject: result, options: [.prettyPrinted, .sortedKeys])
-                print(String(data: data, encoding: .utf8)!)
-            } else {
-                print("Focused pane \(paneID.uuidString).")
-            }
+            print("Focused pane \(paneID)")
         } catch ControlClientError.connectionRefused {
-            fputs("Error: Symaira Terminal is not running (no listener on control socket).\n", stderr)
-            fputs("Start the app and try again.\n", stderr)
-            exit(1)
+            fputs("Error: Symaira Terminal is not running.\n", stderr); exit(1)
         } catch ControlClientError.rpcError(let err) {
-            fputs("Error: \(err.message) (code \(err.code))\n", stderr)
-            exit(1)
+            fputs("Error: \(err.message) (code \(err.code))\n", stderr); exit(1)
         } catch {
-            fputs("Error: \(error)\n", stderr)
-            exit(1)
+            fputs("Error: \(error)\n", stderr); exit(1)
         }
     }
 
     private func printHelp() {
         print("""
-        Usage: symterminal focus <pane-id> [options]
+        Usage: symterminal focus <pane-id>
 
-        Select an existing pane by its UUID, making it the active pane.
+        Make the given pane the active (current) pane in Symaira Terminal.
+        Use 'symterminal status --json | jq .panes[].id' to list available pane IDs.
+
+        Arguments:
+          <pane-id>   UUID of the pane to focus (required)
 
         Options:
-          --json    Output the result as JSON
           -h, --help  Show this help message
 
-        Exit codes:
-          0  Success — pane focused
-          1  Error (app not running, invalid ID, pane not found)
-
         Examples:
-          symterminal focus 6BA7B810-9DAD-11D1-80B4-00C04FD430C8
-          symterminal focus 6BA7B810-... --json
-        """)
-    }
-}
-
-// MARK: - mcp command
-
-struct MCPCommand {
-    let flags: [String]
-
-    func run() async {
-        if flags.contains("--help") || flags.contains("-h") {
-            printHelp()
-            return
-        }
-
-        let server = MCPStdioServer()
-        await server.run()
-    }
-
-    private func printHelp() {
-        print("""
-        Usage: symterminal mcp
-
-        Start an MCP (Model Context Protocol) server over stdio, proxied to
-        the running Symaira Terminal instance. Reads JSON-RPC requests from
-        stdin and writes responses to stdout.
-
-        Available tools:
-          list_agents            List all panes and their agent status
-          read_pane_output       Read scrollback from a terminal pane
-          get_pending_approvals  List pending approval requests
-          spawn                  Open a new pane running an agent
-          focus                  Select an existing pane by UUID
-          blocked                Report the longest-blocked agent
-
-        Exit codes:
-          0  Clean shutdown
-          1  Symaira Terminal is not running, or another error occurred
-
-        Config snippet (add to your MCP-capable agent's config):
-          {
-            "mcpServers": {
-              "symaira-terminal": {
-                "command": "symterminal",
-                "args": ["mcp"]
-              }
-            }
-          }
+          symterminal focus 550E8400-E29B-41D4-A716-446655440000
         """)
     }
 }

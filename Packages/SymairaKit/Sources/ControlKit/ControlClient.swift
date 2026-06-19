@@ -82,6 +82,8 @@ public struct ControlClient: Sendable {
         guard fd >= 0 else { throw ControlClientError.notConnected }
         defer { Darwin.close(fd) }
 
+        var timeout = timeval(tv_sec: ControlServer.idleTimeoutSeconds, tv_usec: 0)
+        setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
 
         var addr = sockaddr_un()
         addr.sun_family = sa_family_t(AF_UNIX)
