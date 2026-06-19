@@ -53,19 +53,19 @@ struct ControlSecurityTests {
     @Test func controlMethodHasNoApproveOrDenyVerb() {
         let allMethods: [ControlMethod] = [
             .snapshot, .panes, .pendingApprovals, .worktrees,
-            .spawn, .focus, .blocked
+            .spawn, .focus, .blocked, .readScrollback
         ]
         for method in allMethods {
             switch method {
             case .snapshot, .panes, .pendingApprovals, .worktrees,
-                 .spawn, .focus, .blocked:
+                 .spawn, .focus, .blocked, .readScrollback:
                 break
             // If an approve/deny case were added to ControlMethod,
             // Swift's exhaustiveness check would force a case here,
             // making this test fail to compile — the structural guarantee.
             }
         }
-        #expect(allMethods.count == 7, "Verb count must not grow without review")
+        #expect(allMethods.count == 8, "Verb count must not grow without review")
     }
 
     /// Verify no control result case can carry an approval decision.
@@ -78,19 +78,20 @@ struct ControlSecurityTests {
             .spawned(UUID()),
             .focused(UUID()),
             .blocked(nil),
-            .ok
+            .ok,
+            .scrollback([])
         ]
         for result in allResults {
             switch result {
             case .snapshot, .panes, .worktrees, .approvals,
-                 .spawned, .focused, .blocked, .ok:
+                 .spawned, .focused, .blocked, .ok, .scrollback:
                 break
             // If an approve/deny case were added to ControlResult,
             // Swift's exhaustiveness check would force a case here,
             // making this test fail to compile — the structural guarantee.
             }
         }
-        #expect(allResults.count == 8, "Result case count must not grow without review")
+        #expect(allResults.count == 9, "Result case count must not grow without review")
     }
 
     // MARK: - Spawn rejects missing agentID
