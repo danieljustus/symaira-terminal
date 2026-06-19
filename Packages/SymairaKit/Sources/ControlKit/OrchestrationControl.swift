@@ -26,6 +26,36 @@ public protocol OrchestrationControlProvider: Sendable {
     /// Report (and optionally focus) the pane that has been awaiting approval longest.
     /// Returns nil when no pane is blocked.
     func blocked() async throws -> UUID?
+
+    /// Read the last N lines from a pane's scrollback buffer.
+    func readScrollback(paneID: UUID?, lines: Int) async throws -> ScrollbackResult
+
+    /// Request opening a new terminal tab with a shell command.
+    /// The request routes through the approval queue — the command is never
+    /// executed without explicit user confirmation.
+    func requestOpenTab(command: String) async throws -> TabRequestResult
+}
+
+// MARK: - Scrollback / Tab result types
+
+public struct ScrollbackResult: Codable, Sendable {
+    public var paneID: UUID?
+    public var lines: [String]
+
+    public init(paneID: UUID? = nil, lines: [String] = []) {
+        self.paneID = paneID
+        self.lines = lines
+    }
+}
+
+public struct TabRequestResult: Codable, Sendable {
+    public var requestID: UUID
+    public var status: String
+
+    public init(requestID: UUID = UUID(), status: String = "pending_approval") {
+        self.requestID = requestID
+        self.status = status
+    }
 }
 
 // MARK: - Snapshot DTOs

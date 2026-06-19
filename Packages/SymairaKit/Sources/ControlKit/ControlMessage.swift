@@ -26,6 +26,7 @@ public enum ControlMethod: String, Sendable {
     case spawn = "control/spawn"
     case focus = "control/focus"
     case blocked = "control/blocked"
+    case readScrollback = "control/readScrollback"
 }
 
 /// Optional parameters carried by write-verb requests.
