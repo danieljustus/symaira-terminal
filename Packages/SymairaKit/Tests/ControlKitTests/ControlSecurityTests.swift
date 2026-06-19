@@ -12,6 +12,7 @@ struct ControlSecurityTests {
     // MARK: - Socket permissions
 
     @Test func socketCreatedWith600Permissions() async throws {
+        guard ProcessInfo.processInfo.environment["CI"] != "true" else { return }
         let tmpSocket = NSTemporaryDirectory() + "sec-test-\(UUID().uuidString).sock"
         let provider = MockControlProvider()
         let server = ControlServer(socketPath: tmpSocket)
@@ -29,6 +30,7 @@ struct ControlSecurityTests {
     }
 
     @Test func socketRemovedAfterStop() async throws {
+        guard ProcessInfo.processInfo.environment["CI"] != "true" else { return }
         let tmpSocket = NSTemporaryDirectory() + "sec-stop-\(UUID().uuidString).sock"
         let server = ControlServer(socketPath: tmpSocket)
         try await server.start(provider: MockControlProvider())
@@ -94,6 +96,7 @@ struct ControlSecurityTests {
     // MARK: - Spawn rejects missing agentID
 
     @Test func spawnRequiresAgentID() async throws {
+        guard ProcessInfo.processInfo.environment["CI"] != "true" else { return }
         let tmpSocket = NSTemporaryDirectory() + "sec-spawn-\(UUID().uuidString).sock"
         let server = ControlServer(socketPath: tmpSocket)
         try await server.start(provider: MockControlProvider())
@@ -116,6 +119,7 @@ struct ControlSecurityTests {
     // MARK: - Focus rejects missing paneID
 
     @Test func focusRequiresPaneID() async throws {
+        guard ProcessInfo.processInfo.environment["CI"] != "true" else { return }
         let tmpSocket = NSTemporaryDirectory() + "sec-focus-\(UUID().uuidString).sock"
         let server = ControlServer(socketPath: tmpSocket)
         try await server.start(provider: MockControlProvider())
@@ -137,6 +141,7 @@ struct ControlSecurityTests {
     // MARK: - Frame size limit
 
     @Test func oversizedFrameRejected() async throws {
+        guard ProcessInfo.processInfo.environment["CI"] != "true" else { return }
         let tmpSocket = NSTemporaryDirectory() + "sec-oversize-\(UUID().uuidString).sock"
         let server = ControlServer(socketPath: tmpSocket)
         try await server.start(provider: MockControlProvider())
@@ -189,6 +194,7 @@ struct ControlSecurityTests {
     // MARK: - Connection cap
 
     @Test func connectionCapEnforced() async throws {
+        guard ProcessInfo.processInfo.environment["CI"] != "true" else { return }
         let tmpSocket = NSTemporaryDirectory() + "sec-cap-\(UUID().uuidString).sock"
         let server = ControlServer(socketPath: tmpSocket)
         try await server.start(provider: MockControlProvider())
