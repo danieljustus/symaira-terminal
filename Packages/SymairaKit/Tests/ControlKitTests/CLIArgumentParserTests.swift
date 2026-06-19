@@ -21,6 +21,17 @@ private struct CLIArgumentParser {
 
     let allowedFlags: [FlagSpec]
     let positionalArity: Int
+    let requiredValueFlags: Set<String>
+
+    init(
+        allowedFlags: [FlagSpec],
+        positionalArity: Int,
+        requiredValueFlags: Set<String> = []
+    ) {
+        self.allowedFlags = allowedFlags
+        self.positionalArity = positionalArity
+        self.requiredValueFlags = requiredValueFlags
+    }
 
     struct ParseResult {
         let positionals: [String]
@@ -78,6 +89,10 @@ private struct CLIArgumentParser {
                 expected: positionalArity, got: positionals.count)
         }
 
+        for flag in requiredValueFlags where values[flag] == nil {
+            throw CLIUsageError.missingValue(flag)
+        }
+
         return ParseResult(positionals: positionals, values: values, booleans: booleans)
     }
 }
@@ -121,7 +136,8 @@ private enum CommandParsers {
             .init("--help"),
             .init("-h")
         ],
-        positionalArity: 0
+        positionalArity: 0,
+        requiredValueFlags: ["--agent"]
     )
 
     static let blocked = CLIArgumentParser(
@@ -256,9 +272,9 @@ struct CLIArgumentParserTests {
     // ── edge cases ────────────────────────────────────────────
 
     @Test func doubleDashSeparator() throws {
-        let result = try CommandParsers.status.parse(["--json", "--", "oops"])
-        #expect(result.hasFlag("--json"))
-        #expect(result.positionals == ["oops"])
+        let uuid = "550E8400-E29B-41D4-A716-446655440000"
+        let result = try CommandParsers.focus.parse(["--", uuid])
+        #expect(result.positionals == [uuid])
     }
 
     @Test func flagValueCannotBeAnotherFlag() throws {

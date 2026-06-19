@@ -26,7 +26,7 @@ import Testing
     }
 }
 
-@Suite struct OAuthFeatureFlagTests {
+@Suite(.serialized) struct OAuthFeatureFlagTests {
     @Test func openAIDefaultsToAPIKeyWhenFlagOff() {
         OAuthFeature.isEnabled = false
         #expect(ProviderID.openai.authMethod == .apiKey)

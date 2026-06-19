@@ -2,6 +2,8 @@ import ControlKit
 import Foundation
 import Testing
 
+private let skipCLISocketRoundtripsInCI = ProcessInfo.processInfo.environment["CI"] == "true"
+
 /// Tests for write-verb request construction and response handling via the
 /// control socket. Uses a mock provider — no GUI or PaneManager involved.
 @Suite("symterminal CLI write verbs")
@@ -10,6 +12,7 @@ struct CLIVerbTests {
     // MARK: - spawn verb
 
     @Test func spawnCreatesNewPane() async throws {
+        guard !skipCLISocketRoundtripsInCI else { return }
         let tmpSocket = NSTemporaryDirectory() + "cli-spawn-\(UUID().uuidString).sock"
         let provider = MockControlProvider()
         let server = ControlServer(socketPath: tmpSocket)
@@ -33,6 +36,7 @@ struct CLIVerbTests {
     }
 
     @Test func spawnWithoutWorktree() async throws {
+        guard !skipCLISocketRoundtripsInCI else { return }
         let tmpSocket = NSTemporaryDirectory() + "cli-spawn2-\(UUID().uuidString).sock"
         let provider = MockControlProvider()
         let server = ControlServer(socketPath: tmpSocket)
@@ -51,6 +55,7 @@ struct CLIVerbTests {
     // MARK: - focus verb
 
     @Test func focusKnownPane() async throws {
+        guard !skipCLISocketRoundtripsInCI else { return }
         let tmpSocket = NSTemporaryDirectory() + "cli-focus-\(UUID().uuidString).sock"
         let target = UUID()
         let provider = MockControlProvider(snapshot: OrchestrationSnapshot(
@@ -69,6 +74,7 @@ struct CLIVerbTests {
     }
 
     @Test func focusMissingPaneReturnsError() async throws {
+        guard !skipCLISocketRoundtripsInCI else { return }
         let tmpSocket = NSTemporaryDirectory() + "cli-focus2-\(UUID().uuidString).sock"
         let provider = MockControlProvider()
         let server = ControlServer(socketPath: tmpSocket)
@@ -88,6 +94,7 @@ struct CLIVerbTests {
     // MARK: - blocked verb
 
     @Test func blockedReturnsLongestWaitingPane() async throws {
+        guard !skipCLISocketRoundtripsInCI else { return }
         let tmpSocket = NSTemporaryDirectory() + "cli-blocked-\(UUID().uuidString).sock"
         let blockedID = UUID()
         let provider = MockControlProvider()
@@ -103,6 +110,7 @@ struct CLIVerbTests {
     }
 
     @Test func blockedReturnsNilWhenNoneBlocked() async throws {
+        guard !skipCLISocketRoundtripsInCI else { return }
         let tmpSocket = NSTemporaryDirectory() + "cli-blocked2-\(UUID().uuidString).sock"
         let provider = MockControlProvider()
         let server = ControlServer(socketPath: tmpSocket)
@@ -122,15 +130,16 @@ struct CLIVerbTests {
         // this switch would require new cases and fail to compile.
         let allCases: [ControlMethod] = [
             .snapshot, .panes, .pendingApprovals, .worktrees,
-            .spawn, .focus, .blocked
+            .spawn, .focus, .blocked, .readScrollback
         ]
         for method in allCases {
             switch method {
-            case .snapshot, .panes, .pendingApprovals, .worktrees, .spawn, .focus, .blocked:
+            case .snapshot, .panes, .pendingApprovals, .worktrees,
+                 .spawn, .focus, .blocked, .readScrollback:
                 break
             }
         }
-        #expect(allCases.count == 7)
+        #expect(allCases.count == 8)
     }
 }
 

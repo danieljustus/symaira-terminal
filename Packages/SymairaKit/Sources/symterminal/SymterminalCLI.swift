@@ -21,6 +21,17 @@ struct CLIArgumentParser {
 
     let allowedFlags: [FlagSpec]
     let positionalArity: Int
+    let requiredValueFlags: Set<String>
+
+    init(
+        allowedFlags: [FlagSpec],
+        positionalArity: Int,
+        requiredValueFlags: Set<String> = []
+    ) {
+        self.allowedFlags = allowedFlags
+        self.positionalArity = positionalArity
+        self.requiredValueFlags = requiredValueFlags
+    }
 
     struct ParseResult {
         let positionals: [String]
@@ -76,6 +87,10 @@ struct CLIArgumentParser {
         guard positionals.count == positionalArity else {
             throw CLIUsageError.wrongPositionalArity(
                 expected: positionalArity, got: positionals.count)
+        }
+
+        for flag in requiredValueFlags where values[flag] == nil {
+            throw CLIUsageError.missingValue(flag)
         }
 
         return ParseResult(positionals: positionals, values: values, booleans: booleans)
@@ -310,7 +325,8 @@ struct SpawnCommand {
             .init("--help"),
             .init("-h")
         ],
-        positionalArity: 0
+        positionalArity: 0,
+        requiredValueFlags: ["--agent"]
     )
 
     func run() async {

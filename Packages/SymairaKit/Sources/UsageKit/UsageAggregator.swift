@@ -154,7 +154,9 @@ public struct UsageAggregator: Sendable {
         // Compute the first relevant window arithmetically (O(1)) instead of
         // stepping from windowStart, which was unbounded for distant anchors.
         let cursor: Date
-        if let firstSample = samples.map(\.timestamp).min() {
+        if windowStart == Date.distantPast {
+            cursor = samples.map(\.timestamp).min() ?? now
+        } else if let firstSample = samples.map(\.timestamp).min() {
             // Jump to the window that could contain the first sample.
             let gap = firstSample.timeIntervalSince(windowStart) - billingWindowDuration
             if gap > 0 {
