@@ -1,4 +1,5 @@
 import Foundation
+import os.log
 import TerminalCore
 
 public struct ACPMessage: Codable {
@@ -210,9 +211,14 @@ public final class ACPClient: @unchecked Sendable {
         let header = "Content-Length: \(contentLength)\r\n\r\n"
         let fullMessage = header + jsonString
 
+        guard let messageData = fullMessage.data(using: .utf8) else {
+            os_log("ACPClient: failed to encode message as UTF-8", log: .default, type: .error)
+            return
+        }
+
         lock.lock()
         defer { lock.unlock() }
-        stdin.fileHandleForWriting.write(fullMessage.data(using: .utf8)!)
+        stdin.fileHandleForWriting.write(messageData)
     }
 
     private func startReading() {

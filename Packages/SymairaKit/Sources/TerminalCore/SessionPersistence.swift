@@ -31,6 +31,11 @@ public struct SessionPersistence: @unchecked Sendable {
         let directory = storageDirectory
         if !fileManager.fileExists(atPath: directory.path) {
             try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
+            // Protect session files so they are inaccessible when the device is locked.
+            try fileManager.setAttributes(
+                [.protectionKey: FileProtectionType.complete],
+                ofItemAtPath: directory.path
+            )
         }
 
         let encoder = JSONEncoder()
