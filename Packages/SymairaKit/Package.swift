@@ -38,7 +38,7 @@ let package = Package(
         ),
 
         .target(name: "AgentKit", dependencies: ["TerminalCore", "ProviderKit"]),
-        .target(name: "WorktreeKit"),
+        .target(name: "WorktreeKit", dependencies: ["ProviderKit"]),
         .target(name: "ProviderKit"),
         .target(name: "ContextBank"),
         .target(name: "StackKit"),
