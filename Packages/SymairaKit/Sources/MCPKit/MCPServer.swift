@@ -1,6 +1,7 @@
 import ControlKit
 import Darwin
 import Foundation
+import TerminalCore
 
 // MARK: - MCPServer
 
