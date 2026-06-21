@@ -91,6 +91,12 @@ public struct MCPResponseError: Codable, Sendable {
 }
 
 /// A local HTTP-based JSON-RPC 2.0 MCP Server for Symaira Terminal.
+///
+/// - Important: This server uses a separate type system from `MCPKit/MCPServer`.
+///   New code should use `MCPKit.MCPServer` (Unix socket transport with the
+///   canonical MCP type system) instead. This HTTP-based server is retained for
+///   backward compatibility with external MCP clients that expect HTTP transport.
+@available(*, deprecated, message: "Use MCPKit.MCPServer for new implementations")
 public final class MCPServer: @unchecked Sendable {
     private let listener: NWListener
     private weak var delegate: (any TerminalMCPDelegate)?

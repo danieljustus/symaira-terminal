@@ -21,6 +21,8 @@ public actor MCPStdioServer {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
 
+        let dispatcher = MCPToolDispatcher(provider: client)
+
         var pending = Data()
         var buf = [UInt8](repeating: 0, count: 65_536)
 
@@ -42,16 +44,16 @@ public actor MCPStdioServer {
                 pending.removeSubrange(pending.startIndex...nlIdx)
                 guard !line.isEmpty else { continue }
 
-                let response = await dispatch(line: line, decoder: decoder)
+                let response = await dispatch(line: line, decoder: decoder, dispatcher: dispatcher)
                 writeResponse(response, encoder: encoder)
             }
         }
     }
 
-    private func dispatch(line: Data, decoder: JSONDecoder) async -> MCPResponse {
+    private func dispatch(line: Data, decoder: JSONDecoder, dispatcher: MCPToolDispatcher) async -> MCPResponse {
         do {
             let request = try decoder.decode(MCPRequest.self, from: line)
-            let result = try await handle(request: request)
+            let result = try await handle(request: request, dispatcher: dispatcher)
             return MCPResponse(id: request.id, result: result)
         } catch let e as MCPDispatchError {
             switch e {
@@ -71,7 +73,7 @@ public actor MCPStdioServer {
         }
     }
 
-    private func handle(request: MCPRequest) async throws -> MCPResult {
+    private func handle(request: MCPRequest, dispatcher: MCPToolDispatcher) async throws -> MCPResult {
         switch request.method {
         case "initialize":
             return MCPResult(
@@ -91,110 +93,13 @@ public actor MCPStdioServer {
             guard let name = request.params?.name else {
                 throw MCPDispatchError.missingRequired("name")
             }
-            return try await dispatchToolCall(name: name, arguments: request.params?.arguments)
+            return try await dispatcher.call(name: name, arguments: request.params?.arguments)
 
         case "ping":
             return MCPResult()
 
         default:
             throw MCPDispatchError.unknownTool(request.method)
-        }
-    }
-
-    private func dispatchToolCall(name: String, arguments: [String: AnyCodable]?) async throws -> MCPResult {
-        guard let tool = MCPTool(rawValue: name) else {
-            throw MCPDispatchError.unknownTool(name)
-        }
-        switch tool {
-        case .listAgents:
-            let snapshot = try await client.snapshot()
-            let encoder = JSONEncoder()
-            encoder.dateEncodingStrategy = .iso8601
-            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-            let data = try encoder.encode(snapshot)
-            let text = String(data: data, encoding: .utf8) ?? "{}"
-            return MCPResult(content: [MCPContent(type: "text", text: text)], isError: false)
-
-        case .readPaneOutput:
-            var lines = 200
-            if let raw = arguments?["lines"]?.value {
-                switch raw {
-                case let i as Int:    lines = max(1, min(i, 10_000))
-                case let d as Double: lines = max(1, min(Int(d), 10_000))
-                default: break
-                }
-            }
-            var paneID: UUID?
-            if let raw = arguments?["pane_id"]?.value as? String {
-                paneID = UUID(uuidString: raw)
-            }
-            let panes = try await client.panes()
-            if let pid = paneID, !panes.contains(where: { $0.id == pid }) {
-                return MCPResult(
-                    content: [MCPContent(type: "text", text: "Pane not found: \(pid.uuidString)")],
-                    isError: true)
-            }
-            let snapshot = try await client.snapshot()
-            let paneIDs = paneID.map { [$0] } ?? snapshot.panes.map(\.id)
-            var allLines: [String] = []
-            for pid in paneIDs {
-                if let scrollback = try? await client.readScrollback(paneID: pid, lines: lines) {
-                    allLines.append(contentsOf: scrollback)
-                }
-            }
-            let text = allLines.isEmpty ? "(no output)" : allLines.suffix(lines).joined(separator: "\n")
-            return MCPResult(content: [MCPContent(type: "text", text: text)], isError: false)
-
-        case .getPendingApprovals:
-            let approvals = try await client.pendingApprovals()
-            let encoder = JSONEncoder()
-            encoder.dateEncodingStrategy = .iso8601
-            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-            let data = try encoder.encode(approvals)
-            let text = String(data: data, encoding: .utf8) ?? "[]"
-            return MCPResult(content: [MCPContent(type: "text", text: text)], isError: false)
-
-        case .spawn:
-            guard let agentID = arguments?["agent_id"]?.value as? String, !agentID.isEmpty else {
-                throw MCPDispatchError.missingRequired("agent_id")
-            }
-            var worktreeBranch: String?
-            if let raw = arguments?["worktree_branch"]?.value as? String {
-                worktreeBranch = raw
-            }
-            var workingDirectory: String?
-            if let raw = arguments?["working_directory"]?.value as? String {
-                workingDirectory = raw
-            }
-            let paneID = try await client.spawn(
-                agentID: agentID,
-                worktreeBranch: worktreeBranch,
-                workingDirectory: workingDirectory)
-            let text = "Spawned pane \(paneID.uuidString) running '\(agentID)'."
-            return MCPResult(content: [MCPContent(type: "text", text: text)], isError: false)
-
-        case .focus:
-            guard let rawID = arguments?["pane_id"]?.value as? String else {
-                throw MCPDispatchError.missingRequired("pane_id")
-            }
-            guard let paneID = UUID(uuidString: rawID) else {
-                return MCPResult(
-                    content: [MCPContent(type: "text", text: "Invalid UUID: \(rawID)")],
-                    isError: true)
-            }
-            try await client.focus(paneID: paneID)
-            let text = "Focused pane \(paneID.uuidString)."
-            return MCPResult(content: [MCPContent(type: "text", text: text)], isError: false)
-
-        case .blocked:
-            let blockedID = try await client.blocked()
-            let text: String
-            if let id = blockedID {
-                text = "{\"paneID\": \"\(id.uuidString)\"}"
-            } else {
-                text = "{}"
-            }
-            return MCPResult(content: [MCPContent(type: "text", text: text)], isError: false)
         }
     }
 
