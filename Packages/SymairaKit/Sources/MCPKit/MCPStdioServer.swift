@@ -81,7 +81,7 @@ public actor MCPStdioServer {
                 capabilities: MCPCapabilities(tools: MCPToolsCapability(listChanged: false)),
                 serverInfo: MCPServerInfo(
                     name: "symaira-terminal",
-                    version: "1.0.0"))
+                    version: SymairaVersion.current))
 
         case "notifications/initialized":
             return MCPResult()

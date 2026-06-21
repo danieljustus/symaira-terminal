@@ -6,6 +6,7 @@ final class DataBox: @unchecked Sendable {
     private let lock = NSLock()
     private var _value = Data()
     func set(_ d: Data) { lock.lock(); _value = d; lock.unlock() }
+    func append(_ d: Data) { lock.lock(); _value.append(d); lock.unlock() }
     var value: Data { lock.lock(); defer { lock.unlock() }; return _value }
 }
 
@@ -120,7 +121,7 @@ public struct ProcessRunner: Sendable {
             var buf = [UInt8](repeating: 0, count: Int(available))
             let n = buf.withUnsafeMutableBytes { read(fd, $0.baseAddress, $0.count) }
             if n > 0 {
-                dataBox.set(dataBox.value + Data(buf.prefix(n)))
+                dataBox.append(Data(buf.prefix(n)))
             } else {
                 source.cancel()
                 doneBox.signal()

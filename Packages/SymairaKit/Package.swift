@@ -38,7 +38,7 @@ let package = Package(
         ),
 
         .target(name: "AgentKit", dependencies: ["TerminalCore", "ProviderKit"]),
-        .target(name: "WorktreeKit"),
+        .target(name: "WorktreeKit", dependencies: ["ProviderKit"]),
         .target(name: "ProviderKit"),
         .target(name: "ContextBank"),
         .target(name: "StackKit"),
@@ -55,7 +55,7 @@ let package = Package(
         .target(name: "ControlKit", dependencies: ["AgentKit"]),
 
         // MCP server for symterminal — exposes orchestration tools via MCP protocol.
-        .target(name: "MCPKit", dependencies: ["ControlKit"]),
+        .target(name: "MCPKit", dependencies: ["ControlKit", "TerminalCore"]),
 
         // Command-line interface: `symterminal status [--json]`, `symterminal mcp`
         // Connect to a running Symaira Terminal instance via ControlKit.

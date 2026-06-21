@@ -1,5 +1,6 @@
 import Darwin
 import Foundation
+import ProviderKit
 
 public struct Worktree: Equatable, Hashable, Sendable {
     public let taskID: String
@@ -148,16 +149,12 @@ public struct WorktreeManager: Sendable {
     }
 
     private func checkRisks(in diff: String) -> String {
-        var risks: [String] = []
-        let secretPatterns = [
-            "AIza[0-9A-Za-z_-]{35}",
-            "sk-[A-Za-z0-9_-]{20,}",
-            "ghp_[A-Za-z0-9]{36}"
-        ]
-        for pattern in secretPatterns where diff.range(of: pattern, options: .regularExpression) != nil {
-            risks.append("WARNING: Possible API key or credential leak detected in diff.")
+        let redactor = SecretRedactor()
+        let result = redactor.redact(diff)
+        if result.redactionCount > 0 {
+            return "WARNING: \(result.redactionCount) possible secret(s) detected in diff."
         }
-        return risks.isEmpty ? "No high-risk secrets detected in the diff." : risks.joined(separator: "\n")
+        return "No high-risk secrets detected in the diff."
     }
 }
 
