@@ -1,6 +1,7 @@
 import Foundation
 import ControlKit
 @testable import MCPKit
+import TerminalCore
 import Testing
 
 struct StubProvider: OrchestrationControlProvider {

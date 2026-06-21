@@ -17,82 +17,27 @@ public actor ControlServer {
     }
 
     public let socketPath: String
-    private var serverFD: Int32 = -1
-    private var acceptTask: Task<Void, Never>?
+    private let socketServer: UnixSocketServer
 
     public init(socketPath: String = ControlServer.defaultSocketPath) {
         self.socketPath = socketPath
+        self.socketServer = UnixSocketServer(socketPath: socketPath)
     }
 
     /// Bind the socket, set 0600 permissions, and start accepting connections.
     public func start(provider: some OrchestrationControlProvider) throws {
-        guard serverFD < 0 else { return }
-
-        try? FileManager.default.removeItem(atPath: socketPath)
-        let dir = (socketPath as NSString).deletingLastPathComponent
-        try FileManager.default.createDirectory(
-            atPath: dir, withIntermediateDirectories: true, attributes: nil)
-
-        let fd = Darwin.socket(AF_UNIX, SOCK_STREAM, 0)
-        guard fd >= 0 else { throw ControlServerError.socketFailed(errno: errno) }
-
-        var addr = sockaddr_un()
-        addr.sun_family = sa_family_t(AF_UNIX)
-        let pathBytes = socketPath.utf8CString
-        withUnsafeMutableBytes(of: &addr.sun_path) { ptr in
-            for (i, b) in pathBytes.prefix(ptr.count - 1).enumerated() {
-                ptr[i] = UInt8(bitPattern: b)
+        try socketServer.start()
+        let server = socketServer
+        Task.detached {
+            await server.acceptLoop { clientFD in
+                await Self.handleConnection(fd: clientFD, provider: provider)
             }
-        }
-        let bindResult = withUnsafePointer(to: &addr) { addrPtr in
-            addrPtr.withMemoryRebound(to: sockaddr.self, capacity: 1) {
-                Darwin.bind(fd, $0, socklen_t(MemoryLayout<sockaddr_un>.size))
-            }
-        }
-        guard bindResult == 0 else {
-            Darwin.close(fd)
-            throw ControlServerError.bindFailed(errno: errno)
-        }
-
-        Darwin.chmod(socketPath, 0o600)
-
-        guard Darwin.listen(fd, 16) == 0 else {
-            Darwin.close(fd)
-            throw ControlServerError.listenFailed(errno: errno)
-        }
-
-        serverFD = fd
-        // Accept loop runs off the actor so blocking accept() doesn't stall it.
-        acceptTask = Task.detached { [socketPath] in
-            await Self.acceptLoop(serverFD: fd, socketPath: socketPath, provider: provider)
         }
     }
 
     /// Close the socket and cancel the accept loop. Idempotent.
     public func stop() {
-        acceptTask?.cancel()
-        acceptTask = nil
-        if serverFD >= 0 {
-            Darwin.close(serverFD)
-            serverFD = -1
-        }
-        try? FileManager.default.removeItem(atPath: socketPath)
-    }
-
-    // MARK: Accept loop (runs in Task.detached — not actor-isolated)
-
-    private static func acceptLoop(
-        serverFD: Int32,
-        socketPath: String,
-        provider: some OrchestrationControlProvider
-    ) async {
-        while !Task.isCancelled {
-            let clientFD = Darwin.accept(serverFD, nil, nil)
-            guard clientFD >= 0 else { break }
-            Task.detached {
-                await handleConnection(fd: clientFD, provider: provider)
-            }
-        }
+        socketServer.stop()
     }
 
     private static func handleConnection(

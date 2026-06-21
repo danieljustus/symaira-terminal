@@ -2,18 +2,6 @@ import ControlKit
 import Darwin
 import Foundation
 
-// MARK: - Connection counter (shared with ControlServer pattern)
-
-private final class MCPConnectionCounter: @unchecked Sendable {
-    private var count: Int = 0
-    private let lock = NSLock()
-
-    var current: Int { lock.withLock { count } }
-
-    func increment() -> Int { lock.withLock { count += 1; return count } }
-    func decrement() { lock.withLock { count -= 1 } }
-}
-
 // MARK: - MCPServer
 
 /// A local Unix domain socket MCP server that exposes terminal tools to AI agents.
@@ -53,13 +41,11 @@ public actor MCPServer {
     }
 
     public let socketPath: String
-
-    private var serverFD: Int32 = -1
-    private var acceptTask: Task<Void, Never>?
-    private let counter = MCPConnectionCounter()
+    private let socketServer: UnixSocketServer
 
     public init(socketPath: String = MCPServer.defaultSocketPath) {
         self.socketPath = socketPath
+        self.socketServer = UnixSocketServer(socketPath: socketPath)
     }
 
     // MARK: - Lifecycle
@@ -69,81 +55,20 @@ public actor MCPServer {
     /// - Parameter provider: The app-supplied ``OrchestrationControlProvider`` that backs
     ///   the MCP tool implementations.
     public func start(provider: some OrchestrationControlProvider) throws {
-        guard serverFD < 0 else { return }
-
-        try? FileManager.default.removeItem(atPath: socketPath)
-        let dir = (socketPath as NSString).deletingLastPathComponent
-        try FileManager.default.createDirectory(
-            atPath: dir, withIntermediateDirectories: true, attributes: nil)
-
-        let fd = Darwin.socket(AF_UNIX, SOCK_STREAM, 0)
-        guard fd >= 0 else { throw MCPServerError.socketFailed(errno: errno) }
-
-        var addr = sockaddr_un()
-        addr.sun_family = sa_family_t(AF_UNIX)
-        let pathBytes = socketPath.utf8CString
-        withUnsafeMutableBytes(of: &addr.sun_path) { ptr in
-            for (i, b) in pathBytes.prefix(ptr.count - 1).enumerated() {
-                ptr[i] = UInt8(bitPattern: b)
+        try socketServer.start()
+        let server = socketServer
+        Task.detached {
+            await server.acceptLoop(
+                maxConcurrentConnections: Self.maxConcurrentConnections
+            ) { clientFD in
+                await Self.handleConnection(fd: clientFD, provider: provider)
             }
-        }
-        let bindResult = withUnsafePointer(to: &addr) { ap in
-            ap.withMemoryRebound(to: sockaddr.self, capacity: 1) {
-                Darwin.bind(fd, $0, socklen_t(MemoryLayout<sockaddr_un>.size))
-            }
-        }
-        guard bindResult == 0 else {
-            Darwin.close(fd)
-            throw MCPServerError.bindFailed(errno: errno)
-        }
-
-        Darwin.chmod(socketPath, 0o600)
-
-        guard Darwin.listen(fd, 16) == 0 else {
-            Darwin.close(fd)
-            throw MCPServerError.listenFailed(errno: errno)
-        }
-
-        serverFD = fd
-        acceptTask = Task.detached { [counter] in
-            await Self.acceptLoop(fd: fd, provider: provider, counter: counter)
         }
     }
 
     /// Tear down the socket and cancel the accept loop. Idempotent.
     public func stop() {
-        acceptTask?.cancel()
-        acceptTask = nil
-        if serverFD >= 0 {
-            Darwin.close(serverFD)
-            serverFD = -1
-        }
-        try? FileManager.default.removeItem(atPath: socketPath)
-    }
-
-    // MARK: - Accept loop
-
-    private static func acceptLoop(
-        fd: Int32,
-        provider: some OrchestrationControlProvider,
-        counter: MCPConnectionCounter
-    ) async {
-        while !Task.isCancelled {
-            let clientFD = Darwin.accept(fd, nil, nil)
-            guard clientFD >= 0 else { break }
-
-            let n = counter.increment()
-            guard n <= maxConcurrentConnections else {
-                counter.decrement()
-                Darwin.close(clientFD)
-                continue
-            }
-
-            Task.detached {
-                defer { counter.decrement() }
-                await handleConnection(fd: clientFD, provider: provider)
-            }
-        }
+        socketServer.stop()
     }
 
     private static func handleConnection(
@@ -262,12 +187,4 @@ public actor MCPServer {
         data.append(0x0a) // newline delimiter
         data.withUnsafeBytes { _ = Darwin.write(fd, $0.baseAddress!, $0.count) }
     }
-}
-
-// MARK: - Errors
-
-public enum MCPServerError: Error, Sendable {
-    case socketFailed(errno: Int32)
-    case bindFailed(errno: Int32)
-    case listenFailed(errno: Int32)
 }

@@ -1,6 +1,7 @@
 import ControlKit
 import Darwin
 import Foundation
+import TerminalCore
 
 enum MCPTool: String, CaseIterable {
     case listAgents = "list_agents"

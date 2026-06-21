@@ -1,3 +1,4 @@
+import AgentKit
 import Darwin
 import Foundation
 
@@ -12,7 +13,7 @@ import Foundation
 /// `ControlClient` is a value type; each method call opens and closes its own
 /// connection. For repeated calls, reuse the same instance (connections are
 /// stateless from the server's perspective).
-public struct ControlClient: Sendable {
+public struct ControlClient: Sendable, OrchestrationControlProvider {
 
     public let socketPath: String
     private var requestID: Int = 1
@@ -73,10 +74,14 @@ public struct ControlClient: Sendable {
         return body.blockedPaneID
     }
 
-    public func readScrollback(paneID: UUID?, lines: Int = 200) async throws -> [String] {
+    public func readScrollback(paneID: UUID?, lines: Int = 200) async throws -> ScrollbackResult {
         let params = ControlParams(paneID: paneID)
         let body = try await send(.init(method: .readScrollback, params: params))
-        return body.scrollbackLines ?? []
+        return ScrollbackResult(paneID: paneID, lines: body.scrollbackLines ?? [])
+    }
+
+    public func requestOpenTab(command: String) async throws -> TabRequestResult {
+        TabRequestResult(requestID: UUID(), status: "not_supported")
     }
 
     // MARK: - Transport
@@ -257,10 +262,14 @@ public actor PersistentControlClient {
         return body.blockedPaneID
     }
 
-    public func readScrollback(paneID: UUID?, lines: Int = 200) async throws -> [String] {
+    public func readScrollback(paneID: UUID?, lines: Int = 200) async throws -> ScrollbackResult {
         let params = ControlParams(paneID: paneID)
         let body = try await send(.init(method: .readScrollback, params: params))
-        return body.scrollbackLines ?? []
+        return ScrollbackResult(paneID: paneID, lines: body.scrollbackLines ?? [])
+    }
+
+    public func requestOpenTab(command: String) async throws -> TabRequestResult {
+        TabRequestResult(requestID: UUID(), status: "not_supported")
     }
 
     // MARK: - Transport
