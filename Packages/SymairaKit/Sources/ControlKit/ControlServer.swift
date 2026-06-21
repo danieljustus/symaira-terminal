@@ -138,7 +138,7 @@ public actor ControlServer {
         case .readScrollback:
             let result = try await provider.readScrollback(
                 paneID: request.params?.paneID,
-                lines: 200)
+                lines: request.params?.lines ?? 200)
             return .scrollback(result.lines)
         }
     }
