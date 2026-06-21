@@ -804,7 +804,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             object: nil
         )
 
-        DistributedNotificationCenter.default().addObserver(
+        NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleHandoffNotification(_:)),
             name: NSNotification.Name("com.symaira.terminal.handoff"),
