@@ -457,9 +457,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func startMonitoring() {
+        guard monitorTask == nil else { return }
         monitorTask = Task { [weak self] in
             while !Task.isCancelled {
                 await self?.updatePaneStatuses()
+                guard let self else { break }
+                let hasActive = await MainActor.run {
+                    self.paneManager?.panes.contains { pane in
+                        pane.agentStatus == .running || pane.agentStatus == .awaitingApproval
+                    } ?? false
+                }
+                if !hasActive {
+                    await MainActor.run { self.monitorTask = nil }
+                    break
+                }
                 try? await Task.sleep(nanoseconds: 2_000_000_000)
             }
         }
@@ -768,6 +779,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             pane.agentStatus == .running || pane.agentStatus == .awaitingApproval
         }
         SleepPreventionManager.shared.updateAgentActivityState(hasActiveAgent: hasActive)
+        if hasActive && monitorTask == nil {
+            startMonitoring()
+        }
     }
 
     // MARK: - Workflow Canvas & Handoff Pipeline
