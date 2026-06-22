@@ -68,28 +68,22 @@ struct ControlSecurityTests {
         #expect(allMethods.count == 8, "Verb count must not grow without review")
     }
 
-    /// Verify no control result case can carry an approval decision.
+    /// Verify the response body struct cannot carry an approval decision.
     @Test func responseBodyHasNoApprovalDecisionCase() {
-        let allResults: [ControlResult] = [
-            .snapshot(OrchestrationSnapshot()),
-            .panes([]),
-            .worktrees([]),
-            .approvals([]),
+        let allResults: [ControlResponseBody] = [
+            .of(snapshot: OrchestrationSnapshot()),
+            .of(panes: []),
+            .of(worktrees: []),
+            .of(approvals: []),
             .spawned(UUID()),
             .focused(UUID()),
             .blocked(nil),
             .ok,
             .scrollback([])
         ]
-        for result in allResults {
-            switch result {
-            case .snapshot, .panes, .worktrees, .approvals,
-                 .spawned, .focused, .blocked, .ok, .scrollback:
-                break
-            // If an approve/deny case were added to ControlResult,
-            // Swift's exhaustiveness check would force a case here,
-            // making this test fail to compile — the structural guarantee.
-            }
+        for body in allResults {
+            let children = Mirror(reflecting: body).children.map { $0.label }
+            #expect(!children.contains("approvalDecision"), "Response body must never carry an approval decision")
         }
         #expect(allResults.count == 9, "Result case count must not grow without review")
     }

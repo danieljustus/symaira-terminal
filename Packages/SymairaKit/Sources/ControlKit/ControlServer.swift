@@ -10,6 +10,17 @@ import Foundation
 /// Transport details: ADR-002 and docs/design/agent-control-surface.md.
 public actor ControlServer {
 
+    // MARK: - Security limits
+
+    /// Maximum frame size in bytes (1 MiB). Oversized frames are rejected with a JSON-RPC error.
+    public static let maxFrameSize = 1_048_576
+
+    /// Idle timeout in seconds. Connections with no data for this duration are closed.
+    public static let idleTimeoutSeconds: Int = 30
+
+    /// Maximum concurrent connections. New connections are rejected when at cap.
+    public static let maxConcurrentConnections = 16
+
     public static var defaultSocketPath: String {
         let support = FileManager.default.urls(
             for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -29,7 +40,7 @@ public actor ControlServer {
         try socketServer.start()
         let server = socketServer
         Task.detached {
-            await server.acceptLoop { clientFD in
+            await server.acceptLoop(maxConcurrentConnections: Self.maxConcurrentConnections) { clientFD in
                 await Self.handleConnection(fd: clientFD, provider: provider)
             }
         }
@@ -46,6 +57,9 @@ public actor ControlServer {
     ) async {
         defer { Darwin.close(fd) }
 
+        var timeout = timeval(tv_sec: Self.idleTimeoutSeconds, tv_usec: 0)
+        setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
+
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         let encoder = JSONEncoder()
@@ -58,6 +72,19 @@ public actor ControlServer {
             let n = buf.withUnsafeMutableBytes { Darwin.read(fd, $0.baseAddress!, $0.count) }
             guard n > 0 else { break }
             pending.append(contentsOf: buf.prefix(n))
+
+            if pending.count > Self.maxFrameSize {
+                let errorResponse = ControlResponse(
+                    error: ControlRPCError(
+                        code: -32600,
+                        message: "Invalid Request: frame exceeds \(Self.maxFrameSize) byte limit"),
+                    id: nil)
+                if var data = try? encoder.encode(errorResponse) {
+                    data.append(0x0a)
+                    data.withUnsafeBytes { _ = Darwin.write(fd, $0.baseAddress!, data.count) }
+                }
+                break
+            }
 
             // Process every complete line (delimited by \n)
             while let nlIdx = pending.firstIndex(of: 0x0a) {
