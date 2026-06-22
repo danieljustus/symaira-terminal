@@ -5,9 +5,33 @@ All notable changes to Symaira Terminal will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.8.0] — 2026-06-22
 
-### M4 — Polish & Launch (in progress)
+### Added
+- `symterm` CLI wrapper for opening Symaira Terminal from any shell, IDE terminal, or script (#176)
+- `symterminal` companion CLI for querying and driving the running app from scripts, tmux status bars, and CI (#171, #190)
+- ControlKit: local Unix-socket agent control surface so external agents and scripts can observe and orchestrate multi-agent state (#190)
+- MCP server with read-scrollback and request-open-tab tools, enabling MCP-capable agents to inspect terminal output and open tabs (#177)
+- Unified MCP type system and shared helpers across the ACP/MCP stack (#191)
+- `ProviderCredential` model that unifies how provider keys and OAuth tokens are stored and redacted
+- BYOK status now visible per provider profile in settings
+
+### Changed
+- Reworked `SessionPersistence` and `AgentStatus` internals to support the new control-surface events
+- Split pane/agent orchestration responsibilities to keep the app target thin and the library targets reusable
+
+### Fixed
+- OAuth/PKCE redirect and token-handling edge cases for Google and OpenAI providers
+- `SecretRedactor` unified across ProviderKit so secrets are consistently scrubbed from logs and transcripts
+- Provider chat client error paths and retry behavior
+- Agent catalog and transcript storage race conditions under concurrent agents
+
+### Security
+- Review-driven hardening of ControlKit IPC permissions and input validation (#202)
+- Secret redaction applied consistently across ProviderKit, usage tracking, and logging paths
+
+### Performance
+- Reduced unnecessary worktree and process state churn during heavy multi-agent sessions (#202)
 
 ## [0.7.0] — 2026-06-17
 
@@ -147,7 +171,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 26 unit tests across all modules
 - ADR-001: Terminal engine choice + pin strategy
 
-[Unreleased]: https://github.com/danieljustus/symaira-terminal/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/danieljustus/symaira-terminal/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/danieljustus/symaira-terminal/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/danieljustus/symaira-terminal/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/danieljustus/symaira-terminal/compare/v0.5.0...v0.6.0
 [0.4.0]: https://github.com/danieljustus/symaira-terminal/compare/v0.3.0...v0.4.0
