@@ -57,11 +57,11 @@ public struct ControlParams: Codable, Sendable {
 /// JSON-RPC 2.0 response sent back to the client.
 public struct ControlResponse: Codable, Sendable {
     public var jsonrpc: String
-    public var result: ControlResult?
+    public var result: ControlResponseBody?
     public var error: ControlRPCError?
     public var id: Int?
 
-    public init(result: ControlResult, id: Int?) {
+    public init(result: ControlResponseBody, id: Int?) {
         self.jsonrpc = "2.0"
         self.result = result
         self.id = id
@@ -74,84 +74,46 @@ public struct ControlResponse: Codable, Sendable {
     }
 }
 
-/// A typed result from the control surface — exactly one case per response.
-/// Invalid states (multiple payloads, or no payload) are unrepresentable.
-public enum ControlResult: Sendable {
-    case snapshot(OrchestrationSnapshot)
-    case panes([PaneSnapshot])
-    case worktrees([WorktreeSnapshot])
-    case approvals([ApprovalSummary])
-    case spawned(UUID)
-    case focused(UUID)
-    case blocked(UUID?)
-    case ok
-    case scrollback([String])
-}
+/// The union of all possible success payloads; exactly one field is non-nil per response.
+public struct ControlResponseBody: Codable, Sendable {
+    public var snapshot: OrchestrationSnapshot?
+    public var panes: [PaneSnapshot]?
+    public var worktrees: [WorktreeSnapshot]?
+    public var approvals: [ApprovalSummary]?
+    public var spawnedPaneID: UUID?
+    public var focusedPaneID: UUID?
+    public var blockedPaneID: UUID?
+    public var ok: Bool?
+    public var scrollbackLines: [String]?
 
-// MARK: - Codable (wire-compatible with old ControlResponseBody JSON)
-
-extension ControlResult: Codable {
-
-    // Wire-format keys — must match the old struct property names exactly.
-    private enum CodingKeys: String, CodingKey {
-        case snapshot
-        case panes
-        case worktrees
-        case approvals
-        case spawnedPaneID
-        case focusedPaneID
-        case blockedPaneID
-        case ok
-        case scrollbackLines
+    public static func of(snapshot: OrchestrationSnapshot) -> Self {
+        var b = Self(); b.snapshot = snapshot; return b
     }
-
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        if let v = try container.decodeIfPresent(OrchestrationSnapshot.self, forKey: .snapshot) {
-            self = .snapshot(v)
-        } else if let v = try container.decodeIfPresent([PaneSnapshot].self, forKey: .panes) {
-            self = .panes(v)
-        } else if let v = try container.decodeIfPresent([WorktreeSnapshot].self, forKey: .worktrees) {
-            self = .worktrees(v)
-        } else if let v = try container.decodeIfPresent([ApprovalSummary].self, forKey: .approvals) {
-            self = .approvals(v)
-        } else if let v = try container.decodeIfPresent(UUID.self, forKey: .spawnedPaneID) {
-            self = .spawned(v)
-        } else if let v = try container.decodeIfPresent(UUID.self, forKey: .focusedPaneID) {
-            self = .focused(v)
-        } else if container.contains(.blockedPaneID) {
-            let v = try container.decodeIfPresent(UUID.self, forKey: .blockedPaneID)
-            self = .blocked(v)
-        } else if let v = try container.decodeIfPresent(Bool.self, forKey: .ok), v {
-            self = .ok
-        } else if let v = try container.decodeIfPresent([String].self, forKey: .scrollbackLines) {
-            self = .scrollback(v)
-        } else {
-            throw DecodingError.dataCorrupted(
-                .init(codingPath: decoder.codingPath, debugDescription: "No known result field present"))
-        }
+    public static func of(panes: [PaneSnapshot]) -> Self {
+        var b = Self(); b.panes = panes; return b
     }
-
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        switch self {
-        case .snapshot(let v): try container.encode(v, forKey: .snapshot)
-        case .panes(let v): try container.encode(v, forKey: .panes)
-        case .worktrees(let v): try container.encode(v, forKey: .worktrees)
-        case .approvals(let v): try container.encode(v, forKey: .approvals)
-        case .spawned(let v): try container.encode(v, forKey: .spawnedPaneID)
-        case .focused(let v): try container.encode(v, forKey: .focusedPaneID)
-        case .blocked(let v): try container.encode(v, forKey: .blockedPaneID)
-        case .ok: try container.encode(true, forKey: .ok)
-        case .scrollback(let v): try container.encode(v, forKey: .scrollbackLines)
-        }
+    public static func of(worktrees: [WorktreeSnapshot]) -> Self {
+        var b = Self(); b.worktrees = worktrees; return b
+    }
+    public static func of(approvals: [ApprovalSummary]) -> Self {
+        var b = Self(); b.approvals = approvals; return b
+    }
+    public static func spawned(_ id: UUID) -> Self {
+        var b = Self(); b.spawnedPaneID = id; return b
+    }
+    public static func focused(_ id: UUID) -> Self {
+        var b = Self(); b.focusedPaneID = id; return b
+    }
+    public static func blocked(_ id: UUID?) -> Self {
+        var b = Self(); b.blockedPaneID = id; return b
+    }
+    public static var ok: Self {
+        var b = Self(); b.ok = true; return b
+    }
+    public static func scrollback(_ lines: [String]) -> Self {
+        var b = Self(); b.scrollbackLines = lines; return b
     }
 }
-
-// MARK: - Backward-compat typealias
-
-/// Deprecated — use `ControlResult` directly.
-public typealias ControlResponseBody = ControlResult
 
 // MARK: - Errors
 
