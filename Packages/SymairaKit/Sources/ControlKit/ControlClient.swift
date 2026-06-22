@@ -1,3 +1,4 @@
+import AgentKit
 import Darwin
 import Foundation
 
@@ -12,7 +13,7 @@ import Foundation
 /// `ControlClient` is a value type; each method call opens and closes its own
 /// connection. For repeated calls, reuse the same instance (connections are
 /// stateless from the server's perspective).
-public struct ControlClient: Sendable {
+public struct ControlClient: Sendable, OrchestrationControlProvider {
 
     public let socketPath: String
     private var requestID: Int = 1
@@ -24,26 +25,26 @@ public struct ControlClient: Sendable {
     // MARK: - Read verbs
 
     public func snapshot() async throws -> OrchestrationSnapshot {
-        let result = try await send(.init(method: .snapshot))
-        guard case .snapshot(let v) = result else { throw ControlClientError.noResponse }
+        let body = try await send(.init(method: .snapshot))
+        guard let v = body.snapshot else { throw ControlClientError.noResponse }
         return v
     }
 
     public func panes() async throws -> [PaneSnapshot] {
-        let result = try await send(.init(method: .panes))
-        guard case .panes(let v) = result else { throw ControlClientError.noResponse }
+        let body = try await send(.init(method: .panes))
+        guard let v = body.panes else { throw ControlClientError.noResponse }
         return v
     }
 
     public func pendingApprovals() async throws -> [ApprovalSummary] {
-        let result = try await send(.init(method: .pendingApprovals))
-        guard case .approvals(let v) = result else { throw ControlClientError.noResponse }
+        let body = try await send(.init(method: .pendingApprovals))
+        guard let v = body.approvals else { throw ControlClientError.noResponse }
         return v
     }
 
     public func worktrees() async throws -> [WorktreeSnapshot] {
-        let result = try await send(.init(method: .worktrees))
-        guard case .worktrees(let v) = result else { throw ControlClientError.noResponse }
+        let body = try await send(.init(method: .worktrees))
+        guard let v = body.worktrees else { throw ControlClientError.noResponse }
         return v
     }
 
@@ -58,8 +59,8 @@ public struct ControlClient: Sendable {
             agentID: agentID,
             worktreeBranch: worktreeBranch,
             workingDirectory: workingDirectory)
-        let result = try await send(.init(method: .spawn, params: params))
-        guard case .spawned(let id) = result else { throw ControlClientError.noResponse }
+        let body = try await send(.init(method: .spawn, params: params))
+        guard let id = body.spawnedPaneID else { throw ControlClientError.noResponse }
         return id
     }
 
@@ -69,28 +70,27 @@ public struct ControlClient: Sendable {
     }
 
     public func blocked() async throws -> UUID? {
-        let result = try await send(.init(method: .blocked))
-        guard case .blocked(let id) = result else { throw ControlClientError.noResponse }
-        return id
+        let body = try await send(.init(method: .blocked))
+        return body.blockedPaneID
     }
 
-    public func readScrollback(paneID: UUID?, lines: Int = 200) async throws -> [String] {
+    public func readScrollback(paneID: UUID?, lines: Int = 200) async throws -> ScrollbackResult {
         let params = ControlParams(paneID: paneID)
-        let result = try await send(.init(method: .readScrollback, params: params))
-        guard case .scrollback(let lines) = result else { throw ControlClientError.noResponse }
-        return lines
+        let body = try await send(.init(method: .readScrollback, params: params))
+        return ScrollbackResult(paneID: paneID, lines: body.scrollbackLines ?? [])
+    }
+
+    public func requestOpenTab(command: String) async throws -> TabRequestResult {
+        TabRequestResult(requestID: UUID(), status: "not_supported")
     }
 
     // MARK: - Transport
 
     /// Opens a connection, writes the request, reads the response, closes.
-    public func send(_ request: ControlRequest) async throws -> ControlResult {
+    public func send(_ request: ControlRequest) async throws -> ControlResponseBody {
         let fd = Darwin.socket(AF_UNIX, SOCK_STREAM, 0)
         guard fd >= 0 else { throw ControlClientError.notConnected }
         defer { Darwin.close(fd) }
-
-        var timeout = timeval(tv_sec: ControlServer.idleTimeoutSeconds, tv_usec: 0)
-        setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
 
         var addr = sockaddr_un()
         addr.sun_family = sa_family_t(AF_UNIX)
@@ -116,7 +116,7 @@ public struct ControlClient: Sendable {
 
         // Read until we get a complete line
         var incoming = Data()
-        var buf = [UInt8](repeating: 0, count: 4096)
+        var buf = [UInt8](repeating: 0, count: 65_536)
         while !incoming.contains(0x0a) {
             let n = buf.withUnsafeMutableBytes { Darwin.read(fd, $0.baseAddress!, $0.count) }
             guard n > 0 else { break }

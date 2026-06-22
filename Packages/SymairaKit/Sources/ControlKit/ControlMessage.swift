@@ -35,17 +35,20 @@ public struct ControlParams: Codable, Sendable {
     public var worktreeBranch: String?
     public var workingDirectory: String?
     public var paneID: UUID?
+    public var lines: Int?
 
     public init(
         agentID: String? = nil,
         worktreeBranch: String? = nil,
         workingDirectory: String? = nil,
-        paneID: UUID? = nil
+        paneID: UUID? = nil,
+        lines: Int? = nil
     ) {
         self.agentID = agentID
         self.worktreeBranch = worktreeBranch
         self.workingDirectory = workingDirectory
         self.paneID = paneID
+        self.lines = lines
     }
 }
 
