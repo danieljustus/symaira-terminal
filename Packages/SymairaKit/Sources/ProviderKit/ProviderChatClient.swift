@@ -41,7 +41,7 @@ public struct Secret<Value: Sendable>: Sendable {
 
 struct ProviderDescriptor: Sendable {
     let endpoint: @Sendable (ProviderID, WorkspaceConfig.ProfileConfig?) -> URL
-    let authHeader: @Sendable (String?) -> [String: String]
+    let credentialToHeaders: @Sendable (ProviderCredential) -> [String: String]
     let requestBody: @Sendable (ProviderID, String, String, Int, WorkspaceConfig.ProfileConfig?) -> [String: Any]
     let parseResponse: @Sendable (Data, ProviderID) throws -> String
     let defaultModel: @Sendable (ProviderID) -> String
@@ -74,12 +74,15 @@ public struct ProviderChatClient: Sendable {
         [
             .anthropic: ProviderDescriptor(
                 endpoint: { _, _ in URL(string: "https://api.anthropic.com/v1/messages")! },
-                authHeader: { apiKey in
-                    [
-                        "x-api-key": apiKey ?? "",
+                credentialToHeaders: { credential in
+                    var headers: [String: String] = [
                         "anthropic-version": "2023-06-01",
                         "content-type": "application/json"
                     ]
+                    if case .apiKey(let secret) = credential {
+                        headers["x-api-key"] = secret.value
+                    }
+                    return headers
                 },
                 requestBody: { provider, systemPrompt, userMessage, maxTokens, profileConfig in
                     let model = profileConfig?.model ?? defaultModels[provider] ?? ""
@@ -98,11 +101,16 @@ public struct ProviderChatClient: Sendable {
             ),
             .openai: ProviderDescriptor(
                 endpoint: { _, _ in URL(string: "https://api.openai.com/v1/chat/completions")! },
-                authHeader: { apiKey in
-                    [
-                        "Authorization": "Bearer \(apiKey ?? "")",
+                credentialToHeaders: { credential in
+                    var headers: [String: String] = [
                         "content-type": "application/json"
                     ]
+                    if case .apiKey(let secret) = credential {
+                        headers["Authorization"] = "Bearer \(secret.value)"
+                    } else if case .oauthBearer(let secret) = credential {
+                        headers["Authorization"] = "Bearer \(secret.value)"
+                    }
+                    return headers
                 },
                 requestBody: { provider, systemPrompt, userMessage, maxTokens, profileConfig in
                     let model = profileConfig?.model ?? defaultModels[provider] ?? ""
@@ -127,11 +135,14 @@ public struct ProviderChatClient: Sendable {
                     let baseURLString = baseURL.hasSuffix("/") ? String(baseURL.dropLast()) : baseURL
                     return URL(string: "\(baseURLString)/chat/completions")!
                 },
-                authHeader: { apiKey in
-                    [
-                        "Authorization": "Bearer \(apiKey ?? "")",
+                credentialToHeaders: { credential in
+                    var headers: [String: String] = [
                         "content-type": "application/json"
                     ]
+                    if case .apiKey(let secret) = credential {
+                        headers["Authorization"] = "Bearer \(secret.value)"
+                    }
+                    return headers
                 },
                 requestBody: { provider, systemPrompt, userMessage, maxTokens, profileConfig in
                     let model = profileConfig?.model ?? defaultModels[provider] ?? ""
@@ -152,11 +163,14 @@ public struct ProviderChatClient: Sendable {
             ),
             .openrouter: ProviderDescriptor(
                 endpoint: { _, _ in URL(string: "https://openrouter.ai/api/v1/chat/completions")! },
-                authHeader: { apiKey in
-                    [
-                        "Authorization": "Bearer \(apiKey ?? "")",
+                credentialToHeaders: { credential in
+                    var headers: [String: String] = [
                         "content-type": "application/json"
                     ]
+                    if case .apiKey(let secret) = credential {
+                        headers["Authorization"] = "Bearer \(secret.value)"
+                    }
+                    return headers
                 },
                 requestBody: { provider, systemPrompt, userMessage, maxTokens, profileConfig in
                     let model = profileConfig?.model ?? defaultModels[provider] ?? ""
@@ -176,17 +190,20 @@ public struct ProviderChatClient: Sendable {
                 defaultModel: { provider in defaultModels[provider] ?? "" }
             ),
             .google: ProviderDescriptor(
-                // Model is part of the Google REST URL path; use profileConfig.model
-                // or the default from the table so the endpoint stays data-driven.
                 endpoint: { _, profileConfig in
                     let model = profileConfig?.model ?? defaultModels[.google] ?? "gemini-2.5-flash"
                     return URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent")!
                 },
-                authHeader: { apiKey in
-                    [
-                        "x-goog-api-key": apiKey ?? "",
+                credentialToHeaders: { credential in
+                    var headers: [String: String] = [
                         "content-type": "application/json"
                     ]
+                    if case .apiKey(let secret) = credential {
+                        headers["x-goog-api-key"] = secret.value
+                    } else if case .oauthBearer(let secret) = credential {
+                        headers["Authorization"] = "Bearer \(secret.value)"
+                    }
+                    return headers
                 },
                 requestBody: { _, systemPrompt, userMessage, _, _ in
                     return [
@@ -201,7 +218,7 @@ public struct ProviderChatClient: Sendable {
             ),
             .ollama: ProviderDescriptor(
                 endpoint: { _, _ in URL(string: "http://localhost:11434/api/generate")! },
-                authHeader: { _ in ["content-type": "application/json"] },
+                credentialToHeaders: { _ in ["content-type": "application/json"] },
                 requestBody: { provider, systemPrompt, userMessage, _, profileConfig in
                     let model = profileConfig?.model ?? defaultModels[provider] ?? ""
                     return [
@@ -231,26 +248,10 @@ public struct ProviderChatClient: Sendable {
             throw ProviderError.networkError(NSError(domain: "ProviderKit", code: -1, userInfo: [NSLocalizedDescriptionKey: "Unknown provider"]))
         }
 
-        let secretKey: Secret<String>
-        if provider.supportsOAuth {
-            guard let token = try tokenStore.token(provider: provider, profile: profile) else {
-                throw ProviderError.missingKey
-            }
-            let tokenClient = OAuthTokenClient()
-            let accessToken = try await tokenClient.validAccessToken(
-                for: token,
-                config: provider.oauthConfig!,
-                tokenStore: tokenStore,
-                provider: provider,
-                profile: profile
-            )
-            secretKey = Secret(accessToken)
-        } else {
-            secretKey = Secret(try keyStore.key(provider: provider, profile: profile) ?? "")
-        }
+        let credential = try await resolveCredential(provider: provider, profile: profile)
 
         if provider != .ollama {
-            guard !secretKey.value.isEmpty else {
+            guard !credential.isEmpty else {
                 throw ProviderError.missingKey
             }
         }
@@ -267,7 +268,7 @@ public struct ProviderChatClient: Sendable {
         }
 
         let url = descriptor.endpoint(provider, profileConfig)
-        let headers = descriptor.authHeader(secretKey.value)
+        let headers = descriptor.credentialToHeaders(credential)
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -301,6 +302,40 @@ public struct ProviderChatClient: Sendable {
         }
 
         return try descriptor.parseResponse(data, provider)
+    }
+
+    /// Resolve the credential for a provider by querying `supportedAuthModes`
+    /// and looking up the appropriate store (KeyStore for API keys, TokenStore
+    /// for OAuth).
+    public func resolveCredential(
+        provider: ProviderID,
+        profile: String
+    ) async throws -> ProviderCredential {
+        for mode in provider.supportedAuthModes {
+            switch mode {
+            case .oauth(let config):
+                if OAuthFeature.isEnabled, let token = try tokenStore.token(provider: provider, profile: profile) {
+                    let tokenClient = OAuthTokenClient()
+                    let accessToken = try await tokenClient.validAccessToken(
+                        for: token,
+                        config: config,
+                        tokenStore: tokenStore,
+                        provider: provider,
+                        profile: profile
+                    )
+                    return .oauthBearer(Secret(accessToken))
+                }
+            case .apiKey:
+                if let key = try keyStore.key(provider: provider, profile: profile) {
+                    return .apiKey(Secret(key))
+                }
+            }
+        }
+
+        if provider == .ollama {
+            return .none
+        }
+        return .apiKey(Secret(""))
     }
 }
 

@@ -2,7 +2,7 @@ import Foundation
 import CommonCrypto
 
 /// Authentication method for a provider.
-public enum AuthMethod: Sendable, Codable {
+public enum AuthMethod: Sendable, Codable, Equatable {
     /// Static API key (existing BYOK model).
     case apiKey
     /// OAuth 2.0 with PKCE (browser-based sign-in).
@@ -10,7 +10,7 @@ public enum AuthMethod: Sendable, Codable {
 }
 
 /// Configuration for an OAuth 2.0 provider.
-public struct OAuthConfig: Sendable, Codable {
+public struct OAuthConfig: Sendable, Codable, Equatable {
     /// The OAuth client ID registered with the provider.
     public let clientId: String
 
@@ -99,6 +99,22 @@ public struct PKCEChallenge: Sendable {
 
         return PKCEChallenge(verifier: verifier, challenge: challenge)
     }
+}
+
+// MARK: - OAuth Feature Flag
+
+/// Controls whether OAuth sign-in is exposed in the UI and available for
+/// providers. When `false`, OpenAI and Google fall back to API-key mode.
+///
+/// OAuth is gated because:
+/// - Client IDs are placeholders (no real public-client config exists yet)
+/// - PKCE verifier plumbing was incomplete
+///
+/// Set to `true` once real OAuth client registrations are in place and the
+/// full flow has been end-to-end tested.
+public enum OAuthFeature {
+    /// Master switch for OAuth. Currently **off** — providers use API-key mode.
+    nonisolated(unsafe) public static var isEnabled: Bool = false
 }
 
 // MARK: - Common OAuth Provider Configurations

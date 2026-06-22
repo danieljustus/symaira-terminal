@@ -9,6 +9,8 @@ public struct OnboardingView: View {
     @State private var selectedProvider: ProviderID = .anthropic
     @State private var keySaved = false
     @State private var keyError: String?
+    @State private var isSigningIn = false
+    @State private var oauthError: String?
     @Binding var isPresented: Bool
 
     public init(providerStore: ProviderStore, isPresented: Binding<Bool>) {
@@ -96,18 +98,27 @@ public struct OnboardingView: View {
                 keyError = nil
             }
 
-            HStack {
-                SecureField("API Key", text: $apiKey)
-                    .textFieldStyle(.roundedBorder)
-                    .onChange(of: apiKey) { _, _ in
-                        keySaved = false
-                        keyError = nil
+            if selectedProvider.supportsOAuth {
+                Button {
+                    signInWithOAuthFromOnboarding()
+                } label: {
+                    if isSigningIn {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else {
+                        Label("Sign in with \(selectedProvider.displayName)", systemImage: "person.fill")
                     }
-
-                Button("Save") {
-                    saveKey()
                 }
-                .disabled(apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .disabled(isSigningIn)
+            }
+
+            if selectedProvider.supportsAPIKey {
+                if selectedProvider.supportsOAuth {
+                    Text("Or add an API key instead:")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                apiKeyField
             }
 
             if keySaved {
@@ -119,6 +130,22 @@ public struct OnboardingView: View {
                     .font(.caption)
                     .foregroundColor(.orange)
             }
+        }
+    }
+
+    private var apiKeyField: some View {
+        HStack {
+            SecureField("API Key", text: $apiKey)
+                .textFieldStyle(.roundedBorder)
+                .onChange(of: apiKey) { _, _ in
+                    keySaved = false
+                    keyError = nil
+                }
+
+            Button("Save") {
+                saveKey()
+            }
+            .disabled(apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
     }
 
@@ -202,6 +229,21 @@ public struct OnboardingView: View {
         } catch {
             keySaved = false
             keyError = "Could not save key to Keychain."
+        }
+    }
+
+    private func signInWithOAuthFromOnboarding() {
+        isSigningIn = true
+        oauthError = nil
+        Task {
+            do {
+                try await providerStore.signInWithOAuth(for: selectedProvider)
+                UserDefaults.standard.set(true, forKey: "onboardingCompleted")
+                isPresented = false
+            } catch {
+                oauthError = error.localizedDescription
+                isSigningIn = false
+            }
         }
     }
 

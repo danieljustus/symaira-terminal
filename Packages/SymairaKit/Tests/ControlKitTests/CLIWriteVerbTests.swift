@@ -123,7 +123,7 @@ struct CLIWriteVerbTests {
     func blockedReturnsNil() async throws {
         guard ProcessInfo.processInfo.environment["CI"] != "true" else { return }
         let tmpSocket = NSTemporaryDirectory() + "cli-blocked-\(UUID().uuidString).sock"
-        let provider = MockControlProvider(blockedID: nil)
+        let provider = MockControlProvider()
         let server = ControlServer(socketPath: tmpSocket)
         try await server.start(provider: provider)
         defer { Task { await server.stop() } }
@@ -140,7 +140,8 @@ struct CLIWriteVerbTests {
         guard ProcessInfo.processInfo.environment["CI"] != "true" else { return }
         let blockedID = UUID()
         let tmpSocket = NSTemporaryDirectory() + "cli-blocked2-\(UUID().uuidString).sock"
-        let provider = MockControlProvider(blockedID: blockedID)
+        let provider = MockControlProvider()
+        await provider.setBlockedID(blockedID)
         let server = ControlServer(socketPath: tmpSocket)
         try await server.start(provider: provider)
         defer { Task { await server.stop() } }

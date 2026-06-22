@@ -13,9 +13,8 @@ actor MockControlProvider: OrchestrationControlProvider {
     var focusedIDs: [UUID] = []
     var blockedID: UUID?
 
-    init(snapshot: OrchestrationSnapshot = OrchestrationSnapshot(), blockedID: UUID? = nil) {
+    init(snapshot: OrchestrationSnapshot = OrchestrationSnapshot()) {
         self.fixedSnapshot = snapshot
-        self.blockedID = blockedID
     }
 
     func snapshot() async throws -> OrchestrationSnapshot { fixedSnapshot }

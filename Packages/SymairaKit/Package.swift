@@ -14,8 +14,7 @@ let package = Package(
         .library(name: "StackKit", targets: ["StackKit"]),
         .library(name: "UsageKit", targets: ["UsageKit"]),
         .library(name: "SymairaUI", targets: ["SymairaUI"]),
-        .library(name: "ControlKit", targets: ["ControlKit"]),
-        .library(name: "MCPKit", targets: ["MCPKit"])
+        .library(name: "ControlKit", targets: ["ControlKit"])
     ],
     dependencies: [
         // Engine pin — exact version on purpose, libghostty's API is not stable
@@ -57,9 +56,9 @@ let package = Package(
         // MCP server for symterminal — exposes orchestration tools via MCP protocol.
         .target(name: "MCPKit", dependencies: ["ControlKit", "TerminalCore"]),
 
-        // Command-line interface: `symterminal status [--json]`, `symterminal mcp`
+        // Command-line interface: `symterminal status [--json]`
         // Connect to a running Symaira Terminal instance via ControlKit.
-        .executableTarget(name: "symterminal", dependencies: ["ControlKit", "MCPKit"]),
+        .executableTarget(name: "symterminal", dependencies: ["ControlKit"]),
 
         // Manual GUI smoke check for the engine pipeline (not run in CI):
         // `swift run TerminalSmoke`

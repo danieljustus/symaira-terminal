@@ -72,15 +72,15 @@ public final class ProviderStore: ObservableObject {
         }
 
         let authenticator = OAuthAuthenticator()
-        let callbackURL = try await authenticator.authorize(config: config)
+        let result = try await authenticator.authorize(config: config)
 
-        guard let code = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false)?
+        guard let code = URLComponents(url: result.url, resolvingAgainstBaseURL: false)?
             .queryItems?.first(where: { $0.name == "code" })?.value else {
             throw OAuthError.noAccessToken
         }
 
         let tokenClient = OAuthTokenClient()
-        let token = try await tokenClient.exchangeCode(code, config: config, codeVerifier: "")
+        let token = try await tokenClient.exchangeCode(code, config: config, codeVerifier: result.codeVerifier)
         try setOAuthToken(token, for: provider)
     }
 
