@@ -96,26 +96,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.serviceProvider = serviceProvider
         NSApp.servicesProvider = serviceProvider
 
-        let controlAdapter = OrchestrationControlAdapter(paneManager: manager)
-        self.controlAdapter = controlAdapter
-
-        let controlServer = ControlServer()
-        self.controlServer = controlServer
-        do {
-            try controlServer.start(provider: controlAdapter)
-            NSLog("symaira: control server listening at %@", controlServer.socketPath)
-        } catch {
-            NSLog("symaira: failed to start control server: %@", String(describing: error))
-        }
-
-        let mcpServer = MCPServer()
-        self.mcpServer = mcpServer
-        do {
-            try mcpServer.start(provider: controlAdapter)
-            NSLog("symaira: mcp server listening at %@", mcpServer.socketPath)
-        } catch {
-            NSLog("symaira: failed to start mcp server: %@", String(describing: error))
-        }
+        startControlSurface(paneManager: manager)
 
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 960, height: 600),
@@ -296,6 +277,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             state.windowFrame = frame
         }
         try? SessionPersistence.shared.save(state)
+    }
+
+    private func startControlSurface(paneManager: PaneManager) {
+        let controlAdapter = OrchestrationControlAdapter(paneManager: paneManager)
+        self.controlAdapter = controlAdapter
+
+        let controlServer = ControlServer()
+        self.controlServer = controlServer
+        do {
+            try controlServer.start(provider: controlAdapter)
+            NSLog("symaira: control server listening at %@", controlServer.socketPath)
+        } catch {
+            NSLog("symaira: failed to start control server: %@", String(describing: error))
+        }
+
+        let mcpServer = MCPServer()
+        self.mcpServer = mcpServer
+        do {
+            try mcpServer.start(provider: controlAdapter)
+            NSLog("symaira: mcp server listening at %@", mcpServer.socketPath)
+        } catch {
+            NSLog("symaira: failed to start mcp server: %@", String(describing: error))
+        }
     }
 
     private func restoreSession(_ state: SessionState, window: NSWindow, manager: PaneManager) {
