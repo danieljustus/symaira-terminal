@@ -171,10 +171,21 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          gh release create "v${VERSION}" \
-            "build/release/SymairaTerminal-${VERSION}.dmg#SymairaTerminal-${VERSION}.dmg" \
-            --title "v${VERSION}" \
-            --generate-notes
+          DMG_PATH="build/release/SymairaTerminal-${VERSION}.dmg"
+          ASSET_LABEL="SymairaTerminal-${VERSION}.dmg"
+          # If the release was already created (e.g. by /07-gh-release), upload the DMG to it.
+          if gh release view "v${VERSION}" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release v${VERSION} already exists. Uploading DMG asset."
+            gh release upload "v${VERSION}" \
+              "${DMG_PATH}#${ASSET_LABEL}" \
+              --repo "$GITHUB_REPOSITORY" \
+              --clobber
+          else
+            gh release create "v${VERSION}" \
+              "${DMG_PATH}#${ASSET_LABEL}" \
+              --title "v${VERSION}" \
+              --generate-notes
+          fi
 
       - name: Update Homebrew tap
         env:
