@@ -14,7 +14,8 @@ let package = Package(
         .library(name: "StackKit", targets: ["StackKit"]),
         .library(name: "UsageKit", targets: ["UsageKit"]),
         .library(name: "SymairaUI", targets: ["SymairaUI"]),
-        .library(name: "ControlKit", targets: ["ControlKit"])
+        .library(name: "ControlKit", targets: ["ControlKit"]),
+        .library(name: "MCPKit", targets: ["MCPKit"])
     ],
     dependencies: [
         // Engine pin — exact version on purpose, libghostty's API is not stable
