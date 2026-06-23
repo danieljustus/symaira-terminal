@@ -262,8 +262,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         SleepPreventionManager.shared.deactivateAssertion()
         saveSession()
         paneManager?.panes.forEach { $0.close() }
-        controlServer?.stop()
-        mcpServer?.stop()
+        Task {
+            await controlServer?.stop()
+            await mcpServer?.stop()
+        }
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
@@ -285,20 +287,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let controlServer = ControlServer()
         self.controlServer = controlServer
-        do {
-            try controlServer.start(provider: controlAdapter)
-            NSLog("symaira: control server listening at %@", controlServer.socketPath)
-        } catch {
-            NSLog("symaira: failed to start control server: %@", String(describing: error))
+        Task {
+            do {
+                try await controlServer.start(provider: controlAdapter)
+                NSLog("symaira: control server listening at %@", controlServer.socketPath)
+            } catch {
+                NSLog("symaira: failed to start control server: %@", String(describing: error))
+            }
         }
 
         let mcpServer = MCPServer()
         self.mcpServer = mcpServer
-        do {
-            try mcpServer.start(provider: controlAdapter)
-            NSLog("symaira: mcp server listening at %@", mcpServer.socketPath)
-        } catch {
-            NSLog("symaira: failed to start mcp server: %@", String(describing: error))
+        Task {
+            do {
+                try await mcpServer.start(provider: controlAdapter)
+                NSLog("symaira: mcp server listening at %@", mcpServer.socketPath)
+            } catch {
+                NSLog("symaira: failed to start mcp server: %@", String(describing: error))
+            }
         }
     }
 
