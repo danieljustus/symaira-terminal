@@ -290,7 +290,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Task {
             do {
                 try await controlServer.start(provider: controlAdapter)
-                NSLog("symaira: control server listening at %@", controlServer.socketPath)
+                let path = await controlServer.socketPath
+                NSLog("symaira: control server listening at %@", path)
             } catch {
                 NSLog("symaira: failed to start control server: %@", String(describing: error))
             }
@@ -301,7 +302,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Task {
             do {
                 try await mcpServer.start(provider: controlAdapter)
-                NSLog("symaira: mcp server listening at %@", mcpServer.socketPath)
+                let path = await mcpServer.socketPath
+                NSLog("symaira: mcp server listening at %@", path)
             } catch {
                 NSLog("symaira: failed to start mcp server: %@", String(describing: error))
             }
