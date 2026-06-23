@@ -32,6 +32,8 @@ targets:
         product: SymairaUI
       - package: SymairaKit
         product: ControlKit
+      - package: SymairaKit
+        product: MCPKit
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.symaira.terminal
