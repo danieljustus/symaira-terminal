@@ -18,6 +18,9 @@ final class PaneManager {
     private var oscParsers: [UUID: OSCStreamParser] = [:]
     var worktreeManager: WorktreeManager?
 
+    /// Test hook: override to control NSAlert responses without displaying UI.
+    var alertRunner: ((NSAlert) -> NSApplication.ModalResponse)?
+
     var onPaneChanged: ((TerminalPane?) -> Void)?
     var onPanesChanged: (([TerminalPane]) -> Void)?
     var onOSCTap: ((UUID, OSCEvent) -> Void)?

@@ -22,7 +22,7 @@ extension PaneManager: TerminalMCPDelegate {
 
         NSApp.activate(ignoringOtherApps: true)
 
-        let response = alert.runModal()
+        let response = alertRunner?(alert) ?? alert.runModal()
         if response == .alertFirstButtonReturn {
             _ = self.createPane(at: TerminalSurfaceConfiguration(command: command))
             return true

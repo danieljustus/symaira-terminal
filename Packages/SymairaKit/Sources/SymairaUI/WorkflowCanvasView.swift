@@ -28,11 +28,32 @@ public struct WorkflowCanvasView: View {
         if let url = Bundle.main.url(forResource: "index", withExtension: "html", subdirectory: "WorkflowCanvas") {
             webView.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
         } else {
-            // Fallback for development if resources are loaded differently or via SPM resources
-            let devPath = "/Users/daniel/Dev/Symaira Dev/symaira-terminal/Resources/WorkflowCanvas/index.html"
-            let url = URL(fileURLWithPath: devPath)
-            webView.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
+            let html = missingResourceHTML()
+            webView.loadHTMLString(html, baseURL: nil)
         }
+    }
+
+    func missingResourceHTML() -> String {
+        """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <style>
+                body { margin: 0; height: 100vh; display: flex; align-items: center; justify-content: center; background: #0b0d11; color: #9ca3af; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
+                .box { text-align: center; padding: 24px; }
+                h1 { color: #e5e7eb; font-size: 18px; margin-bottom: 8px; }
+                p { font-size: 13px; margin: 0; }
+            </style>
+        </head>
+        <body>
+            <div class="box">
+                <h1>Workflow Canvas unavailable</h1>
+                <p>The Workflow Canvas resource bundle is missing.</p>
+            </div>
+        </body>
+        </html>
+        """
     }
 }
 

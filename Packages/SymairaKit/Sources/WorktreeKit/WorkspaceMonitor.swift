@@ -43,15 +43,20 @@ public actor WorkspaceMonitor {
     // MARK: - TTL constants
 
     public static let gitInfoTTL: TimeInterval = 20
+    public static let prInfoTTL: TimeInterval = 120
     public static let sysInfoTTL: TimeInterval = 8
+    public static let maxGitCacheEntries = 50
 
     // MARK: - Private cache state
 
     private struct GitCacheEntry { let result: GitAndPRResult; let timestamp: Date }
+    private struct PRCacheEntry { let result: GitAndPRResult; let timestamp: Date }
     private struct ProcessTreeCacheEntry { let result: [Int32: Int32]; let timestamp: Date }
     private struct PortCacheEntry { let result: [PortInfo]; let timestamp: Date }
 
     private var gitInfoCache: [String: GitCacheEntry] = [:]
+    private var prInfoCache: [String: PRCacheEntry] = [:]
+    private var inFlightRequests: [String: Task<GitAndPRResult, Never>] = [:]
     private var processTreeCache: ProcessTreeCacheEntry?
     private var portCache: PortCacheEntry?
 
@@ -136,20 +141,65 @@ public actor WorkspaceMonitor {
         return result
     }
 
-    public func cachedGitAndPRInfo(for cwd: URL) async -> GitAndPRResult {
+    public func cachedGitAndPRInfo(for cwd: URL, includePRInfo: Bool = false) async -> GitAndPRResult {
         let key = cwd.path
+
+        if let existing = inFlightRequests[key] {
+            return await existing.value
+        }
+
+        let task = Task { await uncachedGitAndPRInfo(for: cwd, key: key, includePRInfo: includePRInfo) }
+        inFlightRequests[key] = task
+        let result = await task.value
+        inFlightRequests.removeValue(forKey: key)
+        return result
+    }
+
+    private func uncachedGitAndPRInfo(for cwd: URL, key: String, includePRInfo: Bool) async -> GitAndPRResult {
+        let gitResult: GitAndPRResult
         if let entry = gitInfoCache[key],
            Date().timeIntervalSince(entry.timestamp) < Self.gitInfoTTL {
-            return entry.result
+            gitResult = entry.result
+        } else {
+            gitResult = await fetchGitInfo(for: cwd)
+            gitInfoCache[key] = GitCacheEntry(result: gitResult, timestamp: Date())
+            enforceGitCacheSizeLimit()
         }
-        let result = await fetchGitAndPRInfo(for: cwd)
-        gitInfoCache[key] = GitCacheEntry(result: result, timestamp: Date())
-        return result
+
+        guard includePRInfo else { return gitResult }
+
+        if let entry = prInfoCache[key],
+           Date().timeIntervalSince(entry.timestamp) < Self.prInfoTTL {
+            return combine(git: gitResult, pr: entry.result)
+        }
+
+        let prResult = await fetchPRInfo(for: cwd, branch: gitResult.branch)
+        prInfoCache[key] = PRCacheEntry(result: prResult, timestamp: Date())
+        return combine(git: gitResult, pr: prResult)
+    }
+
+    private func combine(git: GitAndPRResult, pr: GitAndPRResult) -> GitAndPRResult {
+        GitAndPRResult(
+            branch: git.branch,
+            isDirty: git.isDirty,
+            ahead: git.ahead,
+            behind: git.behind,
+            prNumber: pr.prNumber,
+            prTitle: pr.prTitle,
+            prStatus: pr.prStatus
+        )
+    }
+
+    private func enforceGitCacheSizeLimit() {
+        while gitInfoCache.count > Self.maxGitCacheEntries {
+            guard let oldest = gitInfoCache.min(by: { $0.value.timestamp < $1.value.timestamp }) else { break }
+            gitInfoCache.removeValue(forKey: oldest.key)
+        }
     }
 
     // MARK: - Private git/PR fetch
 
-    private func fetchGitAndPRInfo(for cwd: URL) async -> GitAndPRResult {
+    private func fetchGitInfo(for cwd: URL) async -> GitAndPRResult {
         let git = "/usr/bin/git"
         guard let branchOutput = await ProcessRunner.runReturningStdout(
             executable: git, arguments: ["rev-parse", "--abbrev-ref", "HEAD"],
@@ -177,41 +227,52 @@ public actor WorkspaceMonitor {
             }
         }
 
+        return GitAndPRResult(
+            branch: branch, isDirty: isDirty, ahead: ahead, behind: behind,
+            prNumber: nil, prTitle: nil, prStatus: nil
+        )
+    }
+
+    private func fetchPRInfo(for cwd: URL, branch: String?) async -> GitAndPRResult {
+        guard let branch,
+              branch != "main",
+              branch != "master",
+              branch != "HEAD" else {
+            return .empty
+        }
+
         var prNumber: Int?
         var prTitle: String?
         var prStatus: String?
 
-        let skipPRLookup = (branch == "main" || branch == "master" || branch == "HEAD")
-        if !skipPRLookup {
-            let ghPaths = ["/opt/homebrew/bin/gh", "/usr/local/bin/gh", "/usr/bin/gh"]
-            for gp in ghPaths where FileManager.default.fileExists(atPath: gp) {
-                guard let json = await ProcessRunner.runReturningStdout(
-                    executable: gp,
-                    arguments: ["pr", "view", "--json", "number,title,state,reviewDecision"],
-                    directory: cwd, timeout: 15
-                ),
-                let data = json.data(using: .utf8),
-                let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { break }
+        let ghPaths = ["/opt/homebrew/bin/gh", "/usr/local/bin/gh", "/usr/bin/gh"]
+        for gp in ghPaths where FileManager.default.fileExists(atPath: gp) {
+            guard let json = await ProcessRunner.runReturningStdout(
+                executable: gp,
+                arguments: ["pr", "view", "--json", "number,title,state,reviewDecision"],
+                directory: cwd, timeout: 15
+            ),
+            let data = json.data(using: .utf8),
+            let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { break }
 
-                prNumber = obj["number"] as? Int
-                prTitle  = obj["title"]  as? String
-                let state    = obj["state"]          as? String ?? ""
-                let decision = obj["reviewDecision"] as? String ?? ""
-                if state == "MERGED" {
-                    prStatus = "merged"
-                } else if state == "CLOSED" {
-                    prStatus = "closed"
-                } else if state == "OPEN" {
-                    prStatus = decision == "APPROVED" ? "approved"
-                             : decision == "CHANGES_REQUESTED" ? "changes_requested"
-                             : "open"
-                }
-                break
+            prNumber = obj["number"] as? Int
+            prTitle  = obj["title"]  as? String
+            let state    = obj["state"]          as? String ?? ""
+            let decision = obj["reviewDecision"] as? String ?? ""
+            if state == "MERGED" {
+                prStatus = "merged"
+            } else if state == "CLOSED" {
+                prStatus = "closed"
+            } else if state == "OPEN" {
+                prStatus = decision == "APPROVED" ? "approved"
+                         : decision == "CHANGES_REQUESTED" ? "changes_requested"
+                         : "open"
             }
+            break
         }
 
         return GitAndPRResult(
-            branch: branch, isDirty: isDirty, ahead: ahead, behind: behind,
+            branch: branch, isDirty: false, ahead: 0, behind: 0,
             prNumber: prNumber, prTitle: prTitle, prStatus: prStatus
         )
     }

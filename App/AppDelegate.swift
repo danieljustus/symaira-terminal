@@ -7,6 +7,8 @@ import ProviderKit
 import StackKit
 import SymairaUI
 import WorktreeKit
+import ControlKit
+import MCPKit
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -34,6 +36,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var onboardingWindow: NSWindow?
     private var sketchpadWindow: NSWindow?
     private var serviceProvider: TerminalServiceProvider?
+    private var controlAdapter: OrchestrationControlAdapter?
+    private var controlServer: ControlServer?
+    private var mcpServer: MCPServer?
     private lazy var workflowCoordinator: WorkflowCoordinator = {
         WorkflowCoordinator(paneManager: paneManager, sidebarViewModel: sidebarViewModel)
     }()
@@ -90,6 +95,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let serviceProvider = TerminalServiceProvider(paneManager: manager)
         self.serviceProvider = serviceProvider
         NSApp.servicesProvider = serviceProvider
+
+        startControlSurface(paneManager: manager)
 
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 960, height: 600),
@@ -250,11 +257,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         true
     }
 
+    func application(_ application: NSApplication, open urls: [URL]) {
+        let handler = URLSchemeHandler()
+        for url in urls {
+            guard let command = handler.parse(url) else { continue }
+            switch command {
+            case .openDirectory(let directory):
+                _ = paneManager?.createPane(inDirectory: directory)
+            case .openTab(let command):
+                if let command, !command.isEmpty {
+                    Task {
+                        _ = await paneManager?.openTab(command: command)
+                    }
+                } else {
+                    _ = paneManager?.createPane()
+                }
+            }
+        }
+    }
+
     func applicationWillTerminate(_: Notification) {
         monitorTask?.cancel()
         SleepPreventionManager.shared.deactivateAssertion()
         saveSession()
         paneManager?.panes.forEach { $0.close() }
+        Task {
+            await controlServer?.stop()
+            await mcpServer?.stop()
+        }
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
@@ -268,6 +298,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             state.windowFrame = frame
         }
         try? SessionPersistence.shared.save(state)
+    }
+
+    private func startControlSurface(paneManager: PaneManager) {
+        let controlAdapter = OrchestrationControlAdapter(paneManager: paneManager)
+        self.controlAdapter = controlAdapter
+
+        let controlServer = ControlServer()
+        self.controlServer = controlServer
+        Task {
+            do {
+                try await controlServer.start(provider: controlAdapter)
+                let path = await controlServer.socketPath
+                NSLog("symaira: control server listening at %@", path)
+            } catch {
+                NSLog("symaira: failed to start control server: %@", String(describing: error))
+            }
+        }
+
+        let mcpServer = MCPServer()
+        self.mcpServer = mcpServer
+        Task {
+            do {
+                try await mcpServer.start(provider: controlAdapter)
+                let path = await mcpServer.socketPath
+                NSLog("symaira: mcp server listening at %@", path)
+            } catch {
+                NSLog("symaira: failed to start mcp server: %@", String(describing: error))
+            }
+        }
     }
 
     private func restoreSession(_ state: SessionState, window: NSWindow, manager: PaneManager) {
@@ -497,7 +556,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 ?? pane.configuration.workingDirectory
                 ?? URL(fileURLWithPath: NSHomeDirectory())
 
-            let gitResult = await workspaceMonitor.cachedGitAndPRInfo(for: cwd)
+            let gitResult = await workspaceMonitor.cachedGitAndPRInfo(for: cwd, includePRInfo: isActive)
 
             let shellPID = pane.pid
             let panePorts = listeningPorts.filter { portInfo in
