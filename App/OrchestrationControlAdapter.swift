@@ -136,12 +136,8 @@ final class OrchestrationControlAdapter: OrchestrationControlProvider {
     }
 
     func requestOpenTab(command: String) async throws -> TabRequestResult {
-        let requestID = UUID()
-        var config = TerminalSurfaceConfiguration()
-        config.environment = EnvironmentSanitizer.sanitizedProcessEnvironment()
-        config.command = command
-        paneManager.createPane(at: config)
-        return TabRequestResult(requestID: requestID, status: "opened")
+        let allowed = await paneManager.openTab(command: command)
+        return TabRequestResult(status: allowed ? "opened" : "denied")
     }
 
     // MARK: - Helpers
