@@ -257,6 +257,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         true
     }
 
+    func application(_ application: NSApplication, open urls: [URL]) {
+        let handler = URLSchemeHandler()
+        for url in urls {
+            guard let command = handler.parse(url) else { continue }
+            switch command {
+            case .openDirectory(let directory):
+                _ = paneManager?.createPane(inDirectory: directory)
+            case .openTab(let command):
+                if let command, !command.isEmpty {
+                    Task {
+                        _ = await paneManager?.openTab(command: command)
+                    }
+                } else {
+                    _ = paneManager?.createPane()
+                }
+            }
+        }
+    }
+
     func applicationWillTerminate(_: Notification) {
         monitorTask?.cancel()
         SleepPreventionManager.shared.deactivateAssertion()

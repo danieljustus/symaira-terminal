@@ -42,6 +42,14 @@
 				<string>symaira-oauth</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.symaira.terminal</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>symaira-terminal</string>
+			</array>
+		</dict>
 	</array>
 	<key>NSServices</key>
 	<array>
