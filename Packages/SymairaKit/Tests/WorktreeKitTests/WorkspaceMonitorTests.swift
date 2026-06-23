@@ -78,4 +78,8 @@ python   5678   alice  10u  IPv6  23456      0t0  TCP *:8080 (LISTEN)
         let map: [Int32: Int32] = [1: 1]
         XCTAssertFalse(WorkspaceMonitor.isDescendant(pid: 1, parentPID: 99, parentMap: map))
     }
+
+    func testPRLookupTTLIsLongerThanGitTTL() {
+        XCTAssertGreaterThan(WorkspaceMonitor.prInfoTTL, WorkspaceMonitor.gitInfoTTL)
+    }
 }

@@ -556,7 +556,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 ?? pane.configuration.workingDirectory
                 ?? URL(fileURLWithPath: NSHomeDirectory())
 
-            let gitResult = await workspaceMonitor.cachedGitAndPRInfo(for: cwd)
+            let gitResult = await workspaceMonitor.cachedGitAndPRInfo(for: cwd, includePRInfo: isActive)
 
             let shellPID = pane.pid
             let panePorts = listeningPorts.filter { portInfo in
