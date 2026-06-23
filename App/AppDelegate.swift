@@ -7,6 +7,8 @@ import ProviderKit
 import StackKit
 import SymairaUI
 import WorktreeKit
+import ControlKit
+import MCPKit
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -34,6 +36,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var onboardingWindow: NSWindow?
     private var sketchpadWindow: NSWindow?
     private var serviceProvider: TerminalServiceProvider?
+    private var controlAdapter: OrchestrationControlAdapter?
+    private var controlServer: ControlServer?
+    private var mcpServer: MCPServer?
     private lazy var workflowCoordinator: WorkflowCoordinator = {
         WorkflowCoordinator(paneManager: paneManager, sidebarViewModel: sidebarViewModel)
     }()
@@ -90,6 +95,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let serviceProvider = TerminalServiceProvider(paneManager: manager)
         self.serviceProvider = serviceProvider
         NSApp.servicesProvider = serviceProvider
+
+        let controlAdapter = OrchestrationControlAdapter(paneManager: manager)
+        self.controlAdapter = controlAdapter
+
+        let controlServer = ControlServer()
+        self.controlServer = controlServer
+        do {
+            try controlServer.start(provider: controlAdapter)
+            NSLog("symaira: control server listening at %@", controlServer.socketPath)
+        } catch {
+            NSLog("symaira: failed to start control server: %@", String(describing: error))
+        }
+
+        let mcpServer = MCPServer()
+        self.mcpServer = mcpServer
+        do {
+            try mcpServer.start(provider: controlAdapter)
+            NSLog("symaira: mcp server listening at %@", mcpServer.socketPath)
+        } catch {
+            NSLog("symaira: failed to start mcp server: %@", String(describing: error))
+        }
 
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 960, height: 600),
@@ -255,6 +281,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         SleepPreventionManager.shared.deactivateAssertion()
         saveSession()
         paneManager?.panes.forEach { $0.close() }
+        controlServer?.stop()
+        mcpServer?.stop()
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
