@@ -1,3 +1,6 @@
+#if canImport(AppKit)
+import AppKit
+#endif
 import Foundation
 
 /// Serializable snapshot of one terminal pane's configuration for persistence

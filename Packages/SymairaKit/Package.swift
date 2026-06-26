@@ -38,7 +38,7 @@ let package = Package(
         ),
 
         .target(name: "AgentKit", dependencies: ["TerminalCore", "ProviderKit"]),
-        .target(name: "WorktreeKit", dependencies: ["ProviderKit"]),
+        .target(name: "WorktreeKit", dependencies: ["TerminalCore"]),
         .target(name: "ProviderKit"),
         .target(name: "ContextBank"),
         .target(name: "StackKit"),
@@ -72,7 +72,7 @@ let package = Package(
         .testTarget(name: "TerminalCoreTests", dependencies: ["TerminalCore"]),
         .testTarget(name: "AgentKitTests", dependencies: ["AgentKit"]),
         .testTarget(name: "WorktreeKitTests", dependencies: ["WorktreeKit"]),
-        .testTarget(name: "ProviderKitTests", dependencies: ["ProviderKit"]),
+        .testTarget(name: "ProviderKitTests", dependencies: ["ProviderKit", "TerminalCore"]),
         .testTarget(name: "ContextBankTests", dependencies: ["ContextBank"]),
         .testTarget(name: "StackKitTests", dependencies: ["StackKit"]),
         .testTarget(name: "UsageKitTests", dependencies: ["UsageKit"]),
