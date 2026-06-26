@@ -83,7 +83,9 @@ jobs:
             -project SymairaTerminal.xcodeproj \
             -scheme SymairaTerminal \
             -archivePath build/release/SymairaTerminal.xcarchive \
-            -configuration Release
+            -configuration Release \
+            MARKETING_VERSION="${VERSION}" \
+            CURRENT_PROJECT_VERSION="${GITHUB_RUN_NUMBER}"
 
       - name: Export archive
         if: steps.signing.outputs.signed == 'true'
@@ -116,6 +118,8 @@ jobs:
             -scheme SymairaTerminal \
             -configuration Release \
             -derivedDataPath build/release/DerivedData \
+            MARKETING_VERSION="${VERSION}" \
+            CURRENT_PROJECT_VERSION="${GITHUB_RUN_NUMBER}" \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO
@@ -152,6 +156,21 @@ jobs:
             --key "$KEY_PATH" \
             --wait
           xcrun stapler staple "$APP_PATH"
+
+      - name: Verify bundle version
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          APP_PATH=$(find build/release/export -name "*.app" -type d | head -1)
+          if [ -z "$APP_PATH" ]; then
+            echo "::error::No .app found for version verification."
+            exit 1
+          fi
+          BUNDLE_VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP_PATH/Contents/Info.plist")
+          if [ "$BUNDLE_VERSION" != "$VERSION" ]; then
+            echo "::error::Bundle CFBundleShortVersionString is $BUNDLE_VERSION, expected $VERSION."
+            exit 1
+          fi
+          echo "Verified bundle version: $BUNDLE_VERSION"
 
       - name: Create DMG
         run: |
