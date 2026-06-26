@@ -74,14 +74,15 @@ public actor IncrementalReadCache {
     }
 
     private nonisolated func getOffsetSync(path: String, currentMtime: Date) -> Int64 {
-        var result: Int64 = 0
         let semaphore = DispatchSemaphore(value: 0)
+        let box = SendableBox<Int64>(0)
         Task { @Sendable [self] in
-            result = await self.readOffset(for: path, currentMtime: currentMtime)
+            let value = await self.readOffset(for: path, currentMtime: currentMtime)
+            box.value = value
             semaphore.signal()
         }
         semaphore.wait()
-        return result
+        return box.value
     }
 
     private nonisolated func updateOffsetSync(_ offset: Int64, path: String, mtime: Date) {
@@ -92,6 +93,11 @@ public actor IncrementalReadCache {
         }
         semaphore.wait()
     }
+}
+
+private final class SendableBox<T>: @unchecked Sendable {
+    var value: T
+    init(_ value: T) { self.value = value }
 }
 
 /// Drives periodic refresh of the `UsageStore` with App Nap awareness.
