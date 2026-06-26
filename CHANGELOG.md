@@ -5,6 +5,22 @@ All notable changes to Symaira Terminal will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.1] — 2026-06-26
+
+### Fixed
+- `symterm +tab` now joins all CLI arguments and passes the caller's working directory through the URL scheme (#218)
+- `TerminalCore` is now free of AppKit types; view-hosting is accessed via downcast in the App layer (#219)
+- `SecretRedactor` moved from `ProviderKit` to `TerminalCore`, removing the sideways `WorktreeKit → ProviderKit` dependency (#220)
+- Enforce the advertised local socket connection cap (#214)
+- Avoid embedding Homebrew tap PAT in git clone URL (#215)
+- Honor MCP scrollback schema contract — `read_pane_output` without `pane_id` now returns focused pane output (#216)
+- Clear app-owned scrollback buffer when users clear scrollback (#217)
+- Wire incremental usage reads and throttle quota refreshes (#221, #222)
+
+### Changed
+- Bump `actions/checkout` from 6.0.3 to 7.0.0 (#212)
+- Make Release workflow idempotent — upload DMG to existing release when tag already exists (#211)
+
 ## [0.8.0] — 2026-06-22
 
 ### Added
@@ -171,7 +187,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 26 unit tests across all modules
 - ADR-001: Terminal engine choice + pin strategy
 
-[Unreleased]: https://github.com/danieljustus/symaira-terminal/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/danieljustus/symaira-terminal/compare/v0.8.1...HEAD
 [0.8.0]: https://github.com/danieljustus/symaira-terminal/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/danieljustus/symaira-terminal/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/danieljustus/symaira-terminal/compare/v0.5.0...v0.6.0
