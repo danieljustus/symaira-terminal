@@ -13,7 +13,7 @@ extension PaneManager: TerminalMCPDelegate {
         return ""
     }
 
-    public func openTab(command: String) async -> Bool {
+    public func openTab(command: String, workingDirectory: URL? = nil) async -> Bool {
         let alert = NSAlert()
         alert.messageText = "AI Request: Open New Tab"
         alert.informativeText = "An AI agent is requesting to open a new terminal tab and execute the following command:\n\n\(command)\n\nDo you want to allow this?"
@@ -24,7 +24,13 @@ extension PaneManager: TerminalMCPDelegate {
 
         let response = alertRunner?(alert) ?? alert.runModal()
         if response == .alertFirstButtonReturn {
-            _ = self.createPane(at: TerminalSurfaceConfiguration(command: command))
+            if let workingDirectory {
+                var config = TerminalSurfaceConfiguration(command: command)
+                config.workingDirectory = workingDirectory
+                _ = self.createPane(at: config)
+            } else {
+                _ = self.createPane(at: TerminalSurfaceConfiguration(command: command))
+            }
             return true
         }
         return false

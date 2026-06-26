@@ -38,7 +38,11 @@ final class TerminalPane: PaneContainer {
     private lazy var containerView: NSView = {
         let container = NSView()
 
-        if let terminalView = surface?.view {
+        // TerminalSurface no longer exposes a view (TerminalCore is AppKit-free).
+        // The concrete GhosttySurfaceController in GhosttyBridge owns the NSView;
+        // downcast to access it.
+        if let ghosttySurface = surface as? GhosttySurfaceController {
+            let terminalView = ghosttySurface.view
             terminalView.translatesAutoresizingMaskIntoConstraints = false
             container.addSubview(terminalView)
         }

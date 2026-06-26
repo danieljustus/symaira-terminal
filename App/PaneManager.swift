@@ -237,7 +237,12 @@ final class PaneManager {
     /// forward key events to the Metal surface, so the terminal would silently
     /// swallow input. Falls back to the container only if the surface is absent.
     private func focusSurface(of pane: TerminalPane) {
-        let target = pane.surface?.view ?? pane.view
+        let target: NSView
+        if let ghosttySurface = pane.surface as? GhosttySurfaceController {
+            target = ghosttySurface.view
+        } else {
+            target = pane.view
+        }
         target.window?.makeFirstResponder(target)
     }
 

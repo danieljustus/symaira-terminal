@@ -1,6 +1,6 @@
 import Darwin
 import Foundation
-import ProviderKit
+import TerminalCore
 
 public struct Worktree: Equatable, Hashable, Sendable {
     public let taskID: String

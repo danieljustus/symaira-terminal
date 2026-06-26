@@ -1,6 +1,3 @@
-#if canImport(AppKit)
-import AppKit
-#endif
 import Foundation
 
 /// Engine-neutral abstraction over the terminal rendering/emulation backend.
@@ -18,13 +15,13 @@ public protocol TerminalEngine: AnyObject {
 }
 
 /// One terminal pane: a live emulation grid bound to a child process.
+///
+/// View-hosting is intentionally excluded from this protocol. `TerminalCore`
+/// must remain free of AppKit types (see AGENTS.md). Concrete engine
+/// implementations (e.g. `GhosttySurfaceController` in `GhosttyBridge`) expose
+/// their `NSView` directly; the App layer downcasts to access it.
 @MainActor
 public protocol TerminalSurface: AnyObject {
-    #if canImport(AppKit)
-    /// The view to host in the pane hierarchy. The engine owns rendering.
-    var view: NSView { get }
-    #endif
-
     /// Tap on the raw PTY output stream (called on an arbitrary queue) so the
     /// host can run `OSCStreamParser` for agent awareness without interfering
     /// with the engine's own VT processing.

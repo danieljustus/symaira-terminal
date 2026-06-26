@@ -1,5 +1,5 @@
 import XCTest
-@testable import ProviderKit
+@testable import TerminalCore
 
 final class SecretRedactorTests: XCTestCase {
     private var redactor: SecretRedactor!

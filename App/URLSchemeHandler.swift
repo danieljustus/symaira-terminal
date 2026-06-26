@@ -2,7 +2,7 @@ import Foundation
 
 enum URLSchemeCommand {
     case openDirectory(URL)
-    case openTab(command: String?)
+    case openTab(command: String?, workingDirectory: URL?)
 }
 
 struct URLSchemeHandler {
@@ -18,7 +18,9 @@ struct URLSchemeHandler {
             }
         case "new-tab":
             let command = components.queryItems?.first(where: { $0.name == "command" })?.value
-            return .openTab(command: command)
+            let cwdValue = components.queryItems?.first(where: { $0.name == "cwd" })?.value
+            let workingDirectory = cwdValue.flatMap { URL(fileURLWithPath: $0) }
+            return .openTab(command: command, workingDirectory: workingDirectory)
         default:
             break
         }

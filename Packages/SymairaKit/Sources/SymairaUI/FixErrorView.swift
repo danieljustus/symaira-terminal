@@ -1,6 +1,7 @@
 import SwiftUI
 import AgentKit
 import ProviderKit
+import TerminalCore
 
 public struct FixErrorButton: View {
     let exitCode: Int32

@@ -1,5 +1,6 @@
 import Foundation
 import ProviderKit
+import TerminalCore
 
 public struct FixErrorService: Sendable {
     private let client: ProviderChatClient
