@@ -28,15 +28,7 @@ echo "SHA256: ${SHA256}"
 
 TAP_DIR="$(mktemp -d)/homebrew-tap"
 echo "Cloning tap repo..."
-if [ -n "${HOMEBREW_TAP_GITHUB_TOKEN:-}" ]; then
-    # Provide the token via an inline credential helper so it never appears
-    # in process arguments (ps) or persists in the clone's .git/config.
-    git clone -c credential.helper='!f() { echo "username=x-access-token"; echo "password=${HOMEBREW_TAP_GITHUB_TOKEN}"; }; f' \
-        "${TAP_REPO_URL}" "${TAP_DIR}"
-    unset HOMEBREW_TAP_GITHUB_TOKEN
-else
-    git clone "${TAP_REPO_URL}" "${TAP_DIR}"
-fi
+git clone "${TAP_REPO_URL}" "${TAP_DIR}"
 
 cd "${TAP_DIR}"
 mkdir -p Casks
@@ -79,7 +71,16 @@ cp "${CASK_FILE}" "${REPO_ROOT}/Casks/${CASK_NAME}.rb"
 git add "${CASK_FILE}"
 git -c user.name="Symaira Bot" -c user.email="bot@symaira.dev" \
     commit -m "Update ${CASK_NAME} to v${VERSION}"
-git push origin main
+
+if [ -n "${HOMEBREW_TAP_GITHUB_TOKEN:-}" ]; then
+    # Provide the token only for the push. Public tap clones can succeed
+    # anonymously, so the push is the real authentication check.
+    git -c credential.helper='!f() { echo "username=x-access-token"; echo "password=${HOMEBREW_TAP_GITHUB_TOKEN}"; }; f' \
+        push origin main
+    unset HOMEBREW_TAP_GITHUB_TOKEN
+else
+    git push origin main
+fi
 
 echo "=== Homebrew tap updated: ${CASK_NAME} v${VERSION} (SHA256: ${SHA256}) ==="
 rm -rf "${TAP_DIR}"
