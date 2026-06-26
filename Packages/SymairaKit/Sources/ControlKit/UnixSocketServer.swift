@@ -93,7 +93,9 @@ public final class UnixSocketServer: @unchecked Sendable {
                 }
 
                 Task.detached {
-                    if maxConcurrentConnections > 0 { counter.decrement() }
+                    defer {
+                        if maxConcurrentConnections > 0 { counter.decrement() }
+                    }
                     await handler(clientFD)
                 }
             }

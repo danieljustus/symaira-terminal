@@ -191,17 +191,24 @@ struct ControlSecurityTests {
     @Test func connectionCapEnforced() async throws {
         guard ProcessInfo.processInfo.environment["CI"] != "true" else { return }
         let tmpSocket = NSTemporaryDirectory() + "sec-cap-\(UUID().uuidString).sock"
-        let server = ControlServer(socketPath: tmpSocket)
-        try await server.start(provider: MockControlProvider())
-        defer { Task { await server.stop() } }
+        let server = UnixSocketServer(socketPath: tmpSocket)
+        let gate = ConnectionGate()
+        let cap = 2
+
+        try server.start()
+        server.acceptLoop(maxConcurrentConnections: cap) { clientFD in
+            defer { Darwin.close(clientFD) }
+            await gate.holdAcceptedConnection()
+        }
+        defer { server.stop() }
         try await Task.sleep(nanoseconds: 10_000_000)
 
         var fds: [Int32] = []
         defer { fds.forEach { Darwin.close($0) } }
 
-        for _ in 0..<(ControlServer.maxConcurrentConnections + 2) {
+        func connectSocket() -> Int32? {
             let fd = Darwin.socket(AF_UNIX, SOCK_STREAM, 0)
-            guard fd >= 0 else { break }
+            guard fd >= 0 else { return nil }
 
             var addr = sockaddr_un()
             addr.sun_family = sa_family_t(AF_UNIX)
@@ -217,15 +224,103 @@ struct ControlSecurityTests {
                 }
             }
             if connectResult == 0 {
-                fds.append(fd)
-            } else {
-                Darwin.close(fd)
+                return fd
             }
-            try await Task.sleep(nanoseconds: 1_000_000)
+            Darwin.close(fd)
+            return nil
         }
 
-        let client = ControlClient(socketPath: tmpSocket)
-        let result = try await client.snapshot()
-        #expect(result.panes.isEmpty)
+        func isSocketClosed(_ fd: Int32) async throws -> Bool {
+            let flags = Darwin.fcntl(fd, F_GETFL, 0)
+            if flags >= 0 {
+                _ = Darwin.fcntl(fd, F_SETFL, flags | O_NONBLOCK)
+            }
+
+            var byte = UInt8(0)
+            for _ in 0..<50 {
+                let n = withUnsafeMutableBytes(of: &byte) { ptr in
+                    Darwin.read(fd, ptr.baseAddress!, 1)
+                }
+                if n == 0 { return true }
+                if n < 0 && errno != EAGAIN && errno != EWOULDBLOCK { return true }
+                try await Task.sleep(nanoseconds: 10_000_000)
+            }
+            return false
+        }
+
+        for _ in 0..<cap {
+            guard let fd = connectSocket() else {
+                Issue.record("Expected connection while below the cap")
+                return
+            }
+            fds.append(fd)
+        }
+        await gate.waitUntilAccepted(cap)
+
+        if let overflowFD = connectSocket() {
+            defer { Darwin.close(overflowFD) }
+            #expect(try await isSocketClosed(overflowFD),
+                "Overflow connection should be closed while all advertised slots are held open")
+        } else {
+            #expect(true, "Overflow connection was refused while all advertised slots are held open")
+        }
+
+        let releasedFD = fds.removeFirst()
+        Darwin.close(releasedFD)
+
+        await gate.releaseOne()
+        guard let recoveredFD = connectSocket() else {
+            Issue.record("Expected connection after releasing one held slot")
+            return
+        }
+        fds.append(recoveredFD)
+        await gate.waitUntilAccepted(cap + 1)
+        await gate.releaseAll()
+    }
+}
+
+private actor ConnectionGate {
+    private var accepted = 0
+    private var acceptedWaiters: [(target: Int, continuation: CheckedContinuation<Void, Never>)] = []
+    private var releaseContinuations: [CheckedContinuation<Void, Never>] = []
+
+    func holdAcceptedConnection() async {
+        accepted += 1
+        resumeSatisfiedAcceptedWaiters()
+        await withCheckedContinuation { continuation in
+            releaseContinuations.append(continuation)
+        }
+    }
+
+    func waitUntilAccepted(_ target: Int) async {
+        if accepted >= target { return }
+        await withCheckedContinuation { continuation in
+            acceptedWaiters.append((target, continuation))
+        }
+    }
+
+    func releaseOne() {
+        guard !releaseContinuations.isEmpty else { return }
+        releaseContinuations.removeFirst().resume()
+    }
+
+    func releaseAll() {
+        let continuations = releaseContinuations
+        releaseContinuations.removeAll()
+        for continuation in continuations {
+            continuation.resume()
+        }
+    }
+
+    private func resumeSatisfiedAcceptedWaiters() {
+        var remaining: [(target: Int, continuation: CheckedContinuation<Void, Never>)] = []
+        for waiter in acceptedWaiters {
+            if accepted >= waiter.target {
+                waiter.continuation.resume()
+            } else {
+                remaining.append(waiter)
+            }
+        }
+        acceptedWaiters = remaining
     }
 }
