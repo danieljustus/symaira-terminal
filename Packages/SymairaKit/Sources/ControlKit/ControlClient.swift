@@ -75,7 +75,7 @@ public struct ControlClient: Sendable, OrchestrationControlProvider {
     }
 
     public func readScrollback(paneID: UUID?, lines: Int = 200) async throws -> ScrollbackResult {
-        let params = ControlParams(paneID: paneID)
+        let params = ControlParams(paneID: paneID, lines: lines)
         let body = try await send(.init(method: .readScrollback, params: params))
         return ScrollbackResult(paneID: paneID, lines: body.scrollbackLines ?? [])
     }
