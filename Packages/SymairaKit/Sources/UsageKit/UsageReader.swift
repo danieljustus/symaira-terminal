@@ -5,9 +5,15 @@ import Foundation
 public protocol UsageReader: Sendable {
     var provider: UsageProvider { get }
 
-    /// Read all samples since `date`. Implementations should be idempotent and
-    /// return empty when no data is available (e.g. agent not installed).
     func read(since date: Date) async throws -> [UsageSample]
+
+    func read(since date: Date, cache: IncrementalReadCache?) async throws -> [UsageSample]
+}
+
+extension UsageReader {
+    public func read(since date: Date, cache: IncrementalReadCache?) async throws -> [UsageSample] {
+        try await read(since: date)
+    }
 }
 
 /// A reader that always returns an empty result set. Useful as a placeholder

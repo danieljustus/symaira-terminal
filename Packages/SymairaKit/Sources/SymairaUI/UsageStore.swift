@@ -24,6 +24,15 @@ public final class UsageStore: ObservableObject {
 
     private let registry: UsageRegistry
     private let quotaRegistry: QuotaRegistry
+    private let incrementalCache = IncrementalReadCache()
+
+    /// Called before each quota fetch; return `false` to skip the fetch
+    /// (e.g. because `quotaInterval` has not elapsed yet).
+    public var shouldRefreshQuota: @MainActor @Sendable () -> Bool = { true }
+
+    /// Called after a quota fetch completes so the caller can record the
+    /// timestamp for throttling.
+    public var didRefreshQuota: @MainActor @Sendable () -> Void = {}
 
     public init(
         registry: UsageRegistry = .defaultRegistry,
@@ -69,12 +78,17 @@ public final class UsageStore: ObservableObject {
         error = nil
         defer { isRefreshing = false; lastRefreshDate = Date() }
 
-        async let snapshotTask = registry.snapshot(since: oneMonthAgo)
-        async let quotaTask = quotaRegistry.fetchAll()
+        async let snapshotTask = registry.snapshot(since: oneMonthAgo, cache: incrementalCache)
 
-        let (newSnapshot, newQuota) = await (snapshotTask, quotaTask)
+        let newSnapshot = await snapshotTask
         snapshot = newSnapshot
+
+        guard shouldRefreshQuota() else { return }
+
+        async let quotaTask = quotaRegistry.fetchAll()
+        let newQuota = await quotaTask
         quotaResult = newQuota
+        didRefreshQuota()
     }
 
     private var oneMonthAgo: Date {
