@@ -29,7 +29,19 @@ public struct ClaudeCodeReader: UsageReader, Sendable {
 
         var samples: [UsageSample] = []
         for fileURL in jsonlFiles {
-            let fileSamples = parseFile(fileURL, since: date)
+            let fileSamples = parseFile(fileURL, since: date, cache: nil)
+            samples.append(contentsOf: fileSamples)
+        }
+        return samples
+    }
+
+    public func read(since date: Date, cache: IncrementalReadCache?) async throws -> [UsageSample] {
+        let jsonlFiles = findJSONLFiles()
+        guard !jsonlFiles.isEmpty else { return [] }
+
+        var samples: [UsageSample] = []
+        for fileURL in jsonlFiles {
+            let fileSamples = parseFile(fileURL, since: date, cache: cache)
             samples.append(contentsOf: fileSamples)
         }
         return samples
@@ -53,7 +65,18 @@ public struct ClaudeCodeReader: UsageReader, Sendable {
         return result
     }
 
-    private func parseFile(_ fileURL: URL, since date: Date) -> [UsageSample] {
+    private func parseFile(_ fileURL: URL, since date: Date, cache: IncrementalReadCache?) -> [UsageSample] {
+        guard let attrs = try? fileManager.attributesOfItem(atPath: fileURL.path),
+              let mtime = attrs[.modificationDate] as? Date else { return [] }
+
+        if let cache {
+            return parseFileIncremental(fileURL, since: date, cache: cache, mtime: mtime)
+        } else {
+            return parseFileFull(fileURL, since: date)
+        }
+    }
+
+    private func parseFileFull(_ fileURL: URL, since date: Date) -> [UsageSample] {
         guard let data = try? Data(contentsOf: fileURL),
               let text = String(data: data, encoding: .utf8) else { return [] }
 
@@ -68,6 +91,41 @@ public struct ClaudeCodeReader: UsageReader, Sendable {
                 samples.append(entry)
             }
         }
+        return samples
+    }
+
+    private func parseFileIncremental(
+        _ fileURL: URL,
+        since date: Date,
+        cache: IncrementalReadCache,
+        mtime: Date
+    ) -> [UsageSample] {
+        let path = fileURL.path
+
+        guard let fileHandle = FileHandle(forReadingAtPath: path) else { return [] }
+        defer { fileHandle.closeFile() }
+
+        let offset = cache.readOffsetSync(for: path, currentMtime: mtime)
+        fileHandle.seek(toFileOffset: UInt64(offset))
+
+        let newData = fileHandle.readDataToEndOfFile()
+        let newOffset = Int64(offset) + Int64(newData.count)
+
+        guard let text = String(data: newData, encoding: .utf8), !text.isEmpty else { return [] }
+
+        let projectName = fileURL.deletingLastPathComponent().lastPathComponent
+
+        var samples: [UsageSample] = []
+        for line in text.split(separator: "\n", omittingEmptySubsequences: true) {
+            guard let entry = parseAssistantEntry(String(line), projectName: projectName, filePath: path) else {
+                continue
+            }
+            if entry.timestamp >= date {
+                samples.append(entry)
+            }
+        }
+
+        cache.setOffsetSync(newOffset, path: path, mtime: mtime)
         return samples
     }
 

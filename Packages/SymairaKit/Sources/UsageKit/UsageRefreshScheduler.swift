@@ -29,8 +29,8 @@ public struct RefreshConfig: Equatable, Sendable {
 /// Tracks the last-parse byte offset for a source file so only new bytes
 /// are read on subsequent refreshes (incremental tailing).
 public actor IncrementalReadCache {
-    private var offsets: [String: Int64] = [:]      // path → byte offset
-    private var mtimes: [String: Date]  = [:]      // path → last-modified date
+    private var offsets: [String: Int64] = [:]
+    private var mtimes: [String: Date]  = [:]
 
     public init() {}
 
@@ -38,7 +38,6 @@ public actor IncrementalReadCache {
     /// or 0 if the file has never been read or was modified since the last read.
     public func readOffset(for path: String, currentMtime: Date) -> Int64 {
         guard let cached = mtimes[path], cached == currentMtime else {
-            // File is new or was modified externally — restart from beginning.
             offsets[path] = nil
             mtimes[path] = currentMtime
             return 0
@@ -62,6 +61,36 @@ public actor IncrementalReadCache {
     public func invalidateAll() {
         offsets.removeAll()
         mtimes.removeAll()
+    }
+
+    // MARK: - Synchronous wrappers for nonisolated reader contexts
+
+    nonisolated public func readOffsetSync(for path: String, currentMtime: Date) -> Int64 {
+        getOffsetSync(path: path, currentMtime: currentMtime)
+    }
+
+    nonisolated public func setOffsetSync(_ offset: Int64, path: String, mtime: Date) {
+        updateOffsetSync(offset, path: path, mtime: mtime)
+    }
+
+    private nonisolated func getOffsetSync(path: String, currentMtime: Date) -> Int64 {
+        var result: Int64 = 0
+        let semaphore = DispatchSemaphore(value: 0)
+        Task { @Sendable [self] in
+            result = await self.readOffset(for: path, currentMtime: currentMtime)
+            semaphore.signal()
+        }
+        semaphore.wait()
+        return result
+    }
+
+    private nonisolated func updateOffsetSync(_ offset: Int64, path: String, mtime: Date) {
+        let semaphore = DispatchSemaphore(value: 0)
+        Task { @Sendable [self] in
+            await self.setOffset(offset, path: path, mtime: mtime)
+            semaphore.signal()
+        }
+        semaphore.wait()
     }
 }
 
@@ -115,6 +144,17 @@ public final class UsageRefreshScheduler {
     /// Trigger an immediate out-of-band refresh (e.g. user taps the refresh button).
     public func triggerImmediateRefresh() {
         Task { await onRefresh() }
+    }
+
+    /// Returns `true` when enough time has elapsed since the last quota
+    /// fetch for `quotaInterval` to have passed.
+    public func isQuotaRefreshDue() -> Bool {
+        Date().timeIntervalSince(lastQuotaRefresh) >= config.quotaInterval
+    }
+
+    /// Record that a quota fetch just ran (call after `quotaRegistry.fetchAll()`).
+    public func recordQuotaRefresh() {
+        lastQuotaRefresh = Date()
     }
 
     private var currentInterval: TimeInterval {

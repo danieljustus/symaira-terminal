@@ -19,6 +19,7 @@ public struct UsageRegistry: Sendable {
     /// whatever succeeded. Pass a `PartialResultHandler` to observe individual errors.
     public func snapshot(
         since date: Date,
+        cache: IncrementalReadCache? = nil,
         onPartialError: (@Sendable (UsageProvider, Error) -> Void)? = nil
     ) async -> UsageSnapshot {
         let now = Date()
@@ -26,7 +27,7 @@ public struct UsageRegistry: Sendable {
             for reader in readers {
                 group.addTask {
                     do {
-                        return try await reader.read(since: date)
+                        return try await reader.read(since: date, cache: cache)
                     } catch {
                         onPartialError?(reader.provider, error)
                         return []
