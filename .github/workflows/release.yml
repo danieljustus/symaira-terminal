@@ -216,7 +216,6 @@ jobs:
         if: always()
         run: |
           rm -f "$RUNNER_TEMP/certificate.p12"
-          rm -f "$RUNNER_TEMP/notary-api.json"
           if [ -n "${KEYCHAIN_PATH:-}" ] && [ -f "$KEYCHAIN_PATH" ]; then
             security delete-keychain "$KEYCHAIN_PATH" 2>/dev/null || true
           fi
