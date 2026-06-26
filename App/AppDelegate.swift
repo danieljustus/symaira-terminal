@@ -264,11 +264,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             switch command {
             case .openDirectory(let directory):
                 _ = paneManager?.createPane(inDirectory: directory)
-            case .openTab(let command):
+            case .openTab(let command, let workingDirectory):
                 if let command, !command.isEmpty {
                     Task {
-                        _ = await paneManager?.openTab(command: command)
+                        _ = await paneManager?.openTab(command: command, workingDirectory: workingDirectory)
                     }
+                } else if let workingDirectory {
+                    _ = paneManager?.createPane(inDirectory: workingDirectory)
                 } else {
                     _ = paneManager?.createPane()
                 }

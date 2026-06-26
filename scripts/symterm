@@ -88,15 +88,19 @@ open_dir() {
 
 open_new_tab() {
     local cmd="${1:-}"
+    local cwd="${2:-$PWD}"
     require_app
+
+    local encoded_cwd
+    encoded_cwd="$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "$cwd")"
 
     local url
     if [ -n "$cmd" ]; then
         local encoded_cmd
         encoded_cmd="$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "$cmd")"
-        url="${URL_SCHEME}://new-tab?command=${encoded_cmd}"
+        url="${URL_SCHEME}://new-tab?command=${encoded_cmd}&cwd=${encoded_cwd}"
     else
-        url="${URL_SCHEME}://new-tab"
+        url="${URL_SCHEME}://new-tab?cwd=${encoded_cwd}"
     fi
 
     open "$url"
@@ -185,7 +189,13 @@ main() {
             ;;
         +tab)
             shift
-            open_new_tab "${1:-}"
+            # Join all remaining arguments into a single command string.
+            # This handles both quoted ("npm run dev") and unquoted (npm run dev) forms.
+            local tab_cmd=""
+            if [ $# -gt 0 ]; then
+                tab_cmd="$*"
+            fi
+            open_new_tab "$tab_cmd" "$PWD"
             ;;
         -*)
             die "Unknown option: $1 (try --help)"

@@ -16,21 +16,45 @@ final class URLSchemeHandlerTests: XCTestCase {
     func testNewTabWithCommand() {
         let handler = URLSchemeHandler()
         let url = URL(string: "symaira-terminal://new-tab?command=npm%20run%20dev")!
-        guard case .openTab(let command) = handler.parse(url) else {
+        guard case .openTab(let command, let workingDirectory) = handler.parse(url) else {
             XCTFail("Expected openTab command")
             return
         }
         XCTAssertEqual(command, "npm run dev")
+        XCTAssertNil(workingDirectory)
     }
 
     func testNewTabWithoutCommand() {
         let handler = URLSchemeHandler()
         let url = URL(string: "symaira-terminal://new-tab")!
-        guard case .openTab(let command) = handler.parse(url) else {
+        guard case .openTab(let command, let workingDirectory) = handler.parse(url) else {
             XCTFail("Expected openTab command")
             return
         }
         XCTAssertNil(command)
+        XCTAssertNil(workingDirectory)
+    }
+
+    func testNewTabWithCommandAndCwd() {
+        let handler = URLSchemeHandler()
+        let url = URL(string: "symaira-terminal://new-tab?command=npm%20run%20dev&cwd=/Users/test/project")!
+        guard case .openTab(let command, let workingDirectory) = handler.parse(url) else {
+            XCTFail("Expected openTab command")
+            return
+        }
+        XCTAssertEqual(command, "npm run dev")
+        XCTAssertEqual(workingDirectory?.path, "/Users/test/project")
+    }
+
+    func testNewTabWithCwdOnly() {
+        let handler = URLSchemeHandler()
+        let url = URL(string: "symaira-terminal://new-tab?cwd=/Users/test/project")!
+        guard case .openTab(let command, let workingDirectory) = handler.parse(url) else {
+            XCTFail("Expected openTab command")
+            return
+        }
+        XCTAssertNil(command)
+        XCTAssertEqual(workingDirectory?.path, "/Users/test/project")
     }
 
     func testUnknownSchemeReturnsNil() {
