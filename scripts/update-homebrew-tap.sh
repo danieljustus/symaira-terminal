@@ -29,7 +29,11 @@ echo "SHA256: ${SHA256}"
 TAP_DIR="$(mktemp -d)/homebrew-tap"
 echo "Cloning tap repo..."
 if [ -n "${HOMEBREW_TAP_GITHUB_TOKEN:-}" ]; then
-    git clone "https://x-access-token:${HOMEBREW_TAP_GITHUB_TOKEN}@github.com/${TAP_REPO}.git" "${TAP_DIR}"
+    # Provide the token via an inline credential helper so it never appears
+    # in process arguments (ps) or persists in the clone's .git/config.
+    git clone -c credential.helper='!f() { echo "username=x-access-token"; echo "password=${HOMEBREW_TAP_GITHUB_TOKEN}"; }; f' \
+        "${TAP_REPO_URL}" "${TAP_DIR}"
+    unset HOMEBREW_TAP_GITHUB_TOKEN
 else
     git clone "${TAP_REPO_URL}" "${TAP_DIR}"
 fi
