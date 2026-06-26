@@ -126,13 +126,21 @@ final class OrchestrationControlAdapter: OrchestrationControlProvider {
     }
 
     func readScrollback(paneID: UUID?, lines: Int) async throws -> ScrollbackResult {
-        guard let pid = paneID,
-              let pane = paneManager.panes.first(where: { $0.paneID == pid }) else {
-            return ScrollbackResult(paneID: paneID, lines: [])
+        let targetID: UUID
+        if let pid = paneID {
+            targetID = pid
+        } else if let current = paneManager.currentPane {
+            targetID = current.paneID
+        } else {
+            return ScrollbackResult(paneID: nil, lines: [])
+        }
+
+        guard let pane = paneManager.panes.first(where: { $0.paneID == targetID }) else {
+            return ScrollbackResult(paneID: targetID, lines: [])
         }
         let text = pane.scrollbackBuffer.currentText ?? ""
         let allLines = text.components(separatedBy: "\n")
-        return ScrollbackResult(paneID: pid, lines: Array(allLines.suffix(lines)))
+        return ScrollbackResult(paneID: targetID, lines: Array(allLines.suffix(lines)))
     }
 
     func requestOpenTab(command: String) async throws -> TabRequestResult {
