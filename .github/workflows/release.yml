@@ -137,23 +137,17 @@ jobs:
         run: |
           APP_PATH=$(find build/release/export -name "*.app" -type d | head -1)
           if [ -z "$APP_PATH" ]; then
-            echo "::error::No .app found after export. Export may have failed."
+            echo "::error::No .app found for notarization."
             exit 1
           fi
           if [ -z "${NOTARY_API_KEY:-}" ]; then
             echo "::warning::NOTARY_API_KEY secret is not set. Skipping notarization."
             exit 0
           fi
-          KEY_PATH="$RUNNER_TEMP/notary-api.json"
-          cat > "$KEY_PATH" << EOF
-          {
-            "key": "${NOTARY_API_KEY}",
-            "keyID": "${NOTARY_API_KEY_ID}",
-            "issuer": "${NOTARY_API_ISSUER}"
-          }
-          EOF
           xcrun notarytool submit "$APP_PATH" \
-            --key "$KEY_PATH" \
+            --apple-id "${NOTARY_API_KEY_ID}" \
+            --team-id "${NOTARY_API_ISSUER}" \
+            --password "${NOTARY_API_KEY}" \
             --wait
           xcrun stapler staple "$APP_PATH"
 
