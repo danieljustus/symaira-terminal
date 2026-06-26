@@ -501,8 +501,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func clearScrollback() {
-        if let surface = paneManager?.currentPane?.surface as? GhosttySurfaceController {
-            surface.sendText("\u{1B}[3J")
+        if let pane = paneManager?.currentPane {
+            if let surface = pane.surface as? GhosttySurfaceController {
+                surface.sendText("\u{1B}[3J")
+            }
+            pane.scrollbackBuffer.clear()
         }
     }
 
