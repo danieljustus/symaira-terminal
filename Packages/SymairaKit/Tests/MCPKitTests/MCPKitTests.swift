@@ -262,7 +262,8 @@ struct MCPServerDispatchTests {
             id: .int(1),
             method: "initialize",
             params: nil)
-        let result = try await MCPServer.handleForTest(request: request, dispatcher: MCPToolDispatcher(provider: stub))
+        let server = MCPServer()
+        let result = try await server.handleForTest(request: request, dispatcher: MCPToolDispatcher(provider: stub))
         #expect(result.protocolVersion == "2024-11-05")
         #expect(result.capabilities?.tools != nil)
         #expect(result.serverInfo?.name == "symaira-terminal")
@@ -278,7 +279,8 @@ struct MCPServerDispatchTests {
             id: .int(2),
             method: "tools/list",
             params: nil)
-        let result = try await MCPServer.handleForTest(request: request, dispatcher: MCPToolDispatcher(provider: stub))
+        let server = MCPServer()
+        let result = try await server.handleForTest(request: request, dispatcher: MCPToolDispatcher(provider: stub))
         let tools = result.tools ?? []
         #expect(tools.count == 6)
         let names = tools.map(\.name)
@@ -300,7 +302,8 @@ struct MCPServerDispatchTests {
             id: .int(3),
             method: "ping",
             params: nil)
-        let result = try await MCPServer.handleForTest(request: request, dispatcher: MCPToolDispatcher(provider: stub))
+        let server = MCPServer()
+        let result = try await server.handleForTest(request: request, dispatcher: MCPToolDispatcher(provider: stub))
         #expect(result.tools == nil)
         #expect(result.content == nil)
     }
