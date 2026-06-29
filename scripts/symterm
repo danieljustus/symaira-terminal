@@ -5,6 +5,7 @@
 #   symterm [.]               Open Symaira Terminal in the current or given directory
 #   symterm <path>            Open Symaira Terminal in <path>
 #   symterm +tab [<command>]  Open a new tab (optionally running <command>)
+#   symterm +tab --command '<command>'  Open a new tab running <command> (unambiguous)
 #   symterm --version         Print version
 #   symterm --help            Print this help
 #
@@ -143,11 +144,12 @@ print_help() {
 symterm ${SYMTERM_VERSION} — CLI wrapper for ${APP_NAME}
 
 Usage:
-  symterm [<path>]            Open ${APP_NAME} in <path> (default: current directory)
-  symterm .                   Open ${APP_NAME} in the current directory
-  symterm +tab [<command>]    Open a new tab, optionally running <command>
-  symterm --version           Print version and exit
-  symterm --help              Print this help and exit
+  symterm [<path>]                    Open ${APP_NAME} in <path> (default: current directory)
+  symterm .                           Open ${APP_NAME} in the current directory
+  symterm +tab [<command>]            Open a new tab, optionally running <command>
+  symterm +tab --command '<command>'  Open a new tab running <command> (unambiguous)
+  symterm --version                   Print version and exit
+  symterm --help                      Print this help and exit
 
 Examples:
   symterm                     Opens ${APP_NAME} in the current working directory
@@ -155,6 +157,16 @@ Examples:
   symterm .                   Opens ${APP_NAME} in the current working directory
   symterm +tab                Opens a new tab in ${APP_NAME}
   symterm +tab 'npm run dev'  Opens a new tab running 'npm run dev'
+  symterm +tab --command 'echo "hello world"'  Passes command verbatim
+
+Quoting behavior:
+  symterm +tab joins all remaining arguments with spaces. The calling shell
+  processes quotes before symterm sees them, so:
+    symterm +tab 'npm run dev'    → command: npm run dev
+    symterm +tab npm run dev      → command: npm run dev (same result)
+    symterm +tab echo "hello"     → command: echo hello (quotes consumed by shell)
+  Use --command to avoid ambiguity when the command contains spaces or special
+  characters that would be interpreted by the calling shell.
 
 URL scheme:
   symterm communicates with the app via the ${URL_SCHEME}:// URL scheme.
@@ -189,10 +201,11 @@ main() {
             ;;
         +tab)
             shift
-            # Join all remaining arguments into a single command string.
-            # This handles both quoted ("npm run dev") and unquoted (npm run dev) forms.
             local tab_cmd=""
-            if [ $# -gt 0 ]; then
+            if [ $# -gt 0 ] && [ "$1" = "--command" ]; then
+                shift
+                tab_cmd="${1:-}"
+            elif [ $# -gt 0 ]; then
                 tab_cmd="$*"
             fi
             open_new_tab "$tab_cmd" "$PWD"

@@ -3,6 +3,7 @@ import GhosttyBridge
 import SymairaUI
 import TerminalCore
 import WorktreeKit
+import UserNotifications
 
 @MainActor
 final class PaneManager {
@@ -60,6 +61,12 @@ final class PaneManager {
             surface = try engine.makeSurface(configuration: config)
         } catch {
             NSLog("symaira: failed to create terminal surface: %@", String(describing: error))
+            let content = UNMutableNotificationContent()
+            content.title = "Terminal Error"
+            content.body = "Could not create terminal surface: \(error.localizedDescription)"
+            content.sound = .default
+            let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
+            UNUserNotificationCenter.current().add(request)
             surface = nil
         }
         let pane = TerminalPane(surface: surface, configuration: config)
