@@ -244,9 +244,6 @@ public struct CommandInputBar: View {
                 }
                 .buttonStyle(.plain)
                 .help(editor.sttService.isRecording ? "Stop dictation" : "Start dictation")
-                .onAppear {
-                    editor.requestSTTAuthorization()
-                }
 
                 Spacer()
             }

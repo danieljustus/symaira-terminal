@@ -1,4 +1,5 @@
 import AppKit
+import GhosttyBridge
 import XCTest
 @testable import SymairaTerminal
 
