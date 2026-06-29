@@ -44,7 +44,7 @@ struct MCPRequestParams: Codable, Sendable {
 
 // MARK: - MCP Response Types
 
-struct MCPResponse: Codable, Sendable {
+public struct MCPResponse: Codable, Sendable {
     var jsonrpc: String = "2.0"
     var id: MCPRequestID?
     var result: MCPResult?
