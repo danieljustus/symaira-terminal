@@ -49,7 +49,7 @@ public final class SessionPersistence: @unchecked Sendable {
     public func save(_ state: SessionState) throws {
         pendingSaveTask?.cancel()
         pendingState = state
-        
+
         pendingSaveTask = Task { [weak self] in
             guard let self else { return }
             try? await Task.sleep(nanoseconds: UInt64(self.debounceInterval * 1_000_000_000))
