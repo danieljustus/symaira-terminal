@@ -5,13 +5,21 @@ import Foundation
 /// Storage location: `~/Library/Application Support/SymairaTerminal/sessions.json`
 /// A backup of the previous session is kept at `sessions.json.bak` to survive
 /// corrupted writes.
-public struct SessionPersistence: @unchecked Sendable {
+///
+/// Supports debounced writes to reduce disk I/O under rapid pane operations.
+/// Use `save(_:)` for normal saves (debounced) and `saveImmediately(_:)` for
+/// termination saves (no debounce delay).
+public final class SessionPersistence: @unchecked Sendable {
     public static let shared = SessionPersistence()
 
     private let fileManager = FileManager.default
+    private let debounceInterval: TimeInterval
+    private var pendingSaveTask: Task<Void, Never>?
+    private var pendingState: SessionState?
+    private let _storageDirectory: URL?
 
     public var storageDirectory: URL {
-        fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        _storageDirectory ?? fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("SymairaTerminal", isDirectory: true)
     }
 
@@ -23,15 +31,49 @@ public struct SessionPersistence: @unchecked Sendable {
         storageDirectory.appendingPathComponent("sessions.json.bak")
     }
 
-    public init() {}
+    public init(debounceInterval: TimeInterval = 0.5) {
+        self.debounceInterval = debounceInterval
+        self._storageDirectory = nil
+    }
 
-    // MARK: - Save
+    /// Internal initializer for testing with custom storage directory.
+    init(storageDirectory: URL, debounceInterval: TimeInterval = 0.5) {
+        self.debounceInterval = debounceInterval
+        self._storageDirectory = storageDirectory
+    }
 
+    // MARK: - Save (Debounced)
+
+    /// Saves session state with debouncing. Rapid calls within the debounce
+    /// interval will coalesce into a single write.
     public func save(_ state: SessionState) throws {
+        pendingSaveTask?.cancel()
+        pendingState = state
+
+        pendingSaveTask = Task { [weak self] in
+            guard let self else { return }
+            try? await Task.sleep(nanoseconds: UInt64(self.debounceInterval * 1_000_000_000))
+            guard !Task.isCancelled else { return }
+            if let state = self.pendingState {
+                try? self.performSave(state)
+                self.pendingState = nil
+            }
+        }
+    }
+
+    /// Saves session state immediately, bypassing debounce.
+    /// Use this for app termination to ensure state is persisted.
+    public func saveImmediately(_ state: SessionState) throws {
+        pendingSaveTask?.cancel()
+        pendingSaveTask = nil
+        pendingState = nil
+        try performSave(state)
+    }
+
+    private func performSave(_ state: SessionState) throws {
         let directory = storageDirectory
         if !fileManager.fileExists(atPath: directory.path) {
             try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
-            // Protect session files so they are inaccessible when the device is locked.
             try fileManager.setAttributes(
                 [.protectionKey: FileProtectionType.complete],
                 ofItemAtPath: directory.path
@@ -43,7 +85,6 @@ public struct SessionPersistence: @unchecked Sendable {
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         let data = try encoder.encode(state)
 
-        // Keep backup of previous save.
         if fileManager.fileExists(atPath: sessionFile.path) {
             if fileManager.fileExists(atPath: backupFile.path) {
                 try? fileManager.removeItem(at: backupFile)
@@ -57,11 +98,9 @@ public struct SessionPersistence: @unchecked Sendable {
     // MARK: - Load
 
     public func load() -> SessionState? {
-        // Try primary file first.
         if let state = load(from: sessionFile) {
             return state
         }
-        // Fall back to backup.
         if let state = load(from: backupFile) {
             NSLog("session restore: using backup (primary was corrupted or missing)")
             return state
