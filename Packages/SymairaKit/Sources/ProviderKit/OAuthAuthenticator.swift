@@ -1,7 +1,44 @@
 import Foundation
+import os
 #if canImport(AuthenticationServices)
 import AuthenticationServices
 #endif
+
+private let logger = Logger(subsystem: "com.symaira.OAuthAuthenticator", category: "security")
+
+private func sanitizeDetail(_ raw: String, maxBytes: Int = 200) -> String {
+    guard !raw.isEmpty else { return "Unknown error" }
+    let truncated: String
+    if raw.utf8.count > maxBytes {
+        var result = ""
+        var byteCount = 0
+        for char in raw {
+            let charBytes = char.utf8.count
+            if byteCount + charBytes > maxBytes { break }
+            result.append(char)
+            byteCount += charBytes
+        }
+        truncated = result
+    } else {
+        truncated = raw
+    }
+    let patterns: [(regex: String, replacement: String)] = [
+        ("sk-ant-[A-Za-z0-9_-]{20,}", "[REDACTED]"),
+        ("sk-proj-[A-Za-z0-9]{20,}", "[REDACTED]"),
+        ("sk-[A-Za-z0-9]{20,}", "[REDACTED]"),
+        ("gh[pousr]_[A-Za-z0-9]{36,}", "[REDACTED]"),
+        ("(?i)Bearer\\s+[A-Za-z0-9._~-]{20,}", "Bearer [REDACTED]"),
+        ("(?i)(access_token|refresh_token|token)[\"':]\\s*[\"']?[A-Za-z0-9._~-]{20,}", "$1: [REDACTED]")
+    ]
+    var result = truncated
+    for (pattern, replacement) in patterns {
+        if let regex = try? NSRegularExpression(pattern: pattern, options: []) {
+            let range = NSRange(result.startIndex..., in: result)
+            result = regex.stringByReplacingMatches(in: result, options: [], range: range, withTemplate: replacement)
+        }
+    }
+    return result
+}
 
 /// Errors that can occur during OAuth authentication.
 public enum OAuthError: Error, LocalizedError {
@@ -61,8 +98,10 @@ public struct OAuthTokenClient: Sendable {
         guard let httpResponse = response as? HTTPURLResponse,
               (200...299).contains(httpResponse.statusCode) else {
             let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
-            let detail = String(data: data, encoding: .utf8) ?? "Unknown error"
-            throw OAuthError.tokenExchangeFailed("HTTP \(statusCode): \(detail)")
+            let rawDetail = String(data: data, encoding: .utf8) ?? "Unknown error"
+            logger.debug("Token exchange HTTP \(statusCode) response: \(rawDetail)")
+            let sanitized = sanitizeDetail(rawDetail)
+            throw OAuthError.tokenExchangeFailed("HTTP \(statusCode): \(sanitized)")
         }
 
         let tokenResponse = try JSONDecoder().decode(TokenResponse.self, from: data)
@@ -109,8 +148,10 @@ public struct OAuthTokenClient: Sendable {
         guard let httpResponse = response as? HTTPURLResponse,
               (200...299).contains(httpResponse.statusCode) else {
             let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
-            let detail = String(data: data, encoding: .utf8) ?? "Unknown error"
-            throw OAuthError.refreshTokenFailed("HTTP \(statusCode): \(detail)")
+            let rawDetail = String(data: data, encoding: .utf8) ?? "Unknown error"
+            logger.debug("Token refresh HTTP \(statusCode) response: \(rawDetail)")
+            let sanitized = sanitizeDetail(rawDetail)
+            throw OAuthError.refreshTokenFailed("HTTP \(statusCode): \(sanitized)")
         }
 
         let tokenResponse = try JSONDecoder().decode(TokenResponse.self, from: data)
