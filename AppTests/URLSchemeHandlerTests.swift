@@ -5,12 +5,24 @@ final class URLSchemeHandlerTests: XCTestCase {
 
     func testOpenDirectory() {
         let handler = URLSchemeHandler()
-        let url = URL(string: "symaira-terminal://open?path=/Users/test/project")!
+        let url = URL(string: "symaira-terminal://open?path=/tmp")!
         guard case .openDirectory(let directory) = handler.parse(url) else {
             XCTFail("Expected openDirectory command")
             return
         }
-        XCTAssertEqual(directory.path, "/Users/test/project")
+        XCTAssertEqual(directory.path, "/tmp")
+    }
+
+    func testOpenDirectoryRejectsNonexistentPath() {
+        let handler = URLSchemeHandler()
+        let url = URL(string: "symaira-terminal://open?path=/nonexistent/path/that/does/not/exist")!
+        XCTAssertNil(handler.parse(url))
+    }
+
+    func testOpenDirectoryRejectsFilePath() {
+        let handler = URLSchemeHandler()
+        let url = URL(string: "symaira-terminal://open?path=/etc/hosts")!
+        XCTAssertNil(handler.parse(url))
     }
 
     func testNewTabWithCommand() {
