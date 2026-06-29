@@ -9,6 +9,7 @@ import SymairaUI
 import WorktreeKit
 import ControlKit
 import MCPKit
+import UserNotifications
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -327,6 +328,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 NSLog("symaira: control server listening at %@", path)
             } catch {
                 NSLog("symaira: failed to start control server: %@", String(describing: error))
+                notify(title: "Control Server Failed", body: "Could not start the control server: \(error.localizedDescription)")
             }
         }
 
@@ -339,8 +341,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 NSLog("symaira: mcp server listening at %@", path)
             } catch {
                 NSLog("symaira: failed to start mcp server: %@", String(describing: error))
+                notify(title: "MCP Server Failed", body: "Could not start the MCP server: \(error.localizedDescription)")
             }
         }
+    }
+
+    private func notify(title: String, body: String) {
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = body
+        content.sound = .default
+        let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
+        UNUserNotificationCenter.current().add(request)
     }
 
     private func restoreSession(_ state: SessionState, window: NSWindow, manager: PaneManager) {
