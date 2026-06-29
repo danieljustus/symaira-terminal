@@ -547,6 +547,17 @@ final class PaneManager {
             config.workingDirectory = paneState.workingDirectory.map(URL.init(fileURLWithPath:))
             _ = manager.createPane(at: config)
         }
+        // A persisted session can legitimately contain zero panes — e.g. the
+        // user closed the last tab before quitting. Restoring it verbatim would
+        // leave an empty, inert window that renders nothing and swallows every
+        // keystroke. Guarantee at least one usable pane so the app is never
+        // dead on launch.
+        if manager.panes.isEmpty {
+            _ = manager.createPane()
+            manager.currentLayout = .pane(index: 0)
+            manager.rebuildLayout()
+            return
+        }
         manager.currentLayout = state.layout
         manager.rebuildLayout()
     }

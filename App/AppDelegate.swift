@@ -220,9 +220,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         setupKeyboardShortcuts(window: window)
 
-        if let saved = SessionPersistence.shared.load() {
+        if let saved = SessionPersistence.shared.load(), !saved.panes.isEmpty {
             restoreSession(saved, window: window, manager: manager)
         } else {
+            _ = manager.createPane()
+        }
+
+        // Final safety net: no matter what the restore path did, the app must
+        // launch with a live terminal. An empty main area produces a window that
+        // accepts no input and cannot spawn a shell — the failure reported in
+        // v0.8.1, caused by a persisted session with zero panes.
+        if manager.panes.isEmpty {
             _ = manager.createPane()
         }
 
@@ -296,6 +304,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func saveSession() {
         guard let manager = paneManager else { return }
         var state = manager.stateForPersistence
+        // Never overwrite a good session with a paneless one. Restoring zero
+        // panes strands the user in an empty window, so if every tab is already
+        // closed we keep the previous session on disk instead.
+        guard !state.panes.isEmpty else { return }
         if let frame = savedWindowFrame {
             state.windowFrame = frame
         }
@@ -478,11 +490,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func newTab() {
         _ = paneManager?.createPane()
+        // Route keyboard focus to the new surface; createPane alone leaves the
+        // freshly added pane unfocused, so it would render but ignore input.
+        paneManager?.focusCurrent()
     }
 
     @objc private func closeTab() {
-        if let current = paneManager?.currentPane {
-            paneManager?.closePane(current)
+        guard let current = paneManager?.currentPane else { return }
+        closePaneOrWindow(current)
+    }
+
+    /// Close a pane, or the whole window when it is the last one. Removing the
+    /// final pane would leave an empty window that accepts no input, so the last
+    /// tab closes the window instead (which quits the app as the last window).
+    private func closePaneOrWindow(_ pane: TerminalPane) {
+        guard let manager = paneManager else { return }
+        if manager.panes.count <= 1 {
+            window?.performClose(nil)
+        } else {
+            manager.closePane(pane)
         }
     }
 
@@ -865,7 +891,6 @@ extension AppDelegate: @preconcurrency TabBarDelegate {
 
     func tabBarDidRequestClose(_ tabBar: TabBarView, index: Int) {
         guard let paneManager, index < paneManager.panes.count else { return }
-        let pane = paneManager.panes[index]
-        paneManager.closePane(pane)
+        closePaneOrWindow(paneManager.panes[index])
     }
 }

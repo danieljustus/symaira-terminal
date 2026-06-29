@@ -25,7 +25,14 @@ public class STTService: NSObject, ObservableObject {
         super.init()
     }
 
-    public func requestAuthorization(completion: @escaping @MainActor (Bool) -> Void) {
+    /// `nonisolated` on purpose: `SFSpeechRecognizer.requestAuthorization`
+    /// invokes its handler on a private background queue. If this method were
+    /// MainActor-isolated, the handler closure would inherit that isolation and
+    /// Swift 6's runtime executor check (`swift_task_isCurrentExecutor`) would
+    /// abort the process with SIGTRAP when the callback lands off the main
+    /// thread. Forming the closure in a nonisolated context removes that check;
+    /// we then hop to the main actor explicitly to deliver the result.
+    public nonisolated func requestAuthorization(completion: @escaping @MainActor (Bool) -> Void) {
         SFSpeechRecognizer.requestAuthorization { status in
             Task { @MainActor in
                 completion(status == .authorized)
