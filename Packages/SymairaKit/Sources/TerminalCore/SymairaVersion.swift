@@ -6,5 +6,5 @@ import Foundation
 /// reference `SymairaVersion.current` instead of hardcoding a string.
 public enum SymairaVersion {
     /// The current marketing version of Symaira Terminal.
-    public static let current = "0.8.1"
+    public static let current = "0.8.2"
 }
