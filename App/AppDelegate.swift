@@ -312,7 +312,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let frame = savedWindowFrame {
             state.windowFrame = frame
         }
-        try? SessionPersistence.shared.save(state)
+        // Use immediate save during termination to bypass debounce
+        try? SessionPersistence.shared.saveImmediately(state)
     }
 
     private func startControlSurface(paneManager: PaneManager) {
