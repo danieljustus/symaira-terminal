@@ -42,12 +42,18 @@ public struct OAuthConfig: Sendable, Codable, Equatable {
 }
 
 /// An OAuth 2.0 token set stored in the Keychain.
-public struct OAuthToken: Sendable, Codable {
+public struct OAuthToken: Sendable, Codable, CustomStringConvertible {
     public let accessToken: String
     public let refreshToken: String?
     public let expiresAt: Date?
     public let tokenType: String
     public let scope: String?
+
+    public var description: String {
+        "OAuthToken(accessToken: [REDACTED], refreshToken: \(refreshToken != nil ? "[REDACTED]" : "nil"))"
+    }
+
+    public var debugDescription: String { description }
 
     public init(
         accessToken: String,
