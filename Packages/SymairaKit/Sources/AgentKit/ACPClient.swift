@@ -71,6 +71,7 @@ public final class ACPClient: @unchecked Sendable {
     private var pendingRequests: [Int: (Result<Any?, Error>) -> Void] = [:]
     private var eventHandler: ((ACPEvent) -> Void)?
     private var frameParser = ACPFrameParser()
+    private var stderrDrainActive = false
 
     public init(configuration: ACPConfiguration) {
         self.process = Process()
@@ -96,13 +97,16 @@ public final class ACPClient: @unchecked Sendable {
     public func start() throws {
         try process.run()
         startReading()
+        startStderrDrain()
     }
 
     public func stop() {
         lock.lock()
         let pending = pendingRequests
         pendingRequests.removeAll()
+        stderrDrainActive = false
         lock.unlock()
+        stderr.fileHandleForReading.readabilityHandler = nil
         for (_, handler) in pending {
             handler(.failure(CancellationError()))
         }
@@ -180,6 +184,24 @@ public final class ACPClient: @unchecked Sendable {
     private func startReading() {
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             self?.readLoop()
+        }
+    }
+
+    private func startStderrDrain() {
+        lock.lock()
+        stderrDrainActive = true
+        lock.unlock()
+        stderr.fileHandleForReading.readabilityHandler = { [weak self] handle in
+            let data = handle.availableData
+            guard !data.isEmpty else { return }
+            guard let self else { return }
+            self.lock.lock()
+            let active = self.stderrDrainActive
+            self.lock.unlock()
+            guard active else { return }
+            if let text = String(data: data, encoding: .utf8) {
+                os_log("ACP stderr: %{public}@", log: .default, type: .debug, text)
+            }
         }
     }
 
