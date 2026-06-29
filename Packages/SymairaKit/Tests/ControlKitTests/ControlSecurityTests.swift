@@ -162,7 +162,8 @@ struct ControlSecurityTests {
         }
         guard connectResult == 0 else { Issue.record("Failed to connect"); return }
 
-        var oversizedFrame = Data(repeating: 0x41, count: ControlServer.maxFrameSize + 1)
+        let server = ControlServer()
+        var oversizedFrame = Data(repeating: 0x41, count: server.maxFrameSize + 1)
         oversizedFrame.append(0x0a)
         _ = oversizedFrame.withUnsafeBytes { Darwin.write(fd, $0.baseAddress!, oversizedFrame.count) }
 
