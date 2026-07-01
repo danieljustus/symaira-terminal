@@ -48,13 +48,11 @@ brew install --cask symterminal
 
 Download the latest `.dmg` from [GitHub Releases](https://github.com/danieljustus/symaira-terminal/releases), mount it, and drag `SymairaTerminal.app` to your Applications folder.
 
-**Note:** The app is currently unsigned (no Apple Developer account). macOS will block it by default. To allow it, run this once after installing:
+**Note:** The app is signed with a Developer ID certificate and notarized. On the first launch, macOS may still prompt you to confirm via Gatekeeper. To allow it, right-click the app → "Open" → "Open". If you previously ran an unsigned build and Gatekeeper cached a quarantine flag, you can clear it with:
 
 ```bash
 xattr -cr /Applications/SymairaTerminal.app
 ```
-
-Or right-click the app → "Open" → "Open" to bypass Gatekeeper.
 
 ## Usage
 
