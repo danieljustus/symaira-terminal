@@ -5,6 +5,32 @@ All notable changes to Symaira Terminal will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.3] — 2026-07-01
+
+### Changed
+- #250 Pass Developer ID signing identity to the archive step in the release CI
+
+## [0.8.2] — 2026-06-29
+
+### Fixed
+- #230 Preserve Homebrew tap credentials for push
+- #234 Prevent startup crash and dead-window restore
+- #246 Validate URL scheme paths before creating panes
+- #247 Optimize `SecretRedactor` to skip regex on large non-secret text
+- #248 Debounce `SessionPersistence` writes to reduce disk I/O
+
+### Security
+- #245 Sanitize OAuth error messages to prevent token leakage
+
+### Performance
+- #247 Optimize `SecretRedactor` to skip regex on large non-secret text
+- #248 Debounce `SessionPersistence` writes to reduce disk I/O
+
+### Changed
+- #231 Enforce release bundle version metadata
+- #232 Use Apple ID for notarization
+- #233 Remove stale `notary-api.json` cleanup
+
 ## [0.8.1] — 2026-06-26
 
 ### Fixed
@@ -188,6 +214,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ADR-001: Terminal engine choice + pin strategy
 
 [Unreleased]: https://github.com/danieljustus/symaira-terminal/compare/v0.8.3...HEAD
+[0.8.3]: https://github.com/danieljustus/symaira-terminal/compare/v0.8.2...v0.8.3
+[0.8.2]: https://github.com/danieljustus/symaira-terminal/compare/v0.8.1...v0.8.2
+[0.8.1]: https://github.com/danieljustus/symaira-terminal/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/danieljustus/symaira-terminal/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/danieljustus/symaira-terminal/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/danieljustus/symaira-terminal/compare/v0.5.0...v0.6.0
