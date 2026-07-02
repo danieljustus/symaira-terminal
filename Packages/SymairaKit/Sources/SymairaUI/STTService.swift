@@ -34,9 +34,24 @@ public class STTService: NSObject, ObservableObject {
     /// we then hop to the main actor explicitly to deliver the result.
     public nonisolated func requestAuthorization(completion: @escaping @MainActor (Bool) -> Void) {
         SFSpeechRecognizer.requestAuthorization { status in
-            Task { @MainActor in
-                completion(status == .authorized)
-            }
+            // Do not capture `completion` directly in this closure. Because
+            // `completion` is `@MainActor`, capturing it would make the whole
+            // `SFSpeechRecognizer` callback implicitly `@MainActor`, but TCC
+            // invokes that callback on `com.apple.root.default-qos`. That
+            // queue is not the main actor, so Swift 6's runtime executor
+            // check aborts with SIGTRAP. Instead, pass the result through a
+            // `nonisolated` static helper that only creates a `@MainActor`
+            // `Task` and captures the completion there.
+            Self.deliverAuthorizationResult(completion, authorized: status == .authorized)
+        }
+    }
+
+    private nonisolated static func deliverAuthorizationResult(
+        _ completion: @escaping @MainActor (Bool) -> Void,
+        authorized: Bool
+    ) {
+        Task { @MainActor in
+            completion(authorized)
         }
     }
 
@@ -59,27 +74,10 @@ public class STTService: NSObject, ObservableObject {
         recognitionRequest.shouldReportPartialResults = true
 
         recognitionTask = recognizer.recognitionTask(with: recognitionRequest) { [weak self] result, error in
-            guard let self = self else { return }
-
-            if let result = result {
-                let text = result.bestTranscription.formattedString
-                Task { @MainActor [weak self] in
-                    guard let self = self else { return }
-                    self.recognizedText = text
-                    self.delegate?.sttService(self, didRecognize: text)
-                }
-            }
-
-            if error != nil || (result?.isFinal ?? false) {
-                Task { @MainActor [weak self] in
-                    self?.stopRecording()
-                    if let error = error {
-                        self?.delegate?.sttService(self!, didFailWithError: error)
-                    } else {
-                        self?.delegate?.sttServiceDidFinishRecording(self!)
-                    }
-                }
-            }
+            // Keep the callback nonisolated: `SFSpeechRecognitionTask` calls this
+            // completion handler on a background queue, so it must not carry
+            // MainActor isolation. The helper hops to the main actor for UI work.
+            Self.handleRecognitionResult(self, result: result, error: error)
         }
 
         inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { [weak self] buffer, _ in
@@ -100,6 +98,33 @@ public class STTService: NSObject, ObservableObject {
         _audioEngine = nil
 
         isRecording = false
+    }
+
+    private nonisolated static func handleRecognitionResult(
+        _ service: STTService?,
+        result: SFSpeechRecognitionResult?,
+        error: (any Error)?
+    ) {
+        if let result = result {
+            let text = result.bestTranscription.formattedString
+            Task { @MainActor [weak service] in
+                guard let service = service else { return }
+                service.recognizedText = text
+                service.delegate?.sttService(service, didRecognize: text)
+            }
+        }
+
+        if error != nil || (result?.isFinal ?? false) {
+            Task { @MainActor [weak service] in
+                guard let service = service else { return }
+                service.stopRecording()
+                if let error = error {
+                    service.delegate?.sttService(service, didFailWithError: error)
+                } else {
+                    service.delegate?.sttServiceDidFinishRecording(service)
+                }
+            }
+        }
     }
 }
 
