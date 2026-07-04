@@ -135,7 +135,7 @@ public struct MCPClientInstaller {
     public static func claudeCodeCommands(from detectedTools: [DetectedTool]) -> [String] {
         detectedTools.filter { $0.isInstalled && $0.mcpSupported }.compactMap { tool in
             guard let path = tool.path else { return nil }
-            let args = tool.tool.mcpArgs.joined(separator: " ")
+            let args = tool.tool.terminalMCPArgs.joined(separator: " ")
             return "claude mcp add \(tool.tool.id) -- \(path) \(args)"
         }
     }

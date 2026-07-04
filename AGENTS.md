@@ -65,3 +65,18 @@ App → SymairaUI → {AgentKit, WorktreeKit, ProviderKit, ContextBank} → Term
 - WorktreeKit tests create throwaway git repos under `NSTemporaryDirectory()`.
 - Keychain-dependent tests use an in-memory `KeyStore` mock; never touch the real
   Keychain in tests.
+
+## symaira-appkit (Welle 5)
+
+- `StackKit` no longer owns the Symaira tool registry: `SymairaTool` and
+  `SymairaToolRegistry` are re-exported typealiases from the shared
+  **symaira-appkit** package (`SymairaToolKit`), pinned exact (`0.1.0`) in
+  `Packages/SymairaKit/Package.swift`. The registry is the ecosystem SSOT —
+  add new tools THERE, not here (the old local copy listed a nonexistent
+  `symcanvas` and missed six real tools).
+- Terminal-specific MCP extras live in `StackKit`'s `terminalMCPArgs`
+  (symvault gets `--agent symaira-terminal` appended); the shared registry
+  stays agent-neutral. Use `terminalMCPArgs`, not `mcpArgs`, when
+  generating MCP configs for this app.
+- `StackDetector`/`DetectedTool` (actor-based detection with MCP probing)
+  remain StackKit-local for now.

@@ -20,7 +20,10 @@ let package = Package(
     dependencies: [
         // Engine pin — exact version on purpose, libghostty's API is not stable
         // yet (ADR-001). Upgrades are deliberate, tested steps.
-        .package(url: "https://github.com/Lakr233/libghostty-spm.git", exact: "1.2.4")
+        .package(url: "https://github.com/Lakr233/libghostty-spm.git", exact: "1.2.4"),
+        // Shared Symaira client foundations (tool registry SSOT). Exact pin
+        // per ecosystem convention.
+        .package(url: "https://github.com/danieljustus/symaira-appkit.git", exact: "0.1.0")
     ],
     targets: [
         // Engine-neutral terminal primitives: OSC parsing, sessions, env hygiene.
@@ -41,7 +44,7 @@ let package = Package(
         .target(name: "WorktreeKit", dependencies: ["TerminalCore"]),
         .target(name: "ProviderKit"),
         .target(name: "ContextBank"),
-        .target(name: "StackKit"),
+        .target(name: "StackKit", dependencies: [.product(name: "SymairaToolKit", package: "symaira-appkit")]),
         .target(name: "UsageKit", resources: [.process("Resources")]),
 
         .target(
