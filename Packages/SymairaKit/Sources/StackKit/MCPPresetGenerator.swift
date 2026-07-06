@@ -32,7 +32,7 @@ public struct MCPPresetGenerator {
             guard let path = tool.path else { continue }
             servers[tool.tool.id] = MCPServerEntry(
                 command: path,
-                args: tool.tool.mcpArgs
+                args: tool.tool.terminalMCPArgs
             )
         }
 

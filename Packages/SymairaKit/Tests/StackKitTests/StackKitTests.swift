@@ -3,28 +3,35 @@ import Foundation
 @testable import StackKit
 
 @Suite struct SymairaToolRegistryTests {
-    @Test func registryContainsAllFiveTools() {
+    @Test func registryComesFromSharedToolKit() {
         let tools = SymairaToolRegistry.all
-        #expect(tools.count == 5)
+        // The shared registry covers the whole ecosystem (14 tools as of
+        // appkit 0.1.0) — the ghost entry symcanvas is gone for good.
+        #expect(tools.count >= 14)
         #expect(tools.map(\.id).contains("symvault"))
         #expect(tools.map(\.id).contains("symmemory"))
         #expect(tools.map(\.id).contains("symseek"))
         #expect(tools.map(\.id).contains("symfetch"))
-        #expect(tools.map(\.id).contains("symcanvas"))
+        #expect(tools.map(\.id).contains("symscope"))
+        #expect(!tools.map(\.id).contains("symcanvas"))
     }
 
-    @Test func allToolsAreMCPEnabled() {
-        for tool in SymairaToolRegistry.all {
-            #expect(tool.supportsMCP, "Expected \(tool.id) to support MCP")
+    @Test func mcpToolsDeclareArgs() {
+        for tool in SymairaToolRegistry.all where tool.supportsMCP {
+            #expect(!tool.mcpArgs.isEmpty, "Expected \(tool.id) to declare MCP args")
         }
     }
 
     @Test func correctMCPArgs() {
+        // Terminal-specific extras are layered on via terminalMCPArgs;
+        // the shared registry stays agent-neutral.
         let vault = SymairaToolRegistry.all.first { $0.id == "symvault" }
-        #expect(vault?.mcpArgs == ["serve", "--stdio", "--agent", "symaira-terminal"])
+        #expect(vault?.mcpArgs == ["serve", "--stdio"])
+        #expect(vault?.terminalMCPArgs == ["serve", "--stdio", "--agent", "symaira-terminal"])
 
         let memory = SymairaToolRegistry.all.first { $0.id == "symmemory" }
         #expect(memory?.mcpArgs == ["serve"])
+        #expect(memory?.terminalMCPArgs == ["serve"])
 
         let seek = SymairaToolRegistry.all.first { $0.id == "symseek" }
         #expect(seek?.mcpArgs == ["serve"])
