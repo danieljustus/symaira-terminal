@@ -23,7 +23,7 @@ let package = Package(
         .package(url: "https://github.com/Lakr233/libghostty-spm.git", exact: "1.2.4"),
         // Shared Symaira client foundations (tool registry SSOT). Exact pin
         // per ecosystem convention.
-        .package(url: "https://github.com/danieljustus/symaira-appkit.git", exact: "0.1.0")
+        .package(url: "https://github.com/danieljustus/symaira-appkit.git", exact: "0.2.0")
     ],
     targets: [
         // Engine-neutral terminal primitives: OSC parsing, sessions, env hygiene.
