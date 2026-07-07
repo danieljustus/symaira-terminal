@@ -2,7 +2,6 @@ import ControlKit
 import Foundation
 import Testing
 
-
 /// Tests for write-verb request construction and response handling via the
 /// control socket. Uses a mock provider — no GUI or PaneManager involved.
 @Suite("symterminal CLI write verbs")

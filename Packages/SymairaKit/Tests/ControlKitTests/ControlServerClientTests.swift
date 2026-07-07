@@ -51,7 +51,6 @@ actor MockControlProvider: OrchestrationControlProvider {
 
 // MARK: - Test suite
 
-
 @Suite("ControlServer + ControlClient integration")
 struct ControlServerClientTests {
 
