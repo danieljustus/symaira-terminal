@@ -1,5 +1,5 @@
 {
-  "originHash" : "4253771f6d903a31450c522390cf05950b88638fefc0c65eee900126cd52cc64",
+  "originHash" : "ea29ac0b50c47c3afee2b97bc06ce74556cedb530ff19420fbdfcbae66d67194",
   "pins" : [
     {
       "identity" : "libghostty-spm",
@@ -24,8 +24,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/danieljustus/symaira-appkit.git",
       "state" : {
-        "revision" : "ef1a35997296e6e45efa928514f2ff6f2f54c79c",
-        "version" : "0.1.0"
+        "revision" : "350f91658a4bb7cd12254eb433728227ce9e9bc8",
+        "version" : "0.2.0"
       }
     }
   ],
