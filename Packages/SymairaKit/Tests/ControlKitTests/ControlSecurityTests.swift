@@ -234,6 +234,9 @@ struct ControlSecurityTests {
                 }
                 if n == 0 { return true }
                 if n < 0 && errno != EAGAIN && errno != EWOULDBLOCK { return true }
+                // Yield to the server thread so it can close the overflow FD
+                // before the next non-blocking probe.
+                try? await Task.sleep(nanoseconds: 1_000_000)
             }
             return false
         }
