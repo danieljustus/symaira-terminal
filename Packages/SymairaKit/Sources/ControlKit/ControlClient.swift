@@ -86,8 +86,26 @@ public struct ControlClient: Sendable, OrchestrationControlProvider {
 
     // MARK: - Transport
 
+    /// Timeout for connect/read/write on the control socket. Bounds every call:
+    /// a silent or wedged server yields `noResponse` instead of a hang.
+    private static let ioTimeoutSeconds = 5
+
     /// Opens a connection, writes the request, reads the response, closes.
+    ///
+    /// The blocking syscalls run on a GCD worker thread — never on the
+    /// cooperative Swift Concurrency pool, which they would starve.
     public func send(_ request: ControlRequest) async throws -> ControlResponseBody {
+        let path = socketPath
+        return try await withCheckedThrowingContinuation { cont in
+            DispatchQueue.global().async {
+                cont.resume(with: Result { try Self.sendBlocking(request, socketPath: path) })
+            }
+        }
+    }
+
+    private static func sendBlocking(
+        _ request: ControlRequest, socketPath: String
+    ) throws -> ControlResponseBody {
         let fd = Darwin.socket(AF_UNIX, SOCK_STREAM, 0)
         guard fd >= 0 else { throw ControlClientError.notConnected }
         defer { Darwin.close(fd) }
@@ -106,6 +124,10 @@ public struct ControlClient: Sendable, OrchestrationControlProvider {
             }
         }
         guard connectResult == 0 else { throw ControlClientError.connectionRefused }
+
+        var timeout = timeval(tv_sec: ioTimeoutSeconds, tv_usec: 0)
+        setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
+        setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
 
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601

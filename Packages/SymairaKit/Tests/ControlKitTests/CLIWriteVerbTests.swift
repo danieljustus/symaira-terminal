@@ -96,14 +96,11 @@ struct CLIWriteVerbTests {
 
     @Test("Spawn roundtrip via mock server")
     func spawnRoundtrip() async throws {
-        guard ProcessInfo.processInfo.environment["CI"] != "true" else { return }
         let tmpSocket = NSTemporaryDirectory() + "cli-spawn-\(UUID().uuidString).sock"
         let provider = MockControlProvider()
         let server = ControlServer(socketPath: tmpSocket)
         try await server.start(provider: provider)
         defer { Task { await server.stop() } }
-
-        try await Task.sleep(nanoseconds: 10_000_000)
 
         let client = ControlClient(socketPath: tmpSocket)
         let paneID = try await client.spawn(
@@ -121,14 +118,11 @@ struct CLIWriteVerbTests {
 
     @Test("Blocked returns nil when no pane is blocked")
     func blockedReturnsNil() async throws {
-        guard ProcessInfo.processInfo.environment["CI"] != "true" else { return }
         let tmpSocket = NSTemporaryDirectory() + "cli-blocked-\(UUID().uuidString).sock"
         let provider = MockControlProvider()
         let server = ControlServer(socketPath: tmpSocket)
         try await server.start(provider: provider)
         defer { Task { await server.stop() } }
-
-        try await Task.sleep(nanoseconds: 10_000_000)
 
         let client = ControlClient(socketPath: tmpSocket)
         let result = try await client.blocked()
@@ -137,7 +131,6 @@ struct CLIWriteVerbTests {
 
     @Test("Blocked returns pane ID when a pane is blocked")
     func blockedReturnsPaneID() async throws {
-        guard ProcessInfo.processInfo.environment["CI"] != "true" else { return }
         let blockedID = UUID()
         let tmpSocket = NSTemporaryDirectory() + "cli-blocked2-\(UUID().uuidString).sock"
         let provider = MockControlProvider()
@@ -146,8 +139,6 @@ struct CLIWriteVerbTests {
         try await server.start(provider: provider)
         defer { Task { await server.stop() } }
 
-        try await Task.sleep(nanoseconds: 10_000_000)
-
         let client = ControlClient(socketPath: tmpSocket)
         let result = try await client.blocked()
         #expect(result == blockedID)
@@ -155,7 +146,6 @@ struct CLIWriteVerbTests {
 
     @Test("Focus roundtrip via mock server")
     func focusRoundtrip() async throws {
-        guard ProcessInfo.processInfo.environment["CI"] != "true" else { return }
         let targetID = UUID()
         let tmpSocket = NSTemporaryDirectory() + "cli-focus-\(UUID().uuidString).sock"
         let provider = MockControlProvider(
@@ -164,8 +154,6 @@ struct CLIWriteVerbTests {
         let server = ControlServer(socketPath: tmpSocket)
         try await server.start(provider: provider)
         defer { Task { await server.stop() } }
-
-        try await Task.sleep(nanoseconds: 10_000_000)
 
         let client = ControlClient(socketPath: tmpSocket)
         try await client.focus(paneID: targetID)
@@ -176,13 +164,10 @@ struct CLIWriteVerbTests {
 
     @Test("Spawn rejects missing agentID via RPC error")
     func spawnRejectsMissingAgentID() async throws {
-        guard ProcessInfo.processInfo.environment["CI"] != "true" else { return }
         let tmpSocket = NSTemporaryDirectory() + "cli-spawn-err-\(UUID().uuidString).sock"
         let server = ControlServer(socketPath: tmpSocket)
         try await server.start(provider: MockControlProvider())
         defer { Task { await server.stop() } }
-
-        try await Task.sleep(nanoseconds: 10_000_000)
 
         let client = ControlClient(socketPath: tmpSocket)
         let request = ControlRequest(method: .spawn, params: ControlParams(), id: 1)
@@ -196,13 +181,10 @@ struct CLIWriteVerbTests {
 
     @Test("Focus rejects missing paneID via RPC error")
     func focusRejectsMissingPaneID() async throws {
-        guard ProcessInfo.processInfo.environment["CI"] != "true" else { return }
         let tmpSocket = NSTemporaryDirectory() + "cli-focus-err-\(UUID().uuidString).sock"
         let server = ControlServer(socketPath: tmpSocket)
         try await server.start(provider: MockControlProvider())
         defer { Task { await server.stop() } }
-
-        try await Task.sleep(nanoseconds: 10_000_000)
 
         let client = ControlClient(socketPath: tmpSocket)
         let request = ControlRequest(method: .focus, params: ControlParams(), id: 1)

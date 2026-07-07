@@ -3,8 +3,6 @@ import ControlKit
 import Foundation
 import Testing
 
-private let skipInCI = ProcessInfo.processInfo.environment["CI"] == "true"
-
 /// Mock provider that validates agent IDs the same way OrchestrationControlAdapter does.
 actor ValidatingControlProvider: OrchestrationControlProvider {
     var fixedSnapshot: OrchestrationSnapshot
@@ -66,55 +64,75 @@ actor ValidatingControlProvider: OrchestrationControlProvider {
     }
 }
 
+/// First catalog agent whose executable is on PATH, or nil if none installed.
+private var anyResolvableAgentID: String? {
+    AgentCatalog.all.first { agent in
+        agent.executableNames.first.flatMap(AgentCatalog.resolveExecutablePath(named:)) != nil
+    }?.id
+}
+
 @Suite("Spawn validation")
 struct SpawnValidationTests {
 
     @Test func knownAgentIDAccepted() async throws {
-        guard !skipInCI else { return }
+        guard let agentID = anyResolvableAgentID else { return }
         let tmpSocket = NSTemporaryDirectory() + "spawn-valid-\(UUID().uuidString).sock"
         let provider = ValidatingControlProvider()
         let server = ControlServer(socketPath: tmpSocket)
         try await server.start(provider: provider)
         defer { Task { await server.stop() } }
-        try await Task.sleep(nanoseconds: 10_000_000)
 
         let client = ControlClient(socketPath: tmpSocket)
-        let paneID = try await client.spawn(agentID: "claude-code")
+        let paneID = try await client.spawn(agentID: agentID)
 
         let spawned = await provider.spawnedPanes
         #expect(spawned.count == 1)
-        #expect(spawned.first?.agentID == "claude-code")
+        #expect(spawned.first?.agentID == agentID)
         #expect(paneID != UUID())
     }
 
     @Test func allCatalogAgentsAccepted() async throws {
-        guard !skipInCI else { return }
         let tmpSocket = NSTemporaryDirectory() + "spawn-allvalid-\(UUID().uuidString).sock"
         let provider = ValidatingControlProvider()
         let server = ControlServer(socketPath: tmpSocket)
         try await server.start(provider: provider)
         defer { Task { await server.stop() } }
-        try await Task.sleep(nanoseconds: 10_000_000)
 
         let client = ControlClient(socketPath: tmpSocket)
 
+        // Only agents whose executable is installed on this machine can spawn;
+        // the rest must fail with the specific "not found in PATH" error, never
+        // with "unknown agent". Keeps the test machine-independent.
+        var installed = 0
         for agent in AgentCatalog.all {
-            let paneID = try await client.spawn(agentID: agent.id)
-            #expect(paneID != UUID(), "Should accept known agent: \(agent.id)")
+            let resolvable = agent.executableNames.first.flatMap {
+                AgentCatalog.resolveExecutablePath(named: $0)
+            } != nil
+            if resolvable {
+                let paneID = try await client.spawn(agentID: agent.id)
+                #expect(paneID != UUID(), "Should accept known agent: \(agent.id)")
+                installed += 1
+            } else {
+                do {
+                    _ = try await client.spawn(agentID: agent.id)
+                    Issue.record("Expected PATH error for uninstalled agent: \(agent.id)")
+                } catch ControlClientError.rpcError(let err) {
+                    #expect(err.message.contains("not found in PATH"),
+                        "Catalog agent \(agent.id) must fail on PATH, not catalog lookup")
+                }
+            }
         }
 
         let spawned = await provider.spawnedPanes
-        #expect(spawned.count == AgentCatalog.all.count)
+        #expect(spawned.count == installed)
     }
 
     @Test func unknownAgentIDRejected() async throws {
-        guard !skipInCI else { return }
         let tmpSocket = NSTemporaryDirectory() + "spawn-invalid-\(UUID().uuidString).sock"
         let provider = ValidatingControlProvider()
         let server = ControlServer(socketPath: tmpSocket)
         try await server.start(provider: provider)
         defer { Task { await server.stop() } }
-        try await Task.sleep(nanoseconds: 10_000_000)
 
         let client = ControlClient(socketPath: tmpSocket)
         do {
@@ -130,13 +148,11 @@ struct SpawnValidationTests {
     }
 
     @Test func shellInjectionRejected() async throws {
-        guard !skipInCI else { return }
         let tmpSocket = NSTemporaryDirectory() + "spawn-inject-\(UUID().uuidString).sock"
         let provider = ValidatingControlProvider()
         let server = ControlServer(socketPath: tmpSocket)
         try await server.start(provider: provider)
         defer { Task { await server.stop() } }
-        try await Task.sleep(nanoseconds: 10_000_000)
 
         let client = ControlClient(socketPath: tmpSocket)
         let payloads = [
@@ -159,18 +175,17 @@ struct SpawnValidationTests {
     }
 
     @Test func invalidWorkingDirectoryRejected() async throws {
-        guard !skipInCI else { return }
+        guard let agentID = anyResolvableAgentID else { return }
         let tmpSocket = NSTemporaryDirectory() + "spawn-badcwd-\(UUID().uuidString).sock"
         let provider = ValidatingControlProvider()
         let server = ControlServer(socketPath: tmpSocket)
         try await server.start(provider: provider)
         defer { Task { await server.stop() } }
-        try await Task.sleep(nanoseconds: 10_000_000)
 
         let client = ControlClient(socketPath: tmpSocket)
         do {
             _ = try await client.spawn(
-                agentID: "claude-code",
+                agentID: agentID,
                 workingDirectory: "/nonexistent/path/that/does/not/exist")
             Issue.record("Expected rpcError for nonexistent working directory")
         } catch ControlClientError.rpcError(let err) {
@@ -182,7 +197,7 @@ struct SpawnValidationTests {
     }
 
     @Test func fileAsWorkingDirectoryRejected() async throws {
-        guard !skipInCI else { return }
+        guard let agentID = anyResolvableAgentID else { return }
         let tmpFile = NSTemporaryDirectory() + "spawn-file-\(UUID().uuidString).txt"
         FileManager.default.createFile(atPath: tmpFile, contents: Data("test".utf8))
         defer { try? FileManager.default.removeItem(atPath: tmpFile) }
@@ -192,11 +207,10 @@ struct SpawnValidationTests {
         let server = ControlServer(socketPath: tmpSocket)
         try await server.start(provider: provider)
         defer { Task { await server.stop() } }
-        try await Task.sleep(nanoseconds: 10_000_000)
 
         let client = ControlClient(socketPath: tmpSocket)
         do {
-            _ = try await client.spawn(agentID: "claude-code", workingDirectory: tmpFile)
+            _ = try await client.spawn(agentID: agentID, workingDirectory: tmpFile)
             Issue.record("Expected rpcError for file used as working directory")
         } catch ControlClientError.rpcError(let err) {
             #expect(err.code == -32602)
@@ -207,7 +221,7 @@ struct SpawnValidationTests {
     }
 
     @Test func validWorkingDirectoryAccepted() async throws {
-        guard !skipInCI else { return }
+        guard let agentID = anyResolvableAgentID else { return }
         let tmpDir = NSTemporaryDirectory() + "spawn-dir-\(UUID().uuidString)"
         try FileManager.default.createDirectory(atPath: tmpDir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(atPath: tmpDir) }
@@ -217,10 +231,9 @@ struct SpawnValidationTests {
         let server = ControlServer(socketPath: tmpSocket)
         try await server.start(provider: provider)
         defer { Task { await server.stop() } }
-        try await Task.sleep(nanoseconds: 10_000_000)
 
         let client = ControlClient(socketPath: tmpSocket)
-        let paneID = try await client.spawn(agentID: "opencode", workingDirectory: tmpDir)
+        let paneID = try await client.spawn(agentID: agentID, workingDirectory: tmpDir)
         #expect(paneID != UUID())
 
         let spawned = await provider.spawnedPanes

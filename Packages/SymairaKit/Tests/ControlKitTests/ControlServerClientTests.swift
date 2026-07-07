@@ -31,6 +31,9 @@ actor MockControlProvider: OrchestrationControlProvider {
     }
 
     func focus(paneID: UUID) async throws {
+        guard fixedSnapshot.panes.contains(where: { $0.id == paneID }) else {
+            throw ControlRPCError(code: -32602, message: "Unknown pane: \(paneID)")
+        }
         focusedIDs.append(paneID)
         fixedSnapshot.currentPaneID = paneID
     }
@@ -48,16 +51,11 @@ actor MockControlProvider: OrchestrationControlProvider {
 
 // MARK: - Test suite
 
-/// Skip socket-based integration tests in CI where Unix domain sockets
-/// may hang indefinitely in the sandboxed runner (no controlling terminal).
-private let skipInCI = ProcessInfo.processInfo.environment["CI"] == "true"
-
 @Suite("ControlServer + ControlClient integration")
 struct ControlServerClientTests {
 
     /// Round-trip a snapshot through the Unix socket transport.
     @Test func snapshotRoundtrip() async throws {
-        guard !skipInCI else { return }
         let tmpSocket = NSTemporaryDirectory() + "test-control-\(UUID().uuidString).sock"
         let paneID = UUID()
         let expectedSnapshot = OrchestrationSnapshot(
@@ -71,9 +69,6 @@ struct ControlServerClientTests {
         try await server.start(provider: provider)
         defer { Task { await server.stop() } }
 
-        // Give the accept loop time to start
-        try await Task.sleep(nanoseconds: 10_000_000) // 10ms
-
         var client = ControlClient(socketPath: tmpSocket)
         let result = try await client.snapshot()
 
@@ -84,14 +79,11 @@ struct ControlServerClientTests {
     }
 
     @Test func spawnRoundtrip() async throws {
-        guard !skipInCI else { return }
         let tmpSocket = NSTemporaryDirectory() + "test-control-\(UUID().uuidString).sock"
         let provider = MockControlProvider()
         let server = ControlServer(socketPath: tmpSocket)
         try await server.start(provider: provider)
         defer { Task { await server.stop() } }
-
-        try await Task.sleep(nanoseconds: 10_000_000)
 
         let client = ControlClient(socketPath: tmpSocket)
         let newPaneID = try await client.spawn(
@@ -105,7 +97,6 @@ struct ControlServerClientTests {
     }
 
     @Test func focusRoundtrip() async throws {
-        guard !skipInCI else { return }
         let tmpSocket = NSTemporaryDirectory() + "test-control-\(UUID().uuidString).sock"
         let targetID = UUID()
         let provider = MockControlProvider(snapshot: OrchestrationSnapshot(
@@ -113,8 +104,6 @@ struct ControlServerClientTests {
         let server = ControlServer(socketPath: tmpSocket)
         try await server.start(provider: provider)
         defer { Task { await server.stop() } }
-
-        try await Task.sleep(nanoseconds: 10_000_000)
 
         let client = ControlClient(socketPath: tmpSocket)
         try await client.focus(paneID: targetID)
@@ -124,14 +113,11 @@ struct ControlServerClientTests {
     }
 
     @Test func blockedReturnsNilWhenNoneBlocked() async throws {
-        guard !skipInCI else { return }
         let tmpSocket = NSTemporaryDirectory() + "test-control-\(UUID().uuidString).sock"
         let provider = MockControlProvider()
         let server = ControlServer(socketPath: tmpSocket)
         try await server.start(provider: provider)
         defer { Task { await server.stop() } }
-
-        try await Task.sleep(nanoseconds: 10_000_000)
 
         let client = ControlClient(socketPath: tmpSocket)
         let id = try await client.blocked()
@@ -139,14 +125,11 @@ struct ControlServerClientTests {
     }
 
     @Test func unknownMethodReturnsError() async throws {
-        guard !skipInCI else { return }
         let tmpSocket = NSTemporaryDirectory() + "test-control-\(UUID().uuidString).sock"
         let provider = MockControlProvider()
         let server = ControlServer(socketPath: tmpSocket)
         try await server.start(provider: provider)
         defer { Task { await server.stop() } }
-
-        try await Task.sleep(nanoseconds: 10_000_000)
 
         let client = ControlClient(socketPath: tmpSocket)
         let badRequest = ControlRequest(method: .snapshot) // craft a bad method manually
@@ -171,7 +154,6 @@ struct ControlServerClientTests {
     }
 
     @Test func connectionRefusedWhenNoServer() async {
-        guard !skipInCI else { return }
         let client = ControlClient(
             socketPath: NSTemporaryDirectory() + "no-server-\(UUID()).sock")
         do {
