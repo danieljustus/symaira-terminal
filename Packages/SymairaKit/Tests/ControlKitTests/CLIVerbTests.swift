@@ -2,7 +2,6 @@ import ControlKit
 import Foundation
 import Testing
 
-private let skipCLISocketRoundtripsInCI = ProcessInfo.processInfo.environment["CI"] == "true"
 
 /// Tests for write-verb request construction and response handling via the
 /// control socket. Uses a mock provider — no GUI or PaneManager involved.
@@ -12,13 +11,11 @@ struct CLIVerbTests {
     // MARK: - spawn verb
 
     @Test func spawnCreatesNewPane() async throws {
-        guard !skipCLISocketRoundtripsInCI else { return }
         let tmpSocket = NSTemporaryDirectory() + "cli-spawn-\(UUID().uuidString).sock"
         let provider = MockControlProvider()
         let server = ControlServer(socketPath: tmpSocket)
         try await server.start(provider: provider)
         defer { Task { await server.stop() } }
-        try await Task.sleep(nanoseconds: 10_000_000)
 
         let client = ControlClient(socketPath: tmpSocket)
         let paneID = try await client.spawn(
@@ -36,13 +33,11 @@ struct CLIVerbTests {
     }
 
     @Test func spawnWithoutWorktree() async throws {
-        guard !skipCLISocketRoundtripsInCI else { return }
         let tmpSocket = NSTemporaryDirectory() + "cli-spawn2-\(UUID().uuidString).sock"
         let provider = MockControlProvider()
         let server = ControlServer(socketPath: tmpSocket)
         try await server.start(provider: provider)
         defer { Task { await server.stop() } }
-        try await Task.sleep(nanoseconds: 10_000_000)
 
         let client = ControlClient(socketPath: tmpSocket)
         _ = try await client.spawn(agentID: "opencode")
@@ -55,7 +50,6 @@ struct CLIVerbTests {
     // MARK: - focus verb
 
     @Test func focusKnownPane() async throws {
-        guard !skipCLISocketRoundtripsInCI else { return }
         let tmpSocket = NSTemporaryDirectory() + "cli-focus-\(UUID().uuidString).sock"
         let target = UUID()
         let provider = MockControlProvider(snapshot: OrchestrationSnapshot(
@@ -64,7 +58,6 @@ struct CLIVerbTests {
         let server = ControlServer(socketPath: tmpSocket)
         try await server.start(provider: provider)
         defer { Task { await server.stop() } }
-        try await Task.sleep(nanoseconds: 10_000_000)
 
         let client = ControlClient(socketPath: tmpSocket)
         try await client.focus(paneID: target)
@@ -74,13 +67,11 @@ struct CLIVerbTests {
     }
 
     @Test func focusMissingPaneReturnsError() async throws {
-        guard !skipCLISocketRoundtripsInCI else { return }
         let tmpSocket = NSTemporaryDirectory() + "cli-focus2-\(UUID().uuidString).sock"
         let provider = MockControlProvider()
         let server = ControlServer(socketPath: tmpSocket)
         try await server.start(provider: provider)
         defer { Task { await server.stop() } }
-        try await Task.sleep(nanoseconds: 10_000_000)
 
         let client = ControlClient(socketPath: tmpSocket)
         do {
@@ -94,7 +85,6 @@ struct CLIVerbTests {
     // MARK: - blocked verb
 
     @Test func blockedReturnsLongestWaitingPane() async throws {
-        guard !skipCLISocketRoundtripsInCI else { return }
         let tmpSocket = NSTemporaryDirectory() + "cli-blocked-\(UUID().uuidString).sock"
         let blockedID = UUID()
         let provider = MockControlProvider()
@@ -102,7 +92,6 @@ struct CLIVerbTests {
         let server = ControlServer(socketPath: tmpSocket)
         try await server.start(provider: provider)
         defer { Task { await server.stop() } }
-        try await Task.sleep(nanoseconds: 10_000_000)
 
         let client = ControlClient(socketPath: tmpSocket)
         let result = try await client.blocked()
@@ -110,13 +99,11 @@ struct CLIVerbTests {
     }
 
     @Test func blockedReturnsNilWhenNoneBlocked() async throws {
-        guard !skipCLISocketRoundtripsInCI else { return }
         let tmpSocket = NSTemporaryDirectory() + "cli-blocked2-\(UUID().uuidString).sock"
         let provider = MockControlProvider()
         let server = ControlServer(socketPath: tmpSocket)
         try await server.start(provider: provider)
         defer { Task { await server.stop() } }
-        try await Task.sleep(nanoseconds: 10_000_000)
 
         let client = ControlClient(socketPath: tmpSocket)
         let result = try await client.blocked()

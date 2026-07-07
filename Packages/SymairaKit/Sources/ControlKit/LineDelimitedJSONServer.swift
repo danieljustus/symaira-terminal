@@ -11,6 +11,20 @@ import Foundation
 ///
 /// Conforming types only need to implement `dispatch(line:decoder:)` and
 /// `makeErrorResponse(message:)`.
+/// Runs blocking socket syscalls on GCD worker threads so they never occupy
+/// the cooperative Swift Concurrency pool (which would starve it and deadlock).
+enum BlockingSocketIO {
+    static func read(fd: Int32, maxBytes: Int) async -> Data? {
+        await withCheckedContinuation { cont in
+            DispatchQueue.global().async {
+                var buf = [UInt8](repeating: 0, count: maxBytes)
+                let n = buf.withUnsafeMutableBytes { Darwin.read(fd, $0.baseAddress!, $0.count) }
+                cont.resume(returning: n > 0 ? Data(buf.prefix(n)) : nil)
+            }
+        }
+    }
+}
+
 public protocol LineDelimitedJSONServer: Sendable {
     var maxFrameSize: Int { get }
     var idleTimeoutSeconds: Int { get }
@@ -34,12 +48,10 @@ extension LineDelimitedJSONServer {
         setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
 
         var pending = Data()
-        var buf = [UInt8](repeating: 0, count: 4096)
 
         while !Task.isCancelled {
-            let n = buf.withUnsafeMutableBytes { Darwin.read(fd, $0.baseAddress!, $0.count) }
-            guard n > 0 else { break }
-            pending.append(contentsOf: buf.prefix(n))
+            guard let chunk = await BlockingSocketIO.read(fd: fd, maxBytes: 4096) else { break }
+            pending.append(chunk)
 
             if pending.count > maxFrameSize {
                 let errorResponse = makeErrorResponse(message: "Frame exceeds \(maxFrameSize) byte limit")

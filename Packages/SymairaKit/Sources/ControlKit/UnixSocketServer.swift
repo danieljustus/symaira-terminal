@@ -21,7 +21,6 @@ public final class UnixSocketServer: @unchecked Sendable {
     public let socketPath: String
     private let lock = NSLock()
     private var _serverFD: Int32 = -1
-    private var acceptTask: Task<Void, Never>?
     private let counter = ConnectionCounter()
 
     private var serverFD: Int32 {
@@ -78,8 +77,11 @@ public final class UnixSocketServer: @unchecked Sendable {
     ) {
         let fd = serverFD
         guard fd >= 0 else { return }
-        acceptTask = Task.detached { [counter] in
-            while !Task.isCancelled {
+        // accept(2) blocks; it must live on a dedicated thread, never on the
+        // cooperative concurrency pool (pool starvation deadlocks the process).
+        // stop() closes the fd, which makes accept return < 0 and ends the thread.
+        Thread.detachNewThread { [counter] in
+            while true {
                 let clientFD = Darwin.accept(fd, nil, nil)
                 guard clientFD >= 0 else { break }
 
@@ -103,8 +105,6 @@ public final class UnixSocketServer: @unchecked Sendable {
     }
 
     public func stop() {
-        acceptTask?.cancel()
-        acceptTask = nil
         let fd = serverFD
         if fd >= 0 {
             Darwin.close(fd)

@@ -12,7 +12,6 @@ struct ControlSecurityTests {
     // MARK: - Socket permissions
 
     @Test func socketCreatedWith600Permissions() async throws {
-        guard ProcessInfo.processInfo.environment["CI"] != "true" else { return }
         let tmpSocket = NSTemporaryDirectory() + "sec-test-\(UUID().uuidString).sock"
         let provider = MockControlProvider()
         let server = ControlServer(socketPath: tmpSocket)
@@ -30,7 +29,6 @@ struct ControlSecurityTests {
     }
 
     @Test func socketRemovedAfterStop() async throws {
-        guard ProcessInfo.processInfo.environment["CI"] != "true" else { return }
         let tmpSocket = NSTemporaryDirectory() + "sec-stop-\(UUID().uuidString).sock"
         let server = ControlServer(socketPath: tmpSocket)
         try await server.start(provider: MockControlProvider())
@@ -91,12 +89,10 @@ struct ControlSecurityTests {
     // MARK: - Spawn rejects missing agentID
 
     @Test func spawnRequiresAgentID() async throws {
-        guard ProcessInfo.processInfo.environment["CI"] != "true" else { return }
         let tmpSocket = NSTemporaryDirectory() + "sec-spawn-\(UUID().uuidString).sock"
         let server = ControlServer(socketPath: tmpSocket)
         try await server.start(provider: MockControlProvider())
         defer { Task { await server.stop() } }
-        try await Task.sleep(nanoseconds: 10_000_000)
 
         let client = ControlClient(socketPath: tmpSocket)
         // Send a spawn request without agentID — should return an RPC error
@@ -114,12 +110,10 @@ struct ControlSecurityTests {
     // MARK: - Focus rejects missing paneID
 
     @Test func focusRequiresPaneID() async throws {
-        guard ProcessInfo.processInfo.environment["CI"] != "true" else { return }
         let tmpSocket = NSTemporaryDirectory() + "sec-focus-\(UUID().uuidString).sock"
         let server = ControlServer(socketPath: tmpSocket)
         try await server.start(provider: MockControlProvider())
         defer { Task { await server.stop() } }
-        try await Task.sleep(nanoseconds: 10_000_000)
 
         let client = ControlClient(socketPath: tmpSocket)
         let request = ControlRequest(method: .focus, params: ControlParams(), id: 43)
@@ -136,12 +130,10 @@ struct ControlSecurityTests {
     // MARK: - Frame size limit
 
     @Test func oversizedFrameRejected() async throws {
-        guard ProcessInfo.processInfo.environment["CI"] != "true" else { return }
         let tmpSocket = NSTemporaryDirectory() + "sec-oversize-\(UUID().uuidString).sock"
         let server = ControlServer(socketPath: tmpSocket)
         try await server.start(provider: MockControlProvider())
         defer { Task { await server.stop() } }
-        try await Task.sleep(nanoseconds: 10_000_000)
 
         let fd = Darwin.socket(AF_UNIX, SOCK_STREAM, 0)
         guard fd >= 0 else { Issue.record("Failed to create socket"); return }
@@ -190,7 +182,6 @@ struct ControlSecurityTests {
     // MARK: - Connection cap
 
     @Test func connectionCapEnforced() async throws {
-        guard ProcessInfo.processInfo.environment["CI"] != "true" else { return }
         let tmpSocket = NSTemporaryDirectory() + "sec-cap-\(UUID().uuidString).sock"
         let server = UnixSocketServer(socketPath: tmpSocket)
         let gate = ConnectionGate()
@@ -202,7 +193,6 @@ struct ControlSecurityTests {
             await gate.holdAcceptedConnection()
         }
         defer { server.stop() }
-        try await Task.sleep(nanoseconds: 10_000_000)
 
         var fds: [Int32] = []
         defer { fds.forEach { Darwin.close($0) } }
@@ -244,7 +234,6 @@ struct ControlSecurityTests {
                 }
                 if n == 0 { return true }
                 if n < 0 && errno != EAGAIN && errno != EWOULDBLOCK { return true }
-                try await Task.sleep(nanoseconds: 10_000_000)
             }
             return false
         }

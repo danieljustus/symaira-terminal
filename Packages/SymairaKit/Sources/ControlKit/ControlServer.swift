@@ -45,10 +45,8 @@ public actor ControlServer: LineDelimitedJSONServer {
         encoder.dateEncodingStrategy = .iso8601
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        Task.detached { [self] in
-            await server.acceptLoop(maxConcurrentConnections: Self.maxConcurrentConnections) { clientFD in
-                await self.handleConnection(fd: clientFD, encoder: encoder, decoder: decoder)
-            }
+        server.acceptLoop(maxConcurrentConnections: Self.maxConcurrentConnections) { [self] clientFD in
+            await handleConnection(fd: clientFD, encoder: encoder, decoder: decoder)
         }
     }
 
