@@ -169,12 +169,16 @@ jobs:
             echo "::warning::NOTARY_API_KEY secret is not set. Skipping notarization."
             exit 0
           fi
-          xcrun notarytool submit "$APP_PATH" \
+          # notarytool accepts .zip, .pkg, or .dmg, not a raw .app bundle.
+          ZIP_PATH="$RUNNER_TEMP/SymairaTerminal.zip"
+          ditto -c -k --keepParent "$APP_PATH" "$ZIP_PATH"
+          xcrun notarytool submit "$ZIP_PATH" \
             --apple-id "${NOTARY_API_KEY_ID}" \
             --team-id "${NOTARY_API_ISSUER}" \
             --password "${NOTARY_API_KEY}" \
             --wait
           xcrun stapler staple "$APP_PATH"
+          rm -f "$ZIP_PATH"
 
       - name: Verify bundle version
         run: |
