@@ -72,11 +72,15 @@ jobs:
           echo -n "$CERTIFICATE_P12" | base64 --decode -o "$CERTIFICATE_PATH"
           security import "$CERTIFICATE_PATH" -P "$CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
           security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security list-keychain -d user -s "$KEYCHAIN_PATH"
+          security default-keychain -s "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH" $(security list-keychain -d user | sed 's/ //g')
           echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
 
       - name: Build and archive
         if: steps.signing.outputs.signed == 'true'
+        env:
+          DEVELOPMENT_TEAM: ${{ secrets.NOTARY_API_ISSUER }}
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           xcodebuild archive \
@@ -88,11 +92,16 @@ jobs:
             CURRENT_PROJECT_VERSION="${GITHUB_RUN_NUMBER}" \
             CODE_SIGN_IDENTITY="Developer ID Application" \
             CODE_SIGN_STYLE=Manual \
-            CODE_SIGNING_ALLOWED=YES
+            CODE_SIGNING_ALLOWED=YES \
+            DEVELOPMENT_TEAM="${DEVELOPMENT_TEAM}"
 
       - name: Export archive
         if: steps.signing.outputs.signed == 'true'
+        env:
+          DEVELOPMENT_TEAM: ${{ secrets.NOTARY_API_ISSUER }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
         run: |
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           cat > build/release/ExportOptions.plist << 'EOF'
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -104,6 +113,8 @@ jobs:
               <string>manual</string>
               <key>signingCertificate</key>
               <string>Developer ID Application</string>
+              <key>teamID</key>
+              <string>${DEVELOPMENT_TEAM}</string>
           </dict>
           </plist>
           EOF
