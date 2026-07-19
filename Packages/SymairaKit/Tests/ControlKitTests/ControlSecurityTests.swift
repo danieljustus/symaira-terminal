@@ -28,6 +28,21 @@ struct ControlSecurityTests {
             "Socket must be 0600 so only the owning user can connect; got \(String(posixPerms.map { String($0, radix: 8) } ?? "nil"))")
     }
 
+    @Test func socketParentDirectoryIs700() async throws {
+        let tmpDir = NSTemporaryDirectory() + "sec-dir-\(UUID().uuidString)/nested"
+        let tmpSocket = tmpDir + "/control.sock"
+        let server = ControlServer(socketPath: tmpSocket)
+        try await server.start(provider: MockControlProvider())
+        defer { Task { await server.stop() } }
+
+        try await Task.sleep(nanoseconds: 5_000_000)
+
+        let attrs = try FileManager.default.attributesOfItem(atPath: tmpDir)
+        let posixPerms = attrs[.posixPermissions] as? Int
+        #expect(posixPerms == 0o700,
+            "Socket parent directory must be 0700 so other local users cannot traverse into it; got \(String(posixPerms.map { String($0, radix: 8) } ?? "nil"))")
+    }
+
     @Test func socketRemovedAfterStop() async throws {
         let tmpSocket = NSTemporaryDirectory() + "sec-stop-\(UUID().uuidString).sock"
         let server = ControlServer(socketPath: tmpSocket)
