@@ -144,7 +144,7 @@ final class OrchestrationControlAdapter: OrchestrationControlProvider {
     }
 
     func requestOpenTab(command: String) async throws -> TabRequestResult {
-        let allowed = await paneManager.openTab(command: command, workingDirectory: nil)
+        let allowed = await paneManager.openTab(command: command, workingDirectory: nil, origin: .mcp)
         return TabRequestResult(status: allowed ? "opened" : "denied")
     }
 
