@@ -39,9 +39,18 @@ public final class UnixSocketServer: @unchecked Sendable {
         let dir = (socketPath as NSString).deletingLastPathComponent
         try FileManager.default.createDirectory(
             atPath: dir, withIntermediateDirectories: true, attributes: nil)
+        Darwin.chmod(dir, 0o700)
 
+        // Tighten the umask around bind() so the socket file never has a
+        // window with broader-than-owner permissions between bind() and the
+        // explicit chmod() below — bind() creates the filesystem node subject
+        // to the process umask, same as open()/mkdir().
+        let previousUmask = Darwin.umask(0o077)
         let fd = Darwin.socket(AF_UNIX, SOCK_STREAM, 0)
-        guard fd >= 0 else { throw UnixSocketServerError.socketFailed(errno: errno) }
+        guard fd >= 0 else {
+            Darwin.umask(previousUmask)
+            throw UnixSocketServerError.socketFailed(errno: errno)
+        }
 
         var addr = sockaddr_un()
         addr.sun_family = sa_family_t(AF_UNIX)
@@ -56,6 +65,7 @@ public final class UnixSocketServer: @unchecked Sendable {
                 Darwin.bind(fd, $0, socklen_t(MemoryLayout<sockaddr_un>.size))
             }
         }
+        Darwin.umask(previousUmask)
         guard bindResult == 0 else {
             Darwin.close(fd)
             throw UnixSocketServerError.bindFailed(errno: errno)
