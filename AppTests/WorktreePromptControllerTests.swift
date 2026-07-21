@@ -1,5 +1,4 @@
 import XCTest
-import WorktreeKit
 import SymairaUI
 @testable import WorktreeKit
 @testable import SymairaTerminal
