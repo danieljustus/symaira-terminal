@@ -276,7 +276,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             case .openTab(let command, let workingDirectory):
                 if let command, !command.isEmpty {
                     Task {
-                        _ = await paneManager?.openTab(command: command, workingDirectory: workingDirectory)
+                        _ = await paneManager?.openTab(command: command, workingDirectory: workingDirectory, origin: .urlScheme)
                     }
                 } else if let workingDirectory {
                     _ = paneManager?.createPane(inDirectory: workingDirectory)
