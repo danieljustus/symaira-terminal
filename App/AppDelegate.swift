@@ -364,8 +364,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func toggleSearch() {
-        if searchOverlay.isVisible { searchOverlay.hide() }
-        else if let pane = paneManager?.currentPane { searchOverlay.show(for: pane) }
+        if searchOverlay.isVisible { searchOverlay.hide() } else if let pane = paneManager?.currentPane { searchOverlay.show(for: pane) }
     }
 
     @objc private func clearScrollback() {
