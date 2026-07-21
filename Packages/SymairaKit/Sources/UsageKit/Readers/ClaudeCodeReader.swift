@@ -130,6 +130,10 @@ public struct ClaudeCodeReader: UsageReader, Sendable {
     }
 
     private func parseAssistantEntry(_ line: String, projectName: String, filePath: String) -> UsageSample? {
+        guard line.contains("\"type\":\"assistant\"") || line.contains("\"type\": \"assistant\"") else {
+            return nil
+        }
+
         guard let data = line.data(using: .utf8),
               let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             return nil

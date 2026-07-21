@@ -93,6 +93,26 @@ import Foundation
         #expect(samples[0].id == "ok")
     }
 
+    @Test func skipsNonAssistantLinesWithoutFullJSONParse() async throws {
+        let base = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: base) }
+
+        let projectDir = try makeClaudeProjectDir(base: base)
+        let jsonl = """
+        {"type":"human","uuid":"h1","timestamp":"2026-06-01T00:00:00Z","message":{"role":"user","content":"mentions assistant but is not one"}}
+        {"type":"tool_use","uuid":"t1","timestamp":"2026-06-01T00:00:01Z"
+        {"type": "assistant","uuid":"a1","timestamp":"2026-06-01T00:00:02Z","message":{"model":"m","usage":{"input_tokens":1,"output_tokens":1}}}
+        {"type":"assistant","uuid":"a2","timestamp":"2026-06-01T00:00:03Z","message":{"model":"m","usage":{"input_tokens":2,"output_tokens":2}}}
+        """
+        try jsonl.data(using: .utf8)!.write(to: projectDir.appendingPathComponent("session.jsonl"))
+
+        let reader = ClaudeCodeReader(baseDirectory: base)
+        let samples = try await reader.read(since: Date.distantPast)
+
+        #expect(samples.count == 2)
+        #expect(Set(samples.map(\.id)) == ["a1", "a2"])
+    }
+
     @Test func skipsZeroTokenEntries() async throws {
         let base = try makeTempDir()
         defer { try? FileManager.default.removeItem(at: base) }
