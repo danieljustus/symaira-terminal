@@ -64,6 +64,10 @@ targets:
       - AppTests
     dependencies:
       - target: SymairaTerminal
+      - package: SymairaKit
+        product: WorktreeKit
+      - package: SymairaKit
+        product: SymairaUI
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.symaira.terminal.tests
