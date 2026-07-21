@@ -152,7 +152,7 @@ public struct ClaudeCodeReader: UsageReader, Sendable {
         // Derive timestamp from `timestamp` field (ISO8601) or fall back to now.
         let timestamp: Date
         if let tsString = obj["timestamp"] as? String {
-            timestamp = ISO8601DateFormatter().date(from: tsString) ?? Date()
+            timestamp = ISO8601DateFormatter.usageKitShared.date(from: tsString) ?? Date()
         } else {
             return nil  // no timestamp → can't determine if in range, skip
         }
