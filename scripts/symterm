@@ -132,6 +132,15 @@ open_dir_fallback() {
 # ---------------------------------------------------------------------------
 
 print_version() {
+    local bundle
+    if bundle="$(app_path 2>/dev/null)" && [ -n "$bundle" ]; then
+        local actual_version
+        actual_version="$(defaults read "$bundle/Contents/Info" CFBundleShortVersionString 2>/dev/null || true)"
+        if [ -n "$actual_version" ]; then
+            echo "symterm ${actual_version}"
+            return 0
+        fi
+    fi
     echo "symterm ${SYMTERM_VERSION}"
 }
 
