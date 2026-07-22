@@ -1,5 +1,6 @@
-# Default owner for everything in the repo
+# Default owner for everything in the repo (enforced via main branch protection)
 * @danieljustus
+
 
 # Specific ownership rules
 /packages/SymairaKit/ @danieljustus
