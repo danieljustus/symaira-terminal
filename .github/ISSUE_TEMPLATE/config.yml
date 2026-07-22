@@ -1,1 +1,9 @@
 blank_issues_enabled: false
+contact_links:
+  - name: Symaira Terminal Documentation
+    url: https://symaira.com
+    about: Read user guides, architecture overview, and FAQ.
+  - name: GitHub Community Discussions
+    url: https://github.com/danieljustus/symaira-terminal/discussions
+    about: Ask questions, share ideas, and connect with other users.
+
