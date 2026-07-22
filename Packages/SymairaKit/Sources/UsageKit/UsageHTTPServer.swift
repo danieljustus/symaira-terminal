@@ -165,7 +165,7 @@ public actor UsageHTTPServer {
 
     private func snapshotJSON(_ snapshot: UsageSnapshot) -> Data {
         var obj: [String: Any] = [
-            "generatedAt": ISO8601DateFormatter().string(from: snapshot.generatedAt),
+            "generatedAt": ISO8601DateFormatter.usageKitShared.string(from: snapshot.generatedAt),
             "totalInputTokens": snapshot.totalInputTokens,
             "totalOutputTokens": snapshot.totalOutputTokens,
             "totalCacheCreationTokens": snapshot.totalCacheCreationTokens,
@@ -199,10 +199,10 @@ public actor UsageHTTPServer {
                 "label": q.label,
                 "used": q.used,
                 "unit": q.unit.rawValue,
-                "fetchedAt": ISO8601DateFormatter().string(from: q.fetchedAt)
+                "fetchedAt": ISO8601DateFormatter.usageKitShared.string(from: q.fetchedAt)
             ]
             if let limit = q.limit { entry["limit"] = limit }
-            if let resets = q.resetsAt { entry["resetsAt"] = ISO8601DateFormatter().string(from: resets) }
+            if let resets = q.resetsAt { entry["resetsAt"] = ISO8601DateFormatter.usageKitShared.string(from: resets) }
             return entry
         }
         let obj: [String: Any] = ["quotas": quotas]

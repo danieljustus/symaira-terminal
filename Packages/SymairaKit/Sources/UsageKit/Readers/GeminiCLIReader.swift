@@ -133,7 +133,7 @@ public struct GeminiCLIReader: UsageReader, Sendable {
         let modelID = obj["model"] as? String ?? "gemini-unknown"
 
         guard let tsString = obj["timestamp"] as? String ?? (obj["created_at"] as? String),
-              let timestamp = ISO8601DateFormatter().date(from: tsString) else { return nil }
+              let timestamp = ISO8601DateFormatter.usageKitShared.date(from: tsString) else { return nil }
 
         let id = obj["id"] as? String ?? UUID().uuidString
         return UsageSample(

@@ -119,6 +119,6 @@ public struct AnthropicQuotaFetcher: QuotaFetcher, Sendable {
 
     private func parseISO8601(_ string: String?) -> Date? {
         guard let string else { return nil }
-        return ISO8601DateFormatter().date(from: string)
+        return ISO8601DateFormatter.usageKitShared.date(from: string)
     }
 }

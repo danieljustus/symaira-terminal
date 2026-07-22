@@ -124,7 +124,7 @@ public struct CodexReader: UsageReader, Sendable {
         let modelID = obj["model"] as? String ?? "codex-unknown"
 
         guard let tsString = obj["created_at"] as? String ?? (obj["timestamp"] as? String),
-              let timestamp = ISO8601DateFormatter().date(from: tsString) else { return nil }
+              let timestamp = ISO8601DateFormatter.usageKitShared.date(from: tsString) else { return nil }
 
         let id = obj["id"] as? String ?? UUID().uuidString
         return UsageSample(
