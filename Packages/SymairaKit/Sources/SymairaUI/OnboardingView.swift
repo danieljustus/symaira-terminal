@@ -18,8 +18,27 @@ public struct OnboardingView: View {
         self._isPresented = isPresented
     }
 
+    /// Defaults key recording that the user has been through (or dismissed) the
+    /// welcome flow. Owned here so the window that hosts the flow can mark it
+    /// completed on close without duplicating the literal.
+    public static let completedDefaultsKey = "onboardingCompleted"
+
+    /// Whether the welcome flow has already been shown and dismissed.
+    public static func isCompleted(in defaults: UserDefaults = .standard) -> Bool {
+        defaults.bool(forKey: completedDefaultsKey)
+    }
+
+    /// Records the welcome flow as done. Called both by the in-view buttons and
+    /// by the hosting window when it closes, so closing the window never leaves
+    /// the flow to reappear on the next launch.
+    public static func markCompleted(in defaults: UserDefaults = .standard) {
+        defaults.set(true, forKey: completedDefaultsKey)
+    }
+
     public var body: some View {
-        VStack(spacing: 24) {
+        // Skip and Back/Next live outside the ScrollView so they stay reachable
+        // no matter how tall the step content or how short the window is.
+        VStack(spacing: 0) {
             HStack {
                 Spacer()
                 Button("Skip") {
@@ -28,32 +47,32 @@ public struct OnboardingView: View {
                 .buttonStyle(.plain)
                 .foregroundColor(.secondary)
             }
+            .padding(.horizontal, 40)
+            .padding(.top, 20)
 
-            Spacer()
+            ScrollView {
+                VStack(spacing: 24) {
+                    Image(systemName: "terminal.fill")
+                        .font(.system(size: 64))
+                        .foregroundColor(.accentColor)
 
-            Image(systemName: "terminal.fill")
-                .font(.system(size: 64))
-                .foregroundColor(.accentColor)
+                    Text("Welcome to Symaira Terminal")
+                        .font(.largeTitle)
+                        .fontWeight(.bold)
+                        .multilineTextAlignment(.center)
 
-            Text("Welcome to Symaira Terminal")
-                .font(.largeTitle)
-                .fontWeight(.bold)
+                    Text("A native macOS terminal built for the Human-AI era.")
+                        .font(.title3)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
 
-            Text("A native macOS terminal built for the Human-AI era.")
-                .font(.title3)
-                .foregroundColor(.secondary)
-
-            Spacer()
-
-            if currentStep == 0 {
-                stepOne
-            } else if currentStep == 1 {
-                stepTwo
-            } else {
-                stepThree
+                    stepContent
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .padding(.horizontal, 40)
+                .padding(.vertical, 24)
+                .frame(maxWidth: .infinity)
             }
-
-            Spacer()
 
             HStack {
                 if currentStep > 0 {
@@ -74,9 +93,21 @@ public struct OnboardingView: View {
                 }
                 .buttonStyle(.borderedProminent)
             }
+            .padding(.horizontal, 40)
+            .padding(.bottom, 20)
         }
-        .padding(40)
-        .frame(width: 500, height: 400)
+        .frame(minWidth: 520, minHeight: 460)
+    }
+
+    @ViewBuilder
+    private var stepContent: some View {
+        if currentStep == 0 {
+            stepOne
+        } else if currentStep == 1 {
+            stepTwo
+        } else {
+            stepThree
+        }
     }
 
     private var stepOne: some View {
@@ -238,7 +269,7 @@ public struct OnboardingView: View {
         Task {
             do {
                 try await providerStore.signInWithOAuth(for: selectedProvider)
-                UserDefaults.standard.set(true, forKey: "onboardingCompleted")
+                Self.markCompleted()
                 isPresented = false
             } catch {
                 oauthError = error.localizedDescription
@@ -252,7 +283,7 @@ public struct OnboardingView: View {
         if !keySaved && !trimmed.isEmpty {
             try? providerStore.setKey(trimmed, for: selectedProvider)
         }
-        UserDefaults.standard.set(true, forKey: "onboardingCompleted")
+        Self.markCompleted()
         isPresented = false
     }
 }

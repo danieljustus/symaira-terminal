@@ -59,9 +59,21 @@ public struct SettingsView: View {
                     Label("Advanced", systemImage: "slider.horizontal.3")
                 }
         }
-        .frame(width: 500, height: 400)
+        // Wide enough that all six tabs fit on the tab bar instead of collapsing
+        // into an unlabelled overflow chevron, and free to grow so the content
+        // fills a resized window rather than staying a fixed island in it.
+        .frame(
+            minWidth: Self.minimumSize.width,
+            maxWidth: .infinity,
+            minHeight: Self.minimumSize.height,
+            maxHeight: .infinity
+        )
         .padding()
     }
+
+    /// Smallest size that still shows the full six-tab bar. The window that
+    /// hosts these settings opens at this size.
+    public static let minimumSize = CGSize(width: 760, height: 480)
 }
 
 struct GeneralSettingsView: View {

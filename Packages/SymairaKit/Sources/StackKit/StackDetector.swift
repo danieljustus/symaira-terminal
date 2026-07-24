@@ -17,9 +17,35 @@ public actor StackDetector {
         pathEnvironment: String? = nil
     ) {
         self.fileManager = fileManager
-        self.pathEnvironment = pathEnvironment
-            ?? ProcessInfo.processInfo.environment["PATH"]
-            ?? "/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin"
+        self.pathEnvironment = pathEnvironment ?? Self.defaultSearchPath()
+    }
+
+    /// Prefixes the Symaira CLI tools are normally installed into.
+    ///
+    /// An app launched from Finder, the Dock or Spotlight inherits launchd's
+    /// PATH, which is a bare `/usr/bin:/bin:/usr/sbin:/sbin` and never contains
+    /// these. Because that value is present (just useless), a fallback that only
+    /// applies when PATH is absent never runs — so these are unioned in instead.
+    static let standardToolPrefixes: [String] = [
+        "/opt/homebrew/bin",
+        "/usr/local/bin",
+        (("~/.local/bin") as NSString).expandingTildeInPath,
+        (("~/go/bin") as NSString).expandingTildeInPath
+    ]
+
+    /// The inherited PATH followed by the standard install prefixes, in order
+    /// and without duplicates.
+    static func defaultSearchPath(
+        inherited: String? = ProcessInfo.processInfo.environment["PATH"]
+    ) -> String {
+        let inheritedDirectories = (inherited ?? "")
+            .components(separatedBy: ":")
+            .filter { !$0.isEmpty }
+
+        var seen = Set<String>()
+        return (inheritedDirectories + standardToolPrefixes)
+            .filter { seen.insert($0).inserted }
+            .joined(separator: ":")
     }
 
     /// Detect all Symaira tools: check PATH, query versions, determine MCP support.
