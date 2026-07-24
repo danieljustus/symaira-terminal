@@ -11,6 +11,7 @@ final class WindowPresentationController: NSObject, NSWindowDelegate {
     private var settingsWindow: NSWindow?
     private var onboardingWindow: NSWindow?
     private var sketchpadWindow: NSWindow?
+    private var commandPaletteWindow: NSPanel?
     private let providerStore: ProviderStore
     private let workspaceConfigManager: WorkspaceConfigManager
     private let stackStore: StackStore
@@ -122,6 +123,17 @@ final class WindowPresentationController: NSObject, NSWindowDelegate {
         if window === onboardingWindow {
             OnboardingView.markCompleted()
             onboardingWindow = nil
+        } else if window === commandPaletteWindow {
+            commandPaletteWindow = nil
+        }
+    }
+
+    /// The palette is a transient overlay: clicking back into the terminal
+    /// dismisses it rather than leaving it pinned above the content.
+    func windowDidResignKey(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow else { return }
+        if window === commandPaletteWindow {
+            window.close()
         }
     }
 
@@ -158,13 +170,32 @@ final class WindowPresentationController: NSObject, NSWindowDelegate {
         window: NSWindow,
         actions: [CommandPaletteItem]
     ) {
-        let paletteView = CommandPalette(isPresented: .constant(true), items: actions)
+        if let existing = commandPaletteWindow {
+            existing.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+
+        // A real binding, not `.constant(true)`: the palette's own dismiss paths
+        // (the clear button, picking a command, Escape) write `false` here and
+        // must actually close the panel.
+        var isPresented = true
+        let paletteView = CommandPalette(
+            isPresented: Binding(
+                get: { isPresented },
+                set: { [weak self] newValue in
+                    isPresented = newValue
+                    if !newValue { self?.commandPaletteWindow?.close() }
+                }
+            ),
+            items: actions
+        )
         let hostingController = NSHostingController(rootView: paletteView)
         hostingController.view.frame = NSRect(x: 0, y: 0, width: 400, height: 320)
 
         let panel = NSPanel(
             contentRect: NSRect(x: 0, y: 0, width: 400, height: 320),
-            styleMask: [.titled, .nonactivatingPanel],
+            styleMask: [.titled, .closable, .nonactivatingPanel],
             backing: .buffered,
             defer: false
         )
@@ -173,6 +204,7 @@ final class WindowPresentationController: NSObject, NSWindowDelegate {
         panel.isMovableByWindowBackground = true
         panel.title = "Command Palette"
         panel.isReleasedWhenClosed = false
+        panel.delegate = self
 
         if let contentView = window.contentView {
             let rect = window.convertToScreen(NSRect(
@@ -184,7 +216,8 @@ final class WindowPresentationController: NSObject, NSWindowDelegate {
             panel.setFrameOrigin(rect.origin)
         }
 
-        panel.orderFront(nil)
+        commandPaletteWindow = panel
+        panel.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
 }
