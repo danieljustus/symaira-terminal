@@ -17,8 +17,12 @@ targets:
       - App
       - path: Resources/shell-integration
         buildPhase: resources
+      # Folder reference, not a group: the Workflow Canvas is looked up with
+      # `subdirectory: "WorkflowCanvas"`, so it has to land in the bundle as
+      # Resources/WorkflowCanvas/ instead of having its contents flattened.
       - path: Resources/WorkflowCanvas
         buildPhase: resources
+        type: folder
     dependencies:
       - package: SymairaKit
         product: GhosttyBridge
