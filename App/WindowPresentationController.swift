@@ -52,12 +52,13 @@ final class WindowPresentationController: NSObject, NSWindowDelegate {
         let hostingController = NSHostingController(rootView: settingsView)
 
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 500, height: 400),
+            contentRect: NSRect(origin: .zero, size: SettingsView.minimumSize),
             styleMask: [.titled, .closable, .resizable],
             backing: .buffered,
             defer: false
         )
         window.title = "Settings"
+        window.contentMinSize = SettingsView.minimumSize
         window.contentViewController = hostingController
         window.isReleasedWhenClosed = false
         window.center()
