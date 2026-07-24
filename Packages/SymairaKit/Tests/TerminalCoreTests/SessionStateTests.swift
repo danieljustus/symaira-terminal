@@ -12,6 +12,14 @@ final class SessionStateTests: XCTestCase {
         XCTAssertEqual(pane.rows, 24)
     }
 
+    /// A vertical split puts panes side by side, so its divider is measured
+    /// along the width; a horizontal split stacks them and is measured along the
+    /// height. Getting this backwards collapses one pane to nothing.
+    func testDividerAxisFollowsOrientation() {
+        XCTAssertTrue(SplitOrientation.vertical.measuresAlongWidth)
+        XCTAssertFalse(SplitOrientation.horizontal.measuresAlongWidth)
+    }
+
     func testSplitNodePaneRoundtrip() throws {
         let original = SplitNode.pane(index: 0)
         let data = try JSONEncoder().encode(original)

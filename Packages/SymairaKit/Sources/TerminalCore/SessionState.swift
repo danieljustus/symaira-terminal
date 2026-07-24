@@ -41,6 +41,12 @@ public indirect enum SplitNode: Codable, Equatable, Sendable {
 public enum SplitOrientation: String, Codable, Sendable {
     case horizontal
     case vertical
+
+    /// A vertical split puts the two panes side by side, so the divider offset
+    /// is measured along the container's width. A horizontal split stacks them
+    /// and is measured along its height. Mixing the two collapses one side to
+    /// nothing, so both the divider placement and the split-view axis read this.
+    public var measuresAlongWidth: Bool { self == .vertical }
 }
 
 /// Complete window state for persistence. Captures pane configurations and the
