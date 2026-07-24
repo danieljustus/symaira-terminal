@@ -7,7 +7,7 @@ import SymairaUI
 /// Manages the auxiliary windows: Settings, Onboarding, Sketchpad, and
 /// Command Palette. Extracted from `AppDelegate` to reduce its line count.
 @MainActor
-final class WindowPresentationController {
+final class WindowPresentationController: NSObject, NSWindowDelegate {
     private var settingsWindow: NSWindow?
     private var onboardingWindow: NSWindow?
     private var sketchpadWindow: NSWindow?
@@ -23,6 +23,7 @@ final class WindowPresentationController {
         self.providerStore = providerStore
         self.workspaceConfigManager = workspaceConfigManager
         self.stackStore = stackStore
+        super.init()
     }
 
     // MARK: - Settings
@@ -67,6 +68,12 @@ final class WindowPresentationController {
     // MARK: - Onboarding
 
     func showOnboarding() {
+        if let existing = onboardingWindow {
+            existing.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+
         var isPresented = true
         let onboardingView = OnboardingView(
             providerStore: providerStore,
@@ -80,19 +87,42 @@ final class WindowPresentationController {
         )
         let hostingController = NSHostingController(rootView: onboardingView)
 
+        // Size from the SwiftUI content rather than a hard-coded rect: the title
+        // bar would otherwise eat into a fixed 400pt height and clip the Skip and
+        // Back/Next rows off both ends of the flow.
+        let fitting = hostingController.view.fittingSize
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 500, height: 400),
-            styleMask: [.titled, .closable],
+            contentRect: NSRect(
+                x: 0,
+                y: 0,
+                width: max(fitting.width, 520),
+                height: max(fitting.height, 460)
+            ),
+            styleMask: [.titled, .closable, .resizable],
             backing: .buffered,
             defer: false
         )
         window.title = "Welcome to Symaira Terminal"
         window.contentViewController = hostingController
         window.isReleasedWhenClosed = false
+        window.delegate = self
         window.center()
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         onboardingWindow = window
+    }
+
+    // MARK: - NSWindowDelegate
+
+    /// Dismissing the welcome window by any route — including the red close
+    /// button — counts as completing onboarding, so it does not reappear on
+    /// every launch.
+    func windowWillClose(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow else { return }
+        if window === onboardingWindow {
+            OnboardingView.markCompleted()
+            onboardingWindow = nil
+        }
     }
 
     // MARK: - Sketchpad

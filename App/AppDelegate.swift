@@ -86,7 +86,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         setupUI(window: window, manager: manager, repoURL: repoURL)
         restoreOrCreatePane(manager: manager, window: window)
 
-        if !UserDefaults.standard.bool(forKey: "onboardingCompleted") {
+        if !OnboardingView.isCompleted() {
             windowPresentation.showOnboarding()
         }
 
