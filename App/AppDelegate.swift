@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import Combine
 import GhosttyBridge
 import TerminalCore
 import AgentKit
@@ -43,6 +44,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private lazy var workflowCoordinator: WorkflowCoordinator = {
         WorkflowCoordinator(paneManager: paneManager, sidebarViewModel: sidebarViewModel)
     }()
+
+    // Update checker (GitHub release check, non-blocking)
+    private lazy var updateCheckController = AppUpdateCheckController()
 
     // Saved at launch — self.window must not be accessed during termination
     // (use-after-free crash in objc_retain when AppKit tears down the window).
@@ -92,6 +96,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         manager.focusCurrent()
         saveWindowFrame(window)
         startMonitoring()
+        triggerUpdateCheck()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_: NSApplication) -> Bool { true }
@@ -222,6 +227,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         tabBar.delegate = self
 
         NSApp.mainMenu = AppMenuBuilder.buildMainMenu(target: self)
+        setupUpdateBanner(mainArea: mainArea, paneContainer: paneContainer, tabBar: tabBar)
+    }
+
+    // MARK: - Update Check
+
+    private func triggerUpdateCheck() {
+        updateCheckController.checkForUpdate()
+    }
+
+    private func setupUpdateBanner(mainArea: NSView, paneContainer: NSView, tabBar: NSView) {
+        let bannerView = UpdateBannerView(controller: updateCheckController)
+        let hostingView = NSHostingView(rootView: bannerView)
+        hostingView.translatesAutoresizingMaskIntoConstraints = false
+        hostingView.setContentHuggingPriority(.required, for: .vertical)
+        mainArea.addSubview(hostingView)
+
+        NSLayoutConstraint.activate([
+            hostingView.leadingAnchor.constraint(equalTo: mainArea.leadingAnchor),
+            hostingView.trailingAnchor.constraint(equalTo: mainArea.trailingAnchor),
+            hostingView.bottomAnchor.constraint(equalTo: mainArea.bottomAnchor)
+        ])
+
+        // Observe status changes to hide the banner when no update is available
+        let observer = updateCheckController.$status.sink { [weak hostingView] (status: AppUpdateStatus) in
+            if case .available = status {
+                hostingView?.isHidden = false
+            } else {
+                hostingView?.isHidden = true
+            }
+        }
+        // Initial visibility
+        hostingView.isHidden = true
+        _ = observer // Keep alive for the lifetime of the app
     }
 
     private func setupPaneCallbacks(manager: PaneManager) {
