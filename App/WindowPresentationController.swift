@@ -192,7 +192,6 @@ final class WindowPresentationController: NSObject, NSWindowDelegate {
             items: actions
         )
         let hostingController = NSHostingController(rootView: paletteView)
-        hostingController.view.frame = NSRect(x: 0, y: 0, width: 400, height: 320)
 
         let panel = NSPanel(
             contentRect: NSRect(x: 0, y: 0, width: 400, height: 320),
@@ -200,7 +199,10 @@ final class WindowPresentationController: NSObject, NSWindowDelegate {
             backing: .buffered,
             defer: false
         )
-        panel.contentView = hostingController.view
+        // Hand the panel the controller, not just its view: assigning the bare
+        // view leaves the hosting controller unowned, and releasing the panel
+        // then over-releases the orphaned view.
+        panel.contentViewController = hostingController
         panel.level = .floating
         panel.isMovableByWindowBackground = true
         panel.title = "Command Palette"
