@@ -20,6 +20,69 @@ final class SessionStateTests: XCTestCase {
         XCTAssertFalse(SplitOrientation.horizontal.measuresAlongWidth)
     }
 
+    func testRemovingOnlyPaneReturnsNil() {
+        XCTAssertNil(SplitNode.pane(index: 0).removingPane(at: 0))
+    }
+
+    func testRemovingPaneCollapsesItsSplit() {
+        let tree = SplitNode.split(
+            orientation: .vertical,
+            ratio: 0.5,
+            left: .pane(index: 0),
+            right: .pane(index: 1)
+        )
+        XCTAssertEqual(tree.removingPane(at: 1), .pane(index: 0))
+        XCTAssertEqual(tree.removingPane(at: 0), .pane(index: 0))
+    }
+
+    /// Closing one pane must not reshuffle the splits that survive it.
+    func testRemovingPanePreservesSiblingOrientationAndRatio() {
+        let tree = SplitNode.split(
+            orientation: .horizontal,
+            ratio: 0.25,
+            left: .split(
+                orientation: .vertical,
+                ratio: 0.75,
+                left: .pane(index: 0),
+                right: .pane(index: 1)
+            ),
+            right: .pane(index: 2)
+        )
+
+        // Removing the last pane collapses the outer split onto the inner one,
+        // which keeps its own orientation and ratio.
+        XCTAssertEqual(
+            tree.removingPane(at: 2),
+            .split(orientation: .vertical, ratio: 0.75, left: .pane(index: 0), right: .pane(index: 1))
+        )
+    }
+
+    /// Indices above the removed pane shift down, matching the pane array the
+    /// entry was removed from.
+    func testRemovingPaneReindexesHigherPanes() {
+        let tree = SplitNode.split(
+            orientation: .horizontal,
+            ratio: 0.4,
+            left: .pane(index: 0),
+            right: .split(
+                orientation: .vertical,
+                ratio: 0.6,
+                left: .pane(index: 1),
+                right: .pane(index: 2)
+            )
+        )
+
+        XCTAssertEqual(
+            tree.removingPane(at: 1),
+            .split(
+                orientation: .horizontal,
+                ratio: 0.4,
+                left: .pane(index: 0),
+                right: .pane(index: 1)
+            )
+        )
+    }
+
     func testSplitNodePaneRoundtrip() throws {
         let original = SplitNode.pane(index: 0)
         let data = try JSONEncoder().encode(original)

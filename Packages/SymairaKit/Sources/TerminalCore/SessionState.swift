@@ -36,6 +36,32 @@ public struct PaneState: Codable, Equatable, Sendable {
 public indirect enum SplitNode: Codable, Equatable, Sendable {
     case pane(index: Int)
     case split(orientation: SplitOrientation, ratio: Double, left: SplitNode, right: SplitNode)
+
+    /// Remove the leaf holding `index`, collapsing the split that contained it
+    /// into its surviving side while leaving every other split's orientation and
+    /// ratio untouched. Pane indices above the removed one shift down by one so
+    /// the tree keeps matching a pane array the entry was removed from.
+    ///
+    /// Returns `nil` when the removed leaf was the last one in this subtree.
+    public func removingPane(at index: Int) -> SplitNode? {
+        switch self {
+        case .pane(let existing):
+            if existing == index { return nil }
+            return .pane(index: existing > index ? existing - 1 : existing)
+
+        case .split(let orientation, let ratio, let left, let right):
+            switch (left.removingPane(at: index), right.removingPane(at: index)) {
+            case (.some(let newLeft), .some(let newRight)):
+                return .split(orientation: orientation, ratio: ratio, left: newLeft, right: newRight)
+            case (.some(let newLeft), .none):
+                return newLeft
+            case (.none, .some(let newRight)):
+                return newRight
+            case (.none, .none):
+                return nil
+            }
+        }
+    }
 }
 
 public enum SplitOrientation: String, Codable, Sendable {

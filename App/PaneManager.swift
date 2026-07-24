@@ -203,13 +203,20 @@ final class PaneManager {
             onPaneChanged?(nil)
             return
         }
+        // Detach the closed pane's views before tearing down the surface —
+        // otherwise its input bar and last drawn glyphs stay on screen at the old
+        // coordinates after the remaining panes have reflowed around it.
+        pane.view.removeFromSuperview()
         pane.close()
         panes.remove(at: idx)
         oscParsers.removeValue(forKey: pane.paneID)
         if currentPane === pane {
             currentPane = panes[min(idx, panes.count - 1)]
         }
-        currentLayout = rebuildLayoutTree()
+        // Collapse just the closed pane out of the tree. Rebuilding the tree from
+        // scratch flattened every split into one left-leaning horizontal chain,
+        // which is why the survivors came back in the wrong places.
+        currentLayout = currentLayout.removingPane(at: idx) ?? .pane(index: 0)
         onPanesChanged?(panes)
         onPaneChanged?(currentPane)
         rebuildLayout()
@@ -634,19 +641,4 @@ final class PaneManager {
         }
     }
 
-    private func rebuildLayoutTree() -> SplitNode {
-        guard !panes.isEmpty else { return .pane(index: 0) }
-        if panes.count == 1 { return .pane(index: 0) }
-
-        var tree: SplitNode = .pane(index: 0)
-        for i in 1..<panes.count {
-            tree = .split(
-                orientation: .horizontal,
-                ratio: 0.5,
-                left: tree,
-                right: .pane(index: i)
-            )
-        }
-        return tree
-    }
 }
