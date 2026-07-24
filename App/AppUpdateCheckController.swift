@@ -26,8 +26,11 @@ final class UserDefaultsSkippedVersionStore: Sendable {
     init(key: String) { self.key = key }
     func skippedTag() -> String? { UserDefaults.standard.string(forKey: key) }
     func setSkippedTag(_ tag: String?) {
-        if let tag { UserDefaults.standard.set(tag, forKey: key) }
-        else { UserDefaults.standard.removeObject(forKey: key) }
+        if let tag {
+            UserDefaults.standard.set(tag, forKey: key)
+        } else {
+            UserDefaults.standard.removeObject(forKey: key)
+        }
     }
 }
 
