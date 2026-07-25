@@ -203,13 +203,20 @@ final class PaneManager {
             onPaneChanged?(nil)
             return
         }
+        // Detach the closed pane's views before tearing down the surface —
+        // otherwise its input bar and last drawn glyphs stay on screen at the old
+        // coordinates after the remaining panes have reflowed around it.
+        pane.view.removeFromSuperview()
         pane.close()
         panes.remove(at: idx)
         oscParsers.removeValue(forKey: pane.paneID)
         if currentPane === pane {
             currentPane = panes[min(idx, panes.count - 1)]
         }
-        currentLayout = rebuildLayoutTree()
+        // Collapse just the closed pane out of the tree. Rebuilding the tree from
+        // scratch flattened every split into one left-leaning horizontal chain,
+        // which is why the survivors came back in the wrong places.
+        currentLayout = currentLayout.removingPane(at: idx) ?? .pane(index: 0)
         onPanesChanged?(panes)
         onPaneChanged?(currentPane)
         rebuildLayout()
@@ -385,58 +392,30 @@ final class PaneManager {
     }
 
     private func split(orientation: SplitOrientation) {
-        guard let cur = currentPane else { return }
+        guard let cur = currentPane, hostView != nil else { return }
+        guard let curIdx = panes.firstIndex(where: { $0 === cur }) else { return }
+
         let newPane = createPane()
-        guard let hostView else { return }
+        let newIdx = panes.count - 1
 
-        if let existingSplit = findSplitView(for: cur) {
-            let newSplit = NSSplitView()
-            newSplit.isVertical = orientation == .vertical
-            newSplit.dividerStyle = .thin
-            newSplit.autosaveName = nil
-
-            if let parentIdx = existingSplit.subviews.firstIndex(where: { $0 === cur.view }) {
-                existingSplit.insertArrangedSubview(newSplit, at: parentIdx + 1)
-                cur.view.translatesAutoresizingMaskIntoConstraints = true
-                newPane.view.translatesAutoresizingMaskIntoConstraints = true
-                newSplit.addArrangedSubview(cur.view)
-                newSplit.addArrangedSubview(newPane.view)
-            }
-        } else {
-            let splitView = NSSplitView()
-            splitView.isVertical = orientation == .vertical
-            splitView.dividerStyle = .thin
-            splitView.translatesAutoresizingMaskIntoConstraints = false
-
-            hostView.subviews.forEach { $0.removeFromSuperview() }
-            hostView.addSubview(splitView)
-
-            NSLayoutConstraint.activate([
-                splitView.topAnchor.constraint(equalTo: hostView.topAnchor),
-                splitView.leadingAnchor.constraint(equalTo: hostView.leadingAnchor),
-                splitView.trailingAnchor.constraint(equalTo: hostView.trailingAnchor),
-                splitView.bottomAnchor.constraint(equalTo: hostView.bottomAnchor)
-            ])
-
-            cur.view.translatesAutoresizingMaskIntoConstraints = true
-            newPane.view.translatesAutoresizingMaskIntoConstraints = true
-            splitView.addArrangedSubview(cur.view)
-            splitView.addArrangedSubview(newPane.view)
-            splitViews[UUID()] = splitView
-        }
-
-        if let curIdx = panes.firstIndex(where: { $0 === cur }) {
-            let newIdx = panes.count - 1
-            let splitNode: SplitNode = .split(
+        // Record the split in the layout tree and let `rebuildLayout` construct
+        // the view hierarchy from it. The previous code rearranged split views
+        // by hand on top of a tree it also updated; the two drifted apart, and
+        // panes that were not part of the hand-made split disappeared from the
+        // hierarchy while still being tracked in `panes`.
+        currentLayout = replacePane(
+            at: curIdx,
+            with: .split(
                 orientation: orientation,
                 ratio: 0.5,
                 left: .pane(index: curIdx),
                 right: .pane(index: newIdx)
-            )
-            currentLayout = replacePane(at: curIdx, with: splitNode, in: currentLayout)
-        }
+            ),
+            in: currentLayout
+        )
 
         currentPane = newPane
+        rebuildLayout()
         onPaneChanged?(newPane)
         onPanesChanged?(panes)
     }
@@ -490,7 +469,8 @@ final class PaneManager {
             wrapper.isVertical = true
             wrapper.dividerStyle = .thin
             pane.view.translatesAutoresizingMaskIntoConstraints = true
-            wrapper.addSubview(pane.view)
+            pane.view.clipsToBounds = true
+            wrapper.addArrangedSubview(pane.view)
             wrapper.translatesAutoresizingMaskIntoConstraints = false
             terminalSplitView = wrapper
         } else {
@@ -571,37 +551,19 @@ final class PaneManager {
 
     private func buildSplitView(from node: SplitNode) -> NSSplitView {
         switch node {
-        case .pane(let index):
-            let pane = panes[index]
-            pane.view.translatesAutoresizingMaskIntoConstraints = true
+        case .pane:
             let wrapper = NSSplitView()
             wrapper.isVertical = true
             wrapper.dividerStyle = .thin
-            wrapper.addSubview(pane.view)
+            wrapper.addArrangedSubview(buildLeafView(from: node))
             return wrapper
 
-        case .split(let orientation, let ratio, let left, let right):
-            let splitView = NSSplitView()
-            splitView.isVertical = orientation == .vertical
-            splitView.dividerStyle = .thin
-
-            let leftView = buildLeafView(from: left)
-            let rightView = buildLeafView(from: right)
-            splitView.addSubview(leftView)
-            splitView.addSubview(rightView)
-
-            DispatchQueue.main.async {
-                let totalWidth = splitView.bounds.width
-                let totalHeight = splitView.bounds.height
-                if orientation == .horizontal {
-                    let leftWidth = totalWidth * ratio
-                    splitView.setPosition(leftWidth, ofDividerAt: 0)
-                } else {
-                    let leftHeight = totalHeight * ratio
-                    splitView.setPosition(leftHeight, ofDividerAt: 0)
-                }
+        case .split:
+            // `buildLeafView` already returns the split view for a split node —
+            // delegate so there is exactly one construction path.
+            guard let splitView = buildLeafView(from: node) as? NSSplitView else {
+                return NSSplitView()
             }
-
             return splitView
         }
     }
@@ -611,31 +573,40 @@ final class PaneManager {
         case .pane(let index):
             let pane = panes[index]
             pane.view.translatesAutoresizingMaskIntoConstraints = true
+            // Terminal surfaces draw their full content regardless of the frame
+            // they were given, so without clipping a pane's prompt and cursor
+            // bleed straight across the divider into its neighbour.
+            pane.view.clipsToBounds = true
             return pane.view
 
         case .split(let orientation, let ratio, let left, let right):
             let splitView = NSSplitView()
             splitView.isVertical = orientation == .vertical
             splitView.dividerStyle = .thin
-
-            let leftView = buildLeafView(from: left)
-            let rightView = buildLeafView(from: right)
-            splitView.addSubview(leftView)
-            splitView.addSubview(rightView)
-
-            DispatchQueue.main.async {
-                let totalWidth = splitView.bounds.width
-                let totalHeight = splitView.bounds.height
-                if orientation == .horizontal {
-                    let leftWidth = totalWidth * ratio
-                    splitView.setPosition(leftWidth, ofDividerAt: 0)
-                } else {
-                    let leftHeight = totalHeight * ratio
-                    splitView.setPosition(leftHeight, ofDividerAt: 0)
-                }
-            }
-
+            splitView.addArrangedSubview(buildLeafView(from: left))
+            splitView.addArrangedSubview(buildLeafView(from: right))
+            applyDividerPosition(splitView, orientation: orientation, ratio: ratio)
             return splitView
+        }
+    }
+
+    /// Place the divider once the split view actually has a size, and measure it
+    /// along the axis the orientation implies. Measuring along the wrong axis, or
+    /// against a still-zero-sized view, is what produced ~35pt slivers and panes
+    /// with no height at all.
+    private func applyDividerPosition(
+        _ splitView: NSSplitView,
+        orientation: SplitOrientation,
+        ratio: Double
+    ) {
+        DispatchQueue.main.async { [weak splitView] in
+            guard let splitView, splitView.arrangedSubviews.count >= 2 else { return }
+            splitView.layoutSubtreeIfNeeded()
+            let total = orientation.measuresAlongWidth
+                ? splitView.bounds.width
+                : splitView.bounds.height
+            guard total > 0 else { return }
+            splitView.setPosition(total * ratio, ofDividerAt: 0)
         }
     }
 
@@ -670,19 +641,4 @@ final class PaneManager {
         }
     }
 
-    private func rebuildLayoutTree() -> SplitNode {
-        guard !panes.isEmpty else { return .pane(index: 0) }
-        if panes.count == 1 { return .pane(index: 0) }
-
-        var tree: SplitNode = .pane(index: 0)
-        for i in 1..<panes.count {
-            tree = .split(
-                orientation: .horizontal,
-                ratio: 0.5,
-                left: tree,
-                right: .pane(index: i)
-            )
-        }
-        return tree
-    }
 }

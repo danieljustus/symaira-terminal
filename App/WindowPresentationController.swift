@@ -7,10 +7,11 @@ import SymairaUI
 /// Manages the auxiliary windows: Settings, Onboarding, Sketchpad, and
 /// Command Palette. Extracted from `AppDelegate` to reduce its line count.
 @MainActor
-final class WindowPresentationController {
+final class WindowPresentationController: NSObject, NSWindowDelegate {
     private var settingsWindow: NSWindow?
     private var onboardingWindow: NSWindow?
     private var sketchpadWindow: NSWindow?
+    private var commandPaletteWindow: NSPanel?
     private let providerStore: ProviderStore
     private let workspaceConfigManager: WorkspaceConfigManager
     private let stackStore: StackStore
@@ -23,6 +24,7 @@ final class WindowPresentationController {
         self.providerStore = providerStore
         self.workspaceConfigManager = workspaceConfigManager
         self.stackStore = stackStore
+        super.init()
     }
 
     // MARK: - Settings
@@ -50,12 +52,13 @@ final class WindowPresentationController {
         let hostingController = NSHostingController(rootView: settingsView)
 
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 500, height: 400),
+            contentRect: NSRect(origin: .zero, size: SettingsView.minimumSize),
             styleMask: [.titled, .closable, .resizable],
             backing: .buffered,
             defer: false
         )
         window.title = "Settings"
+        window.contentMinSize = SettingsView.minimumSize
         window.contentViewController = hostingController
         window.isReleasedWhenClosed = false
         window.center()
@@ -67,6 +70,12 @@ final class WindowPresentationController {
     // MARK: - Onboarding
 
     func showOnboarding() {
+        if let existing = onboardingWindow {
+            existing.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+
         var isPresented = true
         let onboardingView = OnboardingView(
             providerStore: providerStore,
@@ -80,19 +89,53 @@ final class WindowPresentationController {
         )
         let hostingController = NSHostingController(rootView: onboardingView)
 
+        // Size from the SwiftUI content rather than a hard-coded rect: the title
+        // bar would otherwise eat into a fixed 400pt height and clip the Skip and
+        // Back/Next rows off both ends of the flow.
+        let fitting = hostingController.view.fittingSize
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 500, height: 400),
-            styleMask: [.titled, .closable],
+            contentRect: NSRect(
+                x: 0,
+                y: 0,
+                width: max(fitting.width, 520),
+                height: max(fitting.height, 460)
+            ),
+            styleMask: [.titled, .closable, .resizable],
             backing: .buffered,
             defer: false
         )
         window.title = "Welcome to Symaira Terminal"
         window.contentViewController = hostingController
         window.isReleasedWhenClosed = false
+        window.delegate = self
         window.center()
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         onboardingWindow = window
+    }
+
+    // MARK: - NSWindowDelegate
+
+    /// Dismissing the welcome window by any route — including the red close
+    /// button — counts as completing onboarding, so it does not reappear on
+    /// every launch.
+    func windowWillClose(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow else { return }
+        if window === onboardingWindow {
+            OnboardingView.markCompleted()
+            onboardingWindow = nil
+        } else if window === commandPaletteWindow {
+            commandPaletteWindow = nil
+        }
+    }
+
+    /// The palette is a transient overlay: clicking back into the terminal
+    /// dismisses it rather than leaving it pinned above the content.
+    func windowDidResignKey(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow else { return }
+        if window === commandPaletteWindow {
+            window.close()
+        }
     }
 
     // MARK: - Sketchpad
@@ -128,21 +171,43 @@ final class WindowPresentationController {
         window: NSWindow,
         actions: [CommandPaletteItem]
     ) {
-        let paletteView = CommandPalette(isPresented: .constant(true), items: actions)
+        if let existing = commandPaletteWindow {
+            existing.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+
+        // A real binding, not `.constant(true)`: the palette's own dismiss paths
+        // (the clear button, picking a command, Escape) write `false` here and
+        // must actually close the panel.
+        var isPresented = true
+        let paletteView = CommandPalette(
+            isPresented: Binding(
+                get: { isPresented },
+                set: { [weak self] newValue in
+                    isPresented = newValue
+                    if !newValue { self?.commandPaletteWindow?.close() }
+                }
+            ),
+            items: actions
+        )
         let hostingController = NSHostingController(rootView: paletteView)
-        hostingController.view.frame = NSRect(x: 0, y: 0, width: 400, height: 320)
 
         let panel = NSPanel(
             contentRect: NSRect(x: 0, y: 0, width: 400, height: 320),
-            styleMask: [.titled, .nonactivatingPanel],
+            styleMask: [.titled, .closable, .nonactivatingPanel],
             backing: .buffered,
             defer: false
         )
-        panel.contentView = hostingController.view
+        // Hand the panel the controller, not just its view: assigning the bare
+        // view leaves the hosting controller unowned, and releasing the panel
+        // then over-releases the orphaned view.
+        panel.contentViewController = hostingController
         panel.level = .floating
         panel.isMovableByWindowBackground = true
         panel.title = "Command Palette"
         panel.isReleasedWhenClosed = false
+        panel.delegate = self
 
         if let contentView = window.contentView {
             let rect = window.convertToScreen(NSRect(
@@ -154,7 +219,8 @@ final class WindowPresentationController {
             panel.setFrameOrigin(rect.origin)
         }
 
-        panel.orderFront(nil)
+        commandPaletteWindow = panel
+        panel.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
 }

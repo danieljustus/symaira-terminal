@@ -95,5 +95,8 @@ struct CommandPalette: View {
         .onAppear {
             isSearchFocused = true
         }
+        .onExitCommand {
+            isPresented = false
+        }
     }
 }

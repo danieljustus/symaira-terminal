@@ -19,7 +19,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var tabBar: TabBarView?
     private var ghosttyConfig: GhosttyAppConfig?
     private var showSidebar = true
-    private var showPalette = false
     private var mainSplitView: NSSplitView?
     private var sidebarHostingView: NSHostingView<AnyView>?
     private var sidebarViewModel: SidebarViewModel?
@@ -86,7 +85,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         setupUI(window: window, manager: manager, repoURL: repoURL)
         restoreOrCreatePane(manager: manager, window: window)
 
-        if !UserDefaults.standard.bool(forKey: "onboardingCompleted") {
+        if !OnboardingView.isCompleted() {
             windowPresentation.showOnboarding()
         }
 
@@ -419,8 +418,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func togglePalette() {
-        showPalette.toggle()
-        if showPalette { showCommandPalette() }
+        // The palette owns its own dismissal, so tracking open/closed state here
+        // too would desync the moment it closes by any other route and swallow
+        // every second invocation.
+        showCommandPalette()
     }
 
     @objc private func toggleKeepAwake() {

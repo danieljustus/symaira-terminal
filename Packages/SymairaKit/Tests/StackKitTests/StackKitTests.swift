@@ -158,6 +158,33 @@ import Foundation
 }
 
 @Suite struct StackDetectorTests {
+    /// A GUI launch inherits launchd's bare PATH — present, but without any of
+    /// the prefixes the tools actually install into.
+    @Test func defaultSearchPathAddsStandardPrefixesToABarePATH() {
+        let path = StackDetector.defaultSearchPath(inherited: "/usr/bin:/bin:/usr/sbin:/sbin")
+        let directories = path.components(separatedBy: ":")
+
+        #expect(directories.contains("/opt/homebrew/bin"))
+        #expect(directories.contains("/usr/local/bin"))
+        // The inherited entries are kept, and kept first.
+        #expect(directories.prefix(4) == ["/usr/bin", "/bin", "/usr/sbin", "/sbin"])
+    }
+
+    @Test func defaultSearchPathDoesNotDuplicateExistingPrefixes() {
+        let path = StackDetector.defaultSearchPath(inherited: "/opt/homebrew/bin:/usr/bin")
+        let directories = path.components(separatedBy: ":")
+
+        #expect(directories.filter { $0 == "/opt/homebrew/bin" }.count == 1)
+        #expect(directories.first == "/opt/homebrew/bin")
+    }
+
+    @Test func defaultSearchPathStillWorksWithoutAnInheritedPATH() {
+        let directories = StackDetector.defaultSearchPath(inherited: nil).components(separatedBy: ":")
+
+        #expect(directories.contains("/opt/homebrew/bin"))
+        #expect(!directories.contains(""))
+    }
+
     @Test func findInPATHReturnsNilForMissingBinary() async {
         let detector = StackDetector(
             fileManager: .default,
