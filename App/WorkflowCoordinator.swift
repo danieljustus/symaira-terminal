@@ -33,10 +33,16 @@ final class WorkflowCoordinator {
     }
 
     func showWorkflowCanvas() {
-        if let existing = canvasWindow {
+        // If an existing window has a valid content view, just bring it forward.
+        if let existing = canvasWindow, existing.contentView != nil {
             existing.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
             return
         }
+
+        // Stale reference: clear and create a fresh window.
+        canvasWindow = nil
+
         let view = WorkflowCanvasView()
         let hosting = NSHostingController(rootView: view)
         let window = NSWindow(

@@ -446,6 +446,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func showSettings() { windowPresentation.showSettings() }
     @objc private func showSketchpad() { windowPresentation.showSketchpad() }
+    @objc private func checkForUpdates() { updateCheckController.checkForUpdate() }
+    @objc private func openHelpDocumentation() {
+        if let url = URL(string: "https://github.com/danieljustus/symaira-terminal") {
+            NSWorkspace.shared.open(url)
+        }
+    }
 
     private func showCommandPalette() {
         guard let window else { return }
