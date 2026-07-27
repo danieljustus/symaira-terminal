@@ -154,7 +154,8 @@ public final class CommandInputEditor: NSObject, ObservableObject {
     }
 
     private func updatePlaceholder() {
-        textView.placeholderString = mode == .shell ? "Run a command…" : "Ask the agent…"
+        // NSTextView does not expose placeholderString as a public property.
+        // Placeholder is handled visually via the CommandInputBar overlay.
     }
 
     private func submitInput() {
