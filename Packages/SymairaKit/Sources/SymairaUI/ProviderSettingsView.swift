@@ -16,13 +16,6 @@ public struct ProviderSettingsView: View {
                 Text("Providers")
                     .font(.headline)
                 Spacer()
-                Picker("Profile", selection: $store.activeProfile) {
-                    ForEach(store.profiles, id: \.self) { profile in
-                        Text(profile).tag(profile)
-                    }
-                }
-                .pickerStyle(.menu)
-                .frame(maxWidth: 150)
             }
             .padding()
 
@@ -93,17 +86,10 @@ struct ProviderRow: View {
                             .font(.caption2)
                             .foregroundColor(.secondary)
                     }
-                    if oauthError != nil || (provider.hasOAuthConfig && !provider.supportsOAuth) {
-                        if provider.hasOAuthConfig && !provider.supportsOAuth {
-                            Text("OAuth coming soon — add an API key for now")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                        }
-                        if let error = oauthError {
-                            Text(error)
-                                .font(.caption2)
-                                .foregroundColor(.red)
-                        }
+                    if let error = oauthError {
+                        Text(error)
+                            .font(.caption2)
+                            .foregroundColor(.red)
                     }
                 }
 
@@ -164,6 +150,8 @@ struct ProviderRow: View {
                             Image(systemName: "plus")
                         }
                         .buttonStyle(.plain)
+                        .help("Add API Key")
+                        .accessibilityLabel("Add \(provider.displayName) API Key")
                     }
                 }
             }

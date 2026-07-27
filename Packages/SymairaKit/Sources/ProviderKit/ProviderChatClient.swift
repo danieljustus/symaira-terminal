@@ -52,11 +52,11 @@ public struct ProviderChatClient: Sendable {
     /// without touching any other code. `ProviderSettingsView` surfaces these so
     /// users see the active default before they set a custom value.
     public static let defaultModels: [ProviderID: String] = [
-        .anthropic: "claude-sonnet-4-20250514",
-        .openai: "gpt-4o",
+        .anthropic: "claude-sonnet-5-20250915",
+        .openai: "gpt-5",
         .openAICompatible: "",           // user must configure explicitly
-        .openrouter: "anthropic/claude-sonnet-4",
-        .google: "gemini-2.5-flash",
+        .openrouter: "anthropic/claude-sonnet-5",
+        .google: "gemini-3-flash",
         .ollama: "llama3.1"
     ]
 
@@ -191,7 +191,7 @@ public struct ProviderChatClient: Sendable {
             ),
             .google: ProviderDescriptor(
                 endpoint: { _, profileConfig in
-                    let model = profileConfig?.model ?? defaultModels[.google] ?? "gemini-2.5-flash"
+                    let model = profileConfig?.model ?? defaultModels[.google] ?? "gemini-3-flash"
                     return URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent")!
                 },
                 credentialToHeaders: { credential in
