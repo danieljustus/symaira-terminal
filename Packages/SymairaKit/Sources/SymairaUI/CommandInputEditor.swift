@@ -14,7 +14,7 @@ public final class CommandInputEditor: NSObject, ObservableObject {
     @Published public var text: String = ""
     @Published public var cursorPosition: Int = 0
     @Published public var isSTTAuthorized: Bool = false
-    @Published public var sttError: String? = nil
+    @Published public var sttError: String?
 
     public let sttService = STTService()
 
