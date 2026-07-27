@@ -437,7 +437,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         paneManager?.selectPane(at: idx)
     }
 
-    private func toggleDictation() {
+    @objc private func toggleDictation() {
         guard let currentPane = paneManager?.currentPane else { return }
         currentPane.inputEditor.toggleSTTRecording()
     }
@@ -455,28 +455,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func showCommandPalette() {
         guard let window else { return }
-        let items = [
-            CommandPaletteItem(name: "New Tab", shortcut: "⌘T", category: "Tabs") { [weak self] in self?.newTab() },
-            CommandPaletteItem(name: "New Workspace", shortcut: "⌘N", category: "Tabs") { [weak self] in self?.newTab() },
-            CommandPaletteItem(name: "Close Tab", shortcut: "⌘W", category: "Tabs") { [weak self] in self?.closeTab() },
-            CommandPaletteItem(name: "Split Vertically", shortcut: "⌘D", category: "Splits") { [weak self] in self?.splitVertical() },
-            CommandPaletteItem(name: "Split Horizontally", shortcut: "⌘⇧D", category: "Splits") { [weak self] in self?.splitHorizontal() },
-            CommandPaletteItem(name: "Find in Scrollback", shortcut: "⌘F", category: "Navigation") { [weak self] in self?.toggleSearch() },
-            CommandPaletteItem(name: "Clear Scrollback", shortcut: "⌘K", category: "Navigation") { [weak self] in self?.clearScrollback() },
-            CommandPaletteItem(name: "Next Pane", shortcut: "⌘]", category: "Navigation") { [weak self] in self?.focusNext() },
-            CommandPaletteItem(name: "Previous Pane", shortcut: "⌘[", category: "Navigation") { [weak self] in self?.focusPrevious() },
-            CommandPaletteItem(name: "Focus Left Pane", shortcut: "⌥⌘←", category: "Navigation") { [weak self] in self?.focusLeft() },
-            CommandPaletteItem(name: "Focus Right Pane", shortcut: "⌥⌘→", category: "Navigation") { [weak self] in self?.focusRight() },
-            CommandPaletteItem(name: "Focus Up Pane", shortcut: "⌥⌘↑", category: "Navigation") { [weak self] in self?.focusUp() },
-            CommandPaletteItem(name: "Focus Down Pane", shortcut: "⌥⌘↓", category: "Navigation") { [weak self] in self?.focusDown() },
-            CommandPaletteItem(name: "Toggle Pane Zoom", shortcut: "⌘⇧Enter", category: "Navigation") { [weak self] in self?.toggleZoom() },
-            CommandPaletteItem(name: "Focus Blocked Agent", shortcut: "⌘⇧U", category: "Navigation") { [weak self] in self?.focusBlocked() },
-            CommandPaletteItem(name: "Toggle Sidebar", shortcut: "⌘B", category: "View") { [weak self] in self?.toggleSidebar() },
-            CommandPaletteItem(name: "Fork Session", shortcut: "⌘⇧F", category: "Session") { [weak self] in self?.forkSession() },
-            CommandPaletteItem(name: "Toggle Dictation", shortcut: nil, category: "Input") { [weak self] in self?.toggleDictation() },
-            CommandPaletteItem(name: "Open Sketchpad", shortcut: nil, category: "Input") { [weak self] in self?.showSketchpad() },
-            CommandPaletteItem(name: "Open Workflow Canvas", shortcut: nil, category: "Workflow") { [weak self] in self?.showWorkflowCanvas() }
-        ]
+        let items = AppCommandRegistry.paletteItems(target: self)
         windowPresentation.showCommandPalette(window: window, actions: items)
     }
 
