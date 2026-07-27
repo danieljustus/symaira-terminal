@@ -22,13 +22,25 @@ final class WorktreePromptController {
 
     /// Show the task-ID prompt. On success the worktree is created via `create`.
     /// On failure an error alert is shown. Returns the created `Worktree` if
-    /// successful, or `nil` if the user cancelled or input was empty.
+    /// successful, or `nil` if the user cancelled or input was invalid.
     @discardableResult
     func promptForWorktree(
         worktreeStore: WorktreeStore,
         create: (String) throws -> Worktree
     ) -> Worktree? {
-        let alert = buildPromptAlert()
+        // Validate the repository exists and is a git repo before showing the
+        // prompt. This catches the non-git cwd case early with a clear error.
+        guard worktreeStore.isGitRepository() else {
+            let repoAlert = NSAlert()
+            repoAlert.alertStyle = .critical
+            repoAlert.messageText = "Cannot Create Worktree"
+            repoAlert.informativeText = "The current working directory is not a git repository. Open a project folder that contains a git repository first."
+            repoAlert.addButton(withTitle: "OK")
+            _ = alertRunner?(repoAlert) ?? repoAlert.runModal()
+            return nil
+        }
+
+        let alert = buildPromptAlert(repoName: worktreeStore.repositoryName)
         activeAlert = alert
         defer { activeAlert = nil }
 
@@ -36,12 +48,32 @@ final class WorktreePromptController {
         guard response == .alertFirstButtonReturn else { return nil }
 
         let taskID = promptInput.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !taskID.isEmpty else { return nil }
+        guard !taskID.isEmpty else {
+            let errorAlert = NSAlert()
+            errorAlert.alertStyle = .warning
+            errorAlert.messageText = "Invalid Task ID"
+            errorAlert.informativeText = "Task ID cannot be empty."
+            errorAlert.addButton(withTitle: "OK")
+            _ = alertRunner?(errorAlert) ?? errorAlert.runModal()
+            return nil
+        }
+
+        // Validate format before attempting creation.
+        if case .failure(let error) = worktreeStore.validateTaskID(taskID) {
+            let errorAlert = NSAlert()
+            errorAlert.alertStyle = .warning
+            errorAlert.messageText = "Invalid Task ID"
+            errorAlert.informativeText = error.errorDescription ?? "The task ID contains invalid characters."
+            errorAlert.addButton(withTitle: "OK")
+            _ = alertRunner?(errorAlert) ?? errorAlert.runModal()
+            return nil
+        }
 
         do {
             return try create(taskID)
         } catch {
             let errorAlert = NSAlert(error: error)
+            errorAlert.alertStyle = .critical
             _ = alertRunner?(errorAlert) ?? errorAlert.runModal()
             return nil
         }
@@ -56,11 +88,12 @@ final class WorktreePromptController {
 
     // MARK: - Private
 
-    private func buildPromptAlert() -> NSAlert {
+    private func buildPromptAlert(repoName: String) -> NSAlert {
         let alert = NSAlert()
         alert.messageText = "Create New Worktree"
-        alert.informativeText = "Enter task ID (alphanumeric only):"
+        alert.informativeText = "Repository: \(repoName)\n\nEnter task ID (alphanumeric only):"
         alert.accessoryView = promptInput
+        alert.icon = NSApp.applicationIconImage
         alert.addButton(withTitle: "Create")
         alert.addButton(withTitle: "Cancel")
         return alert

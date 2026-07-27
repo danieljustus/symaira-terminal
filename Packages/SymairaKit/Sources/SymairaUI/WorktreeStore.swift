@@ -18,6 +18,36 @@ public final class WorktreeStore: ObservableObject {
         self.manager = WorktreeManager(repositoryURL: repositoryURL, containerURL: containerURL)
     }
 
+    /// Internal initializer for testing that accepts a pre-configured manager.
+    init(manager: WorktreeManager) {
+        self.manager = manager
+    }
+
+    /// Human-readable repository name (last path component of the repo URL).
+    public var repositoryName: String {
+        manager.repositoryName
+    }
+
+    /// Returns `true` when the configured `repositoryURL` is a git repository.
+    public func isGitRepository() -> Bool {
+        manager.isGitRepository()
+    }
+
+    /// Validates a task ID without side effects. Returns `.success` when the
+    /// ID passes all format and path-safety rules, or `.failure` with a
+    /// descriptive error.
+    public func validateTaskID(_ taskID: String) -> Result<Void, TaskIDError> {
+        let v = TaskIDValidator()
+        do {
+            try v.validate(taskID)
+            return .success(())
+        } catch let error as TaskIDError {
+            return .failure(error)
+        } catch {
+            return .failure(.invalidBranchName)
+        }
+    }
+
     public func refresh() {
         do {
             worktrees = try manager.list()
