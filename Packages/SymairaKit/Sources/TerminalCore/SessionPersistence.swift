@@ -74,7 +74,7 @@ public final class SessionPersistence: @unchecked Sendable {
         let directory = storageDirectory
         if !fileManager.fileExists(atPath: directory.path) {
             try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
-            try fileManager.setAttributes(
+            try? fileManager.setAttributes(
                 [.protectionKey: FileProtectionType.complete],
                 ofItemAtPath: directory.path
             )

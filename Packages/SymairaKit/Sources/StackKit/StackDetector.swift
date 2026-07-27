@@ -97,7 +97,21 @@ public actor StackDetector {
     // MARK: - Version Query
 
     /// Query the tool's version with a 3-second timeout.
-    func queryVersion(binaryPath: String) async -> String? {
+    ///
+    /// `nonisolated` and dispatched to a global queue: the blocking
+    /// `waitUntilExit()` must not occupy the actor or a cooperative-pool
+    /// thread, otherwise the version queries in `detectAll()` serialize and a
+    /// single refresh can stall for `timeout × tool count`.
+    nonisolated func queryVersion(binaryPath: String) async -> String? {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                continuation.resume(returning: Self.runVersionQuery(binaryPath: binaryPath))
+            }
+        }
+    }
+
+    /// Blocking version query. Must be called off the cooperative thread pool.
+    private nonisolated static func runVersionQuery(binaryPath: String) -> String? {
         let process = Process()
         let pipe = Pipe()
 
@@ -112,25 +126,23 @@ public actor StackDetector {
             return nil
         }
 
-        // Cancel if timeout exceeded (3 seconds)
-        let timeoutTask = Task { @Sendable in
-            try? await Task.sleep(for: .seconds(3))
+        // Terminate if the timeout is exceeded (3 seconds).
+        let timeout = DispatchWorkItem {
             if process.isRunning {
                 process.terminate()
             }
         }
+        DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + 3, execute: timeout)
 
         process.waitUntilExit()
-        timeoutTask.cancel()
+        timeout.cancel()
 
         guard process.terminationStatus == 0 else { return nil }
 
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        let output = String(data: data, encoding: .utf8)?
+        return String(data: data, encoding: .utf8)?
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .components(separatedBy: "\n")
             .first
-
-        return output
     }
 }
