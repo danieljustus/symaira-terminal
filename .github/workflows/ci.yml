@@ -1,5 +1,7 @@
 name: CI
 
+# Mini runner test
+
 on:
   push:
     branches: [main]
