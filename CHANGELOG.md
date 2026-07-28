@@ -5,6 +5,31 @@ All notable changes to Symaira Terminal will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- #283 Non-blocking update check via inline GitHub release checker
+- #300 Reachable and dismissible welcome flow
+- #278 CodeQL code scanning workflow for Swift and Actions
+- #297, #306 Shared command registry reconciling the app menu and Command Palette; Edit/Window/Help menus; Workflow Canvas window fix
+
+### Fixed
+- #305 Validate worktree task ID before creation; show repo name and app icon
+- #268 Hardcoded version drift in the `symterm` CLI wrapper
+- #267 Show the real request origin in the open-tab confirmation dialog
+- #266 Close bind-to-chmod permission race on the ControlKit control socket
+- #296, #303 Update provider defaults and clean up Providers Settings pane
+
+### Changed
+- #301 Run tool version queries off the actor so MCP Stack refreshes stay parallel
+- #269 Extract focused coordinators from AppDelegate
+- #276 Require Code Owner reviews and admin enforcement on default branch
+- #277 Community contact links in issue template config
+- Routine Dependabot bumps (`actions/checkout`, `github/codeql-action`)
+
+### Performance
+- #270 Hoist per-line `ISO8601DateFormatter` allocations out of the usage-reader path
+
 ## [0.8.3] — 2026-07-01
 
 ### Changed

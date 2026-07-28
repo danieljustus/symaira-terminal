@@ -49,6 +49,7 @@ targets:
         # Ad-hoc signing for local development; real signing happens in release CI.
         CODE_SIGN_IDENTITY: "-"
         CODE_SIGN_STYLE: Manual
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
       info:
       path: App/Info.plist
       properties:
@@ -79,4 +80,3 @@ targets:
         SWIFT_STRICT_CONCURRENCY: complete
         TEST_HOST: "$(BUILT_PRODUCTS_DIR)/SymairaTerminal.app/Contents/MacOS/SymairaTerminal"
         GENERATE_INFOPLIST_FILE: YES
-

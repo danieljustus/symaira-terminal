@@ -13,7 +13,7 @@
 
 set -euo pipefail
 
-SYMTERM_VERSION="0.8.1"
+SYMTERM_VERSION="0.8.3"
 APP_BUNDLE="SymairaTerminal"
 APP_NAME="Symaira Terminal"
 URL_SCHEME="symaira-terminal"
