@@ -27,7 +27,7 @@ permissions:
 jobs:
   lint:
     name: Lint & Static Analysis
-    runs-on: macos-15
+    runs-on: [self-hosted, macOS, X64, mac-mini]  # Mac Mini runner
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install SwiftLint
@@ -38,7 +38,7 @@ jobs:
   test:
     name: Build & Test (SymairaKit)
     if: github.event_name != 'pull_request'  # PR gate = lint only; full build+test on main/schedule
-    runs-on: macos-15
+    runs-on: [self-hosted, macOS, X64, mac-mini]  # Mac Mini runner
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Select Xcode
@@ -53,7 +53,7 @@ jobs:
   app:
     name: Build App (boundary check)
     if: github.event_name != 'pull_request'  # PR gate = lint only; app build on main/schedule
-    runs-on: macos-15
+    runs-on: [self-hosted, macOS, X64, mac-mini]  # Mac Mini runner
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Select Xcode
