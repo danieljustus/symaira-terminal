@@ -21,6 +21,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  PATH: /usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+
 permissions:
   contents: read
 
