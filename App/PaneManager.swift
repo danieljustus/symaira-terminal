@@ -537,7 +537,7 @@ final class PaneManager {
         }
 
         if let target = bestCandidate, let idx = tab.panes.firstIndex(where: { $0 === target }) {
-            currentPane = target
+            self.currentPane = target
             tab.currentPaneIndex = idx
             selectPane(at: panes.firstIndex(where: { $0 === target }) ?? 0)
         }
