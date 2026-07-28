@@ -75,21 +75,50 @@ public enum SplitOrientation: String, Codable, Sendable {
     public var measuresAlongWidth: Bool { self == .vertical }
 }
 
+/// Serializable state of one tab and its split panes for persistence.
+public struct TabState: Codable, Equatable, Sendable {
+    /// Pane configurations for this tab.
+    public var panes: [PaneState]
+    /// Split layout tree referencing indices within this tab's pane array.
+    public var layout: SplitNode
+    /// User-visible tab title (derived from working directory or OSC title).
+    public var title: String
+
+    public init(
+        panes: [PaneState] = [PaneState()],
+        layout: SplitNode = .pane(index: 0),
+        title: String = "Terminal"
+    ) {
+        self.panes = panes
+        self.layout = layout
+        self.title = title
+    }
+}
+
 /// Complete window state for persistence. Captures pane configurations and the
 /// split geometry so the layout can be reconstructed on relaunch.
+///
+/// Backward-compatible: `tabs` is the new multi-tab format. When `tabs` is nil
+/// or empty, the old flat `panes` + `layout` fields are used as a single tab.
 public struct SessionState: Codable, Equatable, Sendable {
+    /// Flat pane list (legacy — kept for backward compatibility).
     public var panes: [PaneState]
+    /// Single split layout (legacy — kept for backward compatibility).
     public var layout: SplitNode
+    /// Multi-tab state. When non-nil and non-empty, `panes` and `layout` are ignored.
+    public var tabs: [TabState]?
     /// Window frame in screen coordinates (saved for position restoration).
     public var windowFrame: CodableRect
 
     public init(
         panes: [PaneState] = [PaneState()],
         layout: SplitNode = .pane(index: 0),
+        tabs: [TabState]? = nil,
         windowFrame: CodableRect = CodableRect(x: 0, y: 0, width: 960, height: 600)
     ) {
         self.panes = panes
         self.layout = layout
+        self.tabs = tabs
         self.windowFrame = windowFrame
     }
 }

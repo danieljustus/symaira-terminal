@@ -85,7 +85,8 @@ final class TabBarView: NSView {
             button.translatesAutoresizingMaskIntoConstraints = false
             NSLayoutConstraint.activate([
                 button.heightAnchor.constraint(equalTo: stackView.heightAnchor),
-                button.widthAnchor.constraint(greaterThanOrEqualToConstant: 100)
+                button.widthAnchor.constraint(greaterThanOrEqualToConstant: 100),
+                button.widthAnchor.constraint(lessThanOrEqualToConstant: 200)
             ])
         }
 

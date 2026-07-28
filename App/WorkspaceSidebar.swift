@@ -6,6 +6,8 @@ import WorktreeKit
 public struct PaneStatusInfo: Identifiable, Equatable {
     public let id: UUID
     public let index: Int
+    public let tabID: UUID
+    public let tabTitle: String
     public let title: String
     public let status: AgentStatus
     public let isActive: Bool
@@ -22,6 +24,8 @@ public struct PaneStatusInfo: Identifiable, Equatable {
     public init(
         id: UUID,
         index: Int,
+        tabID: UUID,
+        tabTitle: String,
         title: String,
         status: AgentStatus,
         isActive: Bool,
@@ -37,6 +41,8 @@ public struct PaneStatusInfo: Identifiable, Equatable {
     ) {
         self.id = id
         self.index = index
+        self.tabID = tabID
+        self.tabTitle = tabTitle
         self.title = title
         self.status = status
         self.isActive = isActive
@@ -90,6 +96,20 @@ public struct WorkspaceSidebar: View {
         self.onRemoveWorktree = onRemoveWorktree
     }
 
+    /// Group pane items by tab ID, preserving tab order.
+    private var groupedPanes: [(tabID: UUID, tabTitle: String, panes: [PaneStatusInfo])] {
+        let uniqueTabs = viewModel.paneItems.reduce(into: [(UUID, String)]()) { result, item in
+            if !result.contains(where: { $0.0 == item.tabID }) {
+                result.append((item.tabID, item.tabTitle))
+            }
+        }
+        return uniqueTabs.compactMap { tabID, tabTitle in
+            let panes = viewModel.paneItems.filter { $0.tabID == tabID }
+            guard !panes.isEmpty else { return nil }
+            return (tabID, tabTitle, panes)
+        }
+    }
+
     public var body: some View {
         VStack(spacing: 0) {
             // Header
@@ -122,33 +142,42 @@ public struct WorkspaceSidebar: View {
 
             // Main list split into tabs and worktrees
             List {
-                Section {
-                    if viewModel.paneItems.isEmpty {
+                // Tab sections — each tab is a section with its panes
+                if viewModel.paneItems.isEmpty {
+                    Section {
                         Text("No active tabs")
                             .font(.caption)
                             .foregroundColor(.secondary)
                             .padding(.vertical, 8)
-                    } else {
-                        ForEach(viewModel.paneItems) { pane in
-                            Button {
-                                onSelectPane(pane.id)
-                            } label: {
-                                PaneTabCard(
-                                    pane: pane,
-                                    isHovered: hoveredPaneID == pane.id,
-                                    onOpenPort: onOpenPort
-                                )
+                    } header: {
+                        Text("Smart Tabs")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundColor(.secondary.opacity(0.8))
+                    }
+                } else {
+                    ForEach(groupedPanes, id: \.tabID) { group in
+                        Section {
+                            ForEach(group.panes) { pane in
+                                Button {
+                                    onSelectPane(pane.id)
+                                } label: {
+                                    PaneTabCard(
+                                        pane: pane,
+                                        isHovered: hoveredPaneID == pane.id,
+                                        onOpenPort: onOpenPort
+                                    )
+                                }
+                                .buttonStyle(.plain)
+                                .onHover { isHovered in
+                                    hoveredPaneID = isHovered ? pane.id : nil
+                                }
                             }
-                            .buttonStyle(.plain)
-                            .onHover { isHovered in
-                                hoveredPaneID = isHovered ? pane.id : nil
-                            }
+                        } header: {
+                            Text(group.tabTitle)
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundColor(.secondary.opacity(0.8))
                         }
                     }
-                } header: {
-                    Text("Smart Tabs")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundColor(.secondary.opacity(0.8))
                 }
 
                 WorktreeListView(
@@ -184,7 +213,7 @@ struct PaneTabCard: View {
                             .opacity(pane.status == .awaitingApproval || pane.status == .error ? 0.3 : 0.0)
                     )
 
-                // Tab label & directory/title
+                // Pane index number within its tab
                 Text("\(pane.index + 1)")
                     .font(.system(.subheadline, design: .monospaced))
                     .fontWeight(.bold)
