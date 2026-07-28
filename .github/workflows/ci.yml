@@ -3,7 +3,23 @@ name: CI
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+      - 'LICENSE'
+      - '.github/ISSUE_TEMPLATE/**'
   pull_request:
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+      - 'LICENSE'
+      - '.github/ISSUE_TEMPLATE/**'
+  schedule:
+    - cron: '41 5 * * 1'  # weekly Monday 05:41 UTC — full suite incl. macOS builds
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -21,6 +37,7 @@ jobs:
 
   test:
     name: Build & Test (SymairaKit)
+    if: github.event_name != 'pull_request'  # PR gate = lint only; full build+test on main/schedule
     runs-on: macos-15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -35,6 +52,7 @@ jobs:
 
   app:
     name: Build App (boundary check)
+    if: github.event_name != 'pull_request'  # PR gate = lint only; app build on main/schedule
     runs-on: macos-15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
