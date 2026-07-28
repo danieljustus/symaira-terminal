@@ -14,6 +14,7 @@ public final class CommandInputEditor: NSObject, ObservableObject {
     @Published public var text: String = ""
     @Published public var cursorPosition: Int = 0
     @Published public var isSTTAuthorized: Bool = false
+    @Published public var sttError: String?
 
     public let sttService = STTService()
 
@@ -72,6 +73,7 @@ public final class CommandInputEditor: NSObject, ObservableObject {
         textView.delegate = self
         sttService.delegate = self
         setupKeyBindings()
+        updatePlaceholder()
     }
 
     public var view: NSView {
@@ -92,24 +94,38 @@ public final class CommandInputEditor: NSObject, ObservableObject {
 
     public func requestSTTAuthorization() {
         sttService.requestAuthorization { [weak self] authorized in
-            self?.isSTTAuthorized = authorized
+            guard let self else { return }
+            self.isSTTAuthorized = authorized
+            if authorized {
+                self.startSTTRecording()
+            } else {
+                self.sttError = "Speech recognition not authorized. Enable it in System Settings → Privacy & Security."
+            }
         }
     }
 
     public func toggleSTTRecording() {
         if sttService.isRecording {
             sttService.stopRecording()
-        } else {
-            if !isSTTAuthorized {
-                requestSTTAuthorization()
-                return
-            }
-            lastRecognizedText = ""
-            do {
-                try sttService.startRecording()
-            } catch {
-                NSLog("symaira stt: failed to start recording — \(error.localizedDescription)")
-            }
+            return
+        }
+
+        if !isSTTAuthorized {
+            requestSTTAuthorization()
+            return
+        }
+
+        startSTTRecording()
+    }
+
+    private func startSTTRecording() {
+        sttError = nil
+        lastRecognizedText = ""
+        do {
+            try sttService.startRecording()
+        } catch {
+            sttError = error.localizedDescription
+            NSLog("symaira stt: failed to start recording — \(error.localizedDescription)")
         }
     }
 
@@ -138,6 +154,8 @@ public final class CommandInputEditor: NSObject, ObservableObject {
     }
 
     private func updatePlaceholder() {
+        // NSTextView does not expose placeholderString as a public property.
+        // Placeholder is handled visually via the CommandInputBar overlay.
     }
 
     private func submitInput() {
@@ -231,10 +249,56 @@ public struct CommandInputBar: View {
 
     public var body: some View {
         VStack(spacing: 0) {
+            if let error = editor.sttError {
+                HStack(spacing: 6) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 10))
+                    Text(error)
+                        .font(.system(size: 11))
+                        .lineLimit(2)
+                    Spacer()
+                    Button {
+                        editor.sttError = nil
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 11))
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Color.yellow.opacity(0.15))
+                .foregroundColor(.secondary)
+            }
+
             CommandInputEditorView(editor: editor)
                 .frame(minHeight: 28, idealHeight: 36)
 
             HStack(spacing: 8) {
+                // Mode indicator
+                HStack(spacing: 4) {
+                    Image(systemName: editor.mode == .shell ? "terminal" : "bubble.left.and.bubble.right")
+                        .font(.system(size: 9, weight: .medium))
+                    Text(editor.mode == .shell ? "Shell" : "Prompt")
+                        .font(.system(size: 10, weight: .medium))
+                }
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(Color.accentColor.opacity(editor.mode == .shell ? 0.12 : 0.18))
+                .cornerRadius(4)
+                .help(editor.mode == .shell ? "Shell mode — type a command and press ⏎" : "Prompt mode — type a message and press ⏎")
+                .onTapGesture {
+                    editor.toggleMode()
+                }
+
+                Spacer()
+
+                if editor.sttService.isRecording {
+                    Text("Recording…")
+                        .font(.system(size: 10))
+                        .foregroundColor(.red)
+                }
+
                 Button {
                     editor.toggleSTTRecording()
                 } label: {
@@ -244,8 +308,6 @@ public struct CommandInputBar: View {
                 }
                 .buttonStyle(.plain)
                 .help(editor.sttService.isRecording ? "Stop dictation" : "Start dictation")
-
-                Spacer()
             }
             .padding(.horizontal, 6)
             .padding(.vertical, 3)
@@ -260,6 +322,7 @@ extension CommandInputEditor: STTServiceDelegate {
     }
 
     public func sttService(_ service: STTService, didFailWithError error: Error) {
+        sttError = error.localizedDescription
         NSLog("symaira stt: recognition error — \(error.localizedDescription)")
     }
 

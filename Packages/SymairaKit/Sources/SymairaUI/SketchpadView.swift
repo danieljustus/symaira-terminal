@@ -7,7 +7,7 @@ import SwiftUI
 final class SketchpadCanvas: NSView {
     private var currentPath: NSBezierPath?
     private var paths: [NSBezierPath] = []
-    private var strokeColor: NSColor = .black
+    private var strokeColor: NSColor = .labelColor
     private var lineWidth: CGFloat = 2.0
 
     var onImageChanged: ((NSImage?) -> Void)?
@@ -17,7 +17,7 @@ final class SketchpadCanvas: NSView {
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         wantsLayer = true
-        layer?.backgroundColor = NSColor.white.cgColor
+        layer?.backgroundColor = NSColor.controlBackgroundColor.cgColor
     }
 
     @available(*, unavailable)
@@ -50,7 +50,7 @@ final class SketchpadCanvas: NSView {
     }
 
     override func draw(_ dirtyRect: NSRect) {
-        NSColor.white.setFill()
+        NSColor.controlBackgroundColor.setFill()
         dirtyRect.fill()
 
         strokeColor.setStroke()
@@ -71,7 +71,7 @@ final class SketchpadCanvas: NSView {
         guard !bounds.isEmpty else { return nil }
         let image = NSImage(size: bounds.size)
         image.lockFocus()
-        NSColor.white.setFill()
+        NSColor.controlBackgroundColor.setFill()
         bounds.fill()
         strokeColor.setStroke()
         for path in paths {
@@ -145,7 +145,8 @@ public struct SketchpadView: View {
                 Button("Clear") {
                     viewModel.clear()
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.borderedProminent)
+                .tint(.secondary)
 
                 Spacer()
 
@@ -155,7 +156,7 @@ public struct SketchpadView: View {
                         NSPasteboard.general.setData(data, forType: .png)
                     }
                 } label: {
-                    Label("Copy PNG", systemImage: "doc.on.doc")
+                    Label("Copy", systemImage: "doc.on.doc")
                 }
                 .buttonStyle(.borderedProminent)
 
@@ -164,7 +165,8 @@ public struct SketchpadView: View {
                 } label: {
                     Label("Save PNG", systemImage: "square.and.arrow.down")
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.borderedProminent)
+                .tint(.secondary)
             }
             .padding(8)
         }
