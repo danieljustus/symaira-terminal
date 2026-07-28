@@ -1,7 +1,5 @@
 name: CI
 
-# retrigger clean Mini run
-
 on:
   push:
     branches: [main]
