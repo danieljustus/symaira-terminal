@@ -264,12 +264,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func setupPaneCallbacks(manager: PaneManager) {
         manager.onPaneChanged = { [weak self] pane in
             self?.updateTitle(pane: pane)
-            if let panes = self?.paneManager?.panes { self?.updateTabBar(panes: panes) }
+            self?.updateTabBar()
             Task { [weak self] in await self?.updatePaneStatuses() }
         }
         manager.onPanesChanged = { [weak self] panes in
-            self?.updateTabBar(panes: panes)
+            self?.updateTabBar()
             Task { [weak self] in await self?.updatePaneStatuses() }
+        }
+        manager.onTabsChanged = { [weak self] in
+            self?.updateTabBar()
         }
         manager.onOSCTap = { [weak self] paneID, event in
             self?.oscEventHandler.handle(event, for: paneID)
@@ -283,12 +286,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func restoreOrCreatePane(manager: PaneManager, window: NSWindow) {
-        if let saved = SessionPersistence.shared.load(), !saved.panes.isEmpty {
+        if let saved = SessionPersistence.shared.load(), !saved.panes.isEmpty || (saved.tabs?.isEmpty == false) {
             manager.restoreFromLayout(saved, window: window, manager: manager)
         } else {
-            _ = manager.createPane()
+            _ = manager.newTab()
         }
-        if manager.panes.isEmpty { _ = manager.createPane() }
+        if manager.panes.isEmpty { _ = manager.newTab() }
     }
 
     private func saveWindowFrame(_ window: NSWindow) {
@@ -307,7 +310,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func saveSession() {
         guard let manager = paneManager else { return }
         var state = manager.stateForPersistence
-        guard !state.panes.isEmpty else { return }
+        guard (state.tabs?.isEmpty == false) || !state.panes.isEmpty else { return }
         if let frame = savedWindowFrame { state.windowFrame = frame }
         try? SessionPersistence.shared.saveImmediately(state)
     }
@@ -335,24 +338,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let listeningPorts = await workspaceMonitor.cachedListeningPorts()
 
         var updatedItems: [PaneStatusInfo] = []
-        for (index, pane) in manager.panes.enumerated() {
-            let paneID = pane.paneID
-            let title = oscEventHandler.title(for: paneID)
-            let cwd = oscEventHandler.cwd(for: paneID) ?? pane.configuration.workingDirectory ?? URL(fileURLWithPath: NSHomeDirectory())
-            let gitResult = await workspaceMonitor.cachedGitAndPRInfo(for: cwd, includePRInfo: pane === manager.currentPane)
-            let shellPID = pane.pid
-            let panePorts = listeningPorts.filter { WorkspaceMonitor.isDescendant(pid: $0.pid, parentPID: shellPID, parentMap: parentMap) }.map(\.port)
+        var flatIndex = 0
+        for (tabIdx, tab) in manager.tabs.enumerated() {
+            for (paneIdx, pane) in tab.panes.enumerated() {
+                let paneID = pane.paneID
+                let title = oscEventHandler.title(for: paneID)
+                let cwd = oscEventHandler.cwd(for: paneID) ?? pane.configuration.workingDirectory ?? URL(fileURLWithPath: NSHomeDirectory())
+                let gitResult = await workspaceMonitor.cachedGitAndPRInfo(for: cwd, includePRInfo: pane === manager.currentPane)
+                let shellPID = pane.pid
+                let panePorts = listeningPorts.filter { WorkspaceMonitor.isDescendant(pid: $0.pid, parentPID: shellPID, parentMap: parentMap) }.map(\.port)
 
-            updatedItems.append(PaneStatusInfo(
-                id: paneID, index: index,
-                title: title.isEmpty ? "Terminal" : title,
-                status: pane.agentStatus, isActive: pane === manager.currentPane,
-                cwd: cwd,
-                gitBranch: gitResult.branch, gitIsDirty: gitResult.isDirty,
-                gitAhead: gitResult.ahead, gitBehind: gitResult.behind,
-                prNumber: gitResult.prNumber, prTitle: gitResult.prTitle, prStatus: gitResult.prStatus,
-                listeningPorts: Array(Set(panePorts)).sorted()
-            ))
+                updatedItems.append(PaneStatusInfo(
+                    id: paneID,
+                    index: flatIndex,
+                    tabID: tab.tabID,
+                    tabTitle: tab.title,
+                    title: title.isEmpty ? "Terminal" : title,
+                    status: pane.agentStatus,
+                    isActive: pane === manager.currentPane,
+                    cwd: cwd,
+                    gitBranch: gitResult.branch,
+                    gitIsDirty: gitResult.isDirty,
+                    gitAhead: gitResult.ahead,
+                    gitBehind: gitResult.behind,
+                    prNumber: gitResult.prNumber,
+                    prTitle: gitResult.prTitle,
+                    prStatus: gitResult.prStatus,
+                    listeningPorts: Array(Set(panePorts)).sorted()
+                ))
+                flatIndex += 1
+            }
         }
         if let store = sidebarViewModel?.worktreeStore { store.refreshDirtyState(for: store.worktrees) }
         await MainActor.run { self.sidebarViewModel?.paneItems = updatedItems; self.checkActiveAgents() }
@@ -365,16 +380,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if hasActive && monitorTask == nil { startMonitoring() }
     }
 
-    // MARK: - Pane Actions
+    // MARK: - Tab Actions
 
     @objc private func newTab() {
-        _ = paneManager?.createPane()
-        paneManager?.focusCurrent()
+        _ = paneManager?.newTab()
     }
 
     @objc private func closeTab() {
-        guard let current = paneManager?.currentPane else { return }
-        closePaneOrWindow(current)
+        paneManager?.closeCurrentTab()
     }
 
     private func closePaneOrWindow(_ pane: TerminalPane) {
@@ -418,9 +431,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func togglePalette() {
-        // The palette owns its own dismissal, so tracking open/closed state here
-        // too would desync the moment it closes by any other route and swallow
-        // every second invocation.
         showCommandPalette()
     }
 
@@ -433,8 +443,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func showWorkflowCanvas() { workflowCoordinator.showWorkflowCanvas() }
 
     private func selectPaneByID(_ id: UUID) {
-        guard let idx = paneManager?.panes.firstIndex(where: { $0.paneID == id }) else { return }
-        paneManager?.selectPane(at: idx)
+        guard let paneManager else { return }
+        // Find the pane across all tabs
+        var flatIndex = 0
+        for tab in paneManager.tabs {
+            if let idx = tab.panes.firstIndex(where: { $0.paneID == id }) {
+                paneManager.selectPane(at: flatIndex + idx)
+                return
+            }
+            flatIndex += tab.panes.count
+        }
     }
 
     @objc private func toggleDictation() {
@@ -467,13 +485,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window?.title = title.isEmpty ? "Symaira Terminal" : "\(title) — Symaira Terminal"
     }
 
-    private func updateTabBar(panes: [TerminalPane]) {
-        let titles = panes.enumerated().map { index, pane in
-            let title = oscEventHandler.title(for: pane.paneID)
-            return title.isEmpty ? "Tab \(index + 1)" : title
+    private func updateTabBar() {
+        guard let manager = paneManager else { return }
+        let titles = manager.tabs.map { tab in
+            tabTitle(for: tab)
         }
-        let selectedIndex = panes.firstIndex(where: { $0 === paneManager?.currentPane }) ?? 0
-        tabBar?.updateTabs(titles: titles, selectedIndex: selectedIndex)
+        tabBar?.updateTabs(titles: titles, selectedIndex: manager.currentTabIndex)
+    }
+
+    /// Derive the display title for a tab from its current pane's OSC title
+    /// or working directory, falling back to "Terminal".
+    private func tabTitle(for tab: Tab) -> String {
+        guard let pane = tab.currentPane ?? tab.panes.first else { return "Terminal" }
+        let title = oscEventHandler.title(for: pane.paneID)
+        if !title.isEmpty { return title }
+        let cwd = oscEventHandler.cwd(for: pane.paneID) ?? pane.configuration.workingDirectory
+        return cwd?.lastPathComponent ?? "Terminal"
     }
 
     private func updateStatusRing(paneID: UUID, status: AgentStatus) {
@@ -487,11 +514,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
 extension AppDelegate: @preconcurrency TabBarDelegate {
     func tabBarDidSelectTab(_ tabBar: TabBarView, index: Int) {
-        paneManager?.selectPane(at: index)
+        // Tab bar index now maps to tab index, not pane index
+        paneManager?.selectTab(at: index)
     }
 
     func tabBarDidRequestClose(_ tabBar: TabBarView, index: Int) {
-        guard let paneManager, index < paneManager.panes.count else { return }
-        closePaneOrWindow(paneManager.panes[index])
+        guard let paneManager else { return }
+        if paneManager.tabs.count <= 1 {
+            // Last tab — close the window
+            window?.performClose(nil)
+            return
+        }
+        paneManager.closeTab(at: index)
     }
 }
