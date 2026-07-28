@@ -267,7 +267,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.updateTabBar()
             Task { [weak self] in await self?.updatePaneStatuses() }
         }
-        manager.onPanesChanged = { [weak self] panes in
+        manager.onPanesChanged = { [weak self] _ in
             self?.updateTabBar()
             Task { [weak self] in await self?.updatePaneStatuses() }
         }

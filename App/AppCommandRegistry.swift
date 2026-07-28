@@ -188,7 +188,7 @@ enum AppCommandRegistry {
                 action: "showWorkflowCanvas",
                 key: "", modifiers: [],
                 category: "Workflow", menuGroup: .view,
-                separatorBefore: false),
+                separatorBefore: false)
     ]
 
     // MARK: - Menu helpers
@@ -270,8 +270,8 @@ extension NSEvent.ModifierFlags {
     var shortcutGlyphs: String {
         var result = ""
         if contains(.control) { result += "\u{2303}" }   // ⌃
-        if contains(.option)  { result += "\u{2325}" }   // ⌥
-        if contains(.shift)   { result += "\u{21E7}" }   // ⇧
+        if contains(.option) { result += "\u{2325}" }   // ⌥
+        if contains(.shift) { result += "\u{21E7}" }   // ⇧
         if contains(.command) { result += "\u{2318}" }   // ⌘
         return result
     }
