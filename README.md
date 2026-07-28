@@ -166,7 +166,8 @@ Keys are stored securely in the macOS Keychain — never sent to Symaira servers
 MIT — see [LICENSE](LICENSE). Like all other Symaira cores, Symaira Terminal is
 open-source under the MIT License. The Symaira name, logo, and app icon are
 protected trademarks — see [TRADEMARK.md](TRADEMARK.md). Third-party dependency
-notices are in [NOTICE](NOTICE). This app is fully self-contained: it builds and
+notices (including an Apache-2.0 licensed dependency, `symaira-appkit`) are in
+[NOTICE](NOTICE). This app is fully self-contained: it builds and
 runs without any account, cloud service, or external backend.
 
 ## Building

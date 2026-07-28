@@ -87,10 +87,11 @@ xcrun stapler staple "${APP_PATH}"
 spctl --assess --type execute "${APP_PATH}"
 
 echo "Creating DMG..."
-hdiutil create -volname "${APP_NAME}" \
-    -srcfolder "${APP_PATH}" \
-    -ov -format UDZO \
-    "${DMG_PATH}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+"${SCRIPT_DIR}/create-symaira-dmg.sh" \
+    "${APP_PATH}" \
+    "${DMG_PATH}" \
+    "Symaira Terminal"
 
 echo "Uploading to GitHub..."
 gh release create "v${VERSION}" \
@@ -99,7 +100,6 @@ gh release create "v${VERSION}" \
     --notes "Release ${VERSION}"
 
 echo "Updating Homebrew tap..."
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 "${SCRIPT_DIR}/update-homebrew-tap.sh" "${VERSION}" "${DMG_PATH}" || {
     echo "Warning: Homebrew tap update failed. Run manually:"
     echo "  ${SCRIPT_DIR}/update-homebrew-tap.sh ${VERSION} ${DMG_PATH}"
