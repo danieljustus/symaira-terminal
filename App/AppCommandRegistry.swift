@@ -11,22 +11,22 @@ enum AppCommandRegistry {
 
     // MARK: - Command definition
 
+    enum MenuGroup: String {
+        case file
+        case view
+        case app
+        case none
+    }
+
     struct Command: Identifiable {
         let id: String
         let title: String
-        let action: String               // ObjC selector name on AppDelegate
-        let key: String                  // keyEquivalent (empty for no shortcut)
+        let action: String
+        let key: String
         let modifiers: NSEvent.ModifierFlags
-        let category: String             // palette grouping
-        let menuGroup: MenuGroup         // which top-level menu it belongs to
-        let separatorBefore: Bool        // insert NSMenuItem.separator() before this item
-
-        enum MenuGroup: String {
-            case file
-            case view
-            case app
-            case none                     // palette-only (no menu entry yet)
-        }
+        let category: String
+        let menuGroup: MenuGroup
+        let separatorBefore: Bool
 
         // Palette shortcut string in correct NSEvent glyph order.
         var paletteShortcut: String? {
