@@ -133,7 +133,13 @@ final class WindowPresentationController: NSObject, NSWindowDelegate {
     /// dismisses it rather than leaving it pinned above the content.
     func windowDidResignKey(_ notification: Notification) {
         guard let window = notification.object as? NSWindow else { return }
-        if window === commandPaletteWindow {
+        if window === commandPaletteWindow, window.isVisible {
+            // Only close when the palette is still visible.  During teardown
+            // (e.g. app-hosted XCTests, app termination) AppKit may fire
+            // resignKey while the window is already inside its close
+            // sequence.  Calling close() again on a window that is already
+            // closing corrupts AppKit's window-state tracking and leads to
+            // an over-release in the next autorelease-pool drain.
             window.close()
         }
     }
@@ -167,15 +173,26 @@ final class WindowPresentationController: NSObject, NSWindowDelegate {
 
     // MARK: - Command Palette
 
+    /// Explicitly dismisses the palette and tears down its window.  Safe to
+    /// call when no palette is presented (no-op).  External callers —
+    /// including app-hosted tests — can use this for deterministic cleanup
+    /// instead of relying on the resign-key side effect.
+    func dismissCommandPalette() {
+        guard let panel = commandPaletteWindow else { return }
+        // Prevent windowDidResignKey from re-entering close() while we are
+        // already dismissing; setting the stored reference to nil first
+        // makes the delegate handler a no-op for this window.
+        commandPaletteWindow = nil
+        panel.delegate = nil
+        panel.close()
+    }
+
     func showCommandPalette(
         window: NSWindow,
         actions: [CommandPaletteItem]
     ) {
-        if let existing = commandPaletteWindow {
-            existing.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
-            return
-        }
+        // Dismiss any existing palette so we never stack two panels.
+        dismissCommandPalette()
 
         // A real binding, not `.constant(true)`: the palette's own dismiss paths
         // (the clear button, picking a command, Escape) write `false` here and
@@ -186,7 +203,7 @@ final class WindowPresentationController: NSObject, NSWindowDelegate {
                 get: { isPresented },
                 set: { [weak self] newValue in
                     isPresented = newValue
-                    if !newValue { self?.commandPaletteWindow?.close() }
+                    if !newValue { self?.dismissCommandPalette() }
                 }
             ),
             items: actions
