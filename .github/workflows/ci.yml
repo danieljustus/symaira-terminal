@@ -48,10 +48,10 @@ jobs:
         run: sudo xcode-select -s /Applications/Xcode_16.4.app || sudo xcode-select -s "$(ls -d /Applications/Xcode*.app | sort -V | tail -1)"
       - name: Build
         working-directory: Packages/SymairaKit
-        run: swift build
+        run: swift build -j 2
       - name: Test
         working-directory: Packages/SymairaKit
-        run: swift test
+        run: swift test -j 2
 
   app:
     name: Build App (boundary check)
