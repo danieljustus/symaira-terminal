@@ -4,16 +4,12 @@ import AppKit
 /// shortcuts. Extracted from `AppDelegate.setupKeyboardShortcuts` to
 /// reduce the AppDelegate's line count.
 ///
-/// Each `addMenuItem` call returns a configured `NSMenuItem` ready to
-/// be added to the given menu. Actions still target the AppDelegate
-/// (passed via `target`) because they are `@objc` methods on it.
+/// File and View menus are registry-driven via `AppCommandRegistry` so
+/// names, shortcuts, and modifier ordering stay consistent between the
+/// menu bar and the Command Palette. App, Edit, Window, and Help menus
+/// contain standard macOS items with fixed selectors.
 @MainActor
 enum AppMenuBuilder {
-
-    struct MenuItemTarget {
-        let target: AnyObject
-        init(_ target: AnyObject) { self.target = target }
-    }
 
     // MARK: - Public
 
@@ -108,17 +104,16 @@ enum AppMenuBuilder {
         return item
     }
 
-    // MARK: - File Menu
+    // MARK: - File Menu (registry-driven)
 
     private static func makeFileMenu(target: AnyObject) -> NSMenuItem {
         let fileMenu = NSMenu(title: "File")
+        let commands = AppCommandRegistry.commandsByMenu[.file, default: []]
 
-        fileMenu.addItem(makeMenuItem("New Tab", action: "newTab", key: "t", mask: [.command], target: target))
-        fileMenu.addItem(makeMenuItem("New Workspace", action: "newTab", key: "n", mask: [.command], target: target))
-        fileMenu.addItem(makeMenuItem("Close Tab", action: "closeTab", key: "w", mask: [.command], target: target))
-        fileMenu.addItem(.separator())
-        fileMenu.addItem(makeMenuItem("Split Horizontally", action: "splitHorizontal", key: "D", mask: [.command, .shift], target: target))
-        fileMenu.addItem(makeMenuItem("Split Vertically", action: "splitVertical", key: "d", mask: [.command], target: target))
+        for cmd in commands {
+            if cmd.separatorBefore { fileMenu.addItem(.separator()) }
+            fileMenu.addItem(AppCommandRegistry.makeMenuItem(from: cmd, target: target))
+        }
 
         let item = NSMenuItem(title: "File", action: nil, keyEquivalent: "")
         item.submenu = fileMenu
@@ -187,28 +182,16 @@ enum AppMenuBuilder {
         return item
     }
 
-    // MARK: - View Menu
+    // MARK: - View Menu (registry-driven)
 
     private static func makeViewMenu(target: AnyObject) -> NSMenuItem {
         let viewMenu = NSMenu(title: "View")
+        let commands = AppCommandRegistry.commandsByMenu[.view, default: []]
 
-        viewMenu.addItem(makeMenuItem("Command Palette", action: "togglePalette", key: "p", mask: [.command, .shift], target: target))
-        viewMenu.addItem(makeMenuItem("Toggle Sidebar", action: "toggleSidebar", key: "b", mask: [.command], target: target))
-        viewMenu.addItem(.separator())
-        viewMenu.addItem(makeMenuItem("Next Pane", action: "focusNext", key: "]", mask: [.command], target: target))
-        viewMenu.addItem(makeMenuItem("Previous Pane", action: "focusPrevious", key: "[", mask: [.command], target: target))
-        viewMenu.addItem(makeMenuItem("Focus Next Active Agent", action: "focusNextActive", key: "u", mask: [.command, .shift], target: target))
-        viewMenu.addItem(makeMenuItem("Focus Previous Active Agent", action: "focusPreviousActive", key: "i", mask: [.command, .shift], target: target))
-        viewMenu.addItem(.separator())
-        viewMenu.addItem(makeMenuItem("Focus Left Pane", action: "focusLeft", key: "\u{F702}", mask: [.command, .option], target: target))
-        viewMenu.addItem(makeMenuItem("Focus Right Pane", action: "focusRight", key: "\u{F703}", mask: [.command, .option], target: target))
-        viewMenu.addItem(makeMenuItem("Focus Up Pane", action: "focusUp", key: "\u{F700}", mask: [.command, .option], target: target))
-        viewMenu.addItem(makeMenuItem("Focus Down Pane", action: "focusDown", key: "\u{F701}", mask: [.command, .option], target: target))
-        viewMenu.addItem(.separator())
-        viewMenu.addItem(makeMenuItem("Toggle Pane Zoom", action: "toggleZoom", key: "\r", mask: [.command, .shift], target: target))
-        viewMenu.addItem(.separator())
-        viewMenu.addItem(makeMenuItem("Workflow Canvas", action: "showWorkflowCanvas", key: "", mask: [], target: target))
-        viewMenu.addItem(makeMenuItem("Sketchpad", action: "showSketchpad", key: "", mask: [], target: target))
+        for cmd in commands {
+            if cmd.separatorBefore { viewMenu.addItem(.separator()) }
+            viewMenu.addItem(AppCommandRegistry.makeMenuItem(from: cmd, target: target))
+        }
 
         let item = NSMenuItem(title: "View", action: nil, keyEquivalent: "")
         item.submenu = viewMenu
