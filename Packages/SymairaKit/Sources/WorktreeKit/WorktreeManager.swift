@@ -8,10 +8,22 @@ public struct Worktree: Equatable, Hashable, Sendable {
     public let branch: String
 }
 
-public enum WorktreeError: Error, Equatable {
+public enum WorktreeError: Error, Equatable, LocalizedError {
     case gitFailed(arguments: [String], exitCode: Int32, stderr: String)
     case notARepository(URL)
     case invalidTaskID(TaskIDError)
+
+    public var errorDescription: String? {
+        switch self {
+        case .gitFailed(let arguments, let exitCode, let stderr):
+            let cmd = arguments.joined(separator: " ")
+            return "git \(cmd) failed (exit \(exitCode)): \(stderr)"
+        case .notARepository(let url):
+            return "Not a git repository: \(url.path)"
+        case .invalidTaskID(let taskError):
+            return taskError.errorDescription
+        }
+    }
 }
 
 public struct WorktreeManager: Sendable {
@@ -31,6 +43,10 @@ public struct WorktreeManager: Sendable {
 
     @discardableResult
     public func create(taskID: String, baseRef: String = "HEAD") throws -> Worktree {
+        guard isGitRepository() else {
+            throw WorktreeError.notARepository(repositoryURL)
+        }
+
         let safePath: URL
         do {
             safePath = try validator.sanitizedPath(for: taskID, under: containerURL)
@@ -42,6 +58,22 @@ public struct WorktreeManager: Sendable {
         try FileManager.default.createDirectory(at: containerURL, withIntermediateDirectories: true)
         try git(["worktree", "add", "-b", branch, safePath.path, baseRef])
         return Worktree(taskID: taskID, path: safePath, branch: branch)
+    }
+
+    /// Returns `true` when `repositoryURL` points to a directory that contains a
+    /// `.git` file or directory (i.e. the root of a git repository or worktree).
+    public func isGitRepository() -> Bool {
+        let dotGit = repositoryURL.appendingPathComponent(".git", isDirectory: true)
+        var isDir: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: dotGit.path, isDirectory: &isDir) else {
+            return false
+        }
+        return true
+    }
+
+    /// Human-readable repository name derived from the directory name.
+    public var repositoryName: String {
+        repositoryURL.lastPathComponent
     }
 
     public func remove(_ worktree: Worktree, deleteBranch: Bool = true, force: Bool = false) throws {
@@ -115,7 +147,6 @@ public struct WorktreeManager: Sendable {
         }
         let base64Diff = compressed.base64EncodedString()
 
-        // Generate summary: git diff --stat
         let statSummary = try git(["diff", "--stat", baseRef], cwd: worktree.path)
 
         let riskNotes = checkRisks(in: rawDiff)
