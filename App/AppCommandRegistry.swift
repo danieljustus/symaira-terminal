@@ -36,7 +36,7 @@ enum AppCommandRegistry {
             }
             if key.isEmpty && modifiers.isEmpty { return nil }
             let glyphs = modifiers.shortcutGlyphs
-            let keyGlyph = Self.keyGlyph(for: key)
+            let keyGlyph = AppCommandRegistry.keyGlyph(for: key)
             return "\(glyphs)\(keyGlyph)"
         }
     }
