@@ -1,4 +1,5 @@
 import SwiftUI
+import SymairaUpdateCheck
 
 /// A subtle notification banner shown when a newer release is available.
 struct UpdateBannerView: View {

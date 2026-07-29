@@ -82,6 +82,7 @@ struct GeneralSettingsView: View {
 
     @AppStorage("keepAwakeAlways") private var keepAwakeAlways = false
     @AppStorage("keepAwakeWhileAgentRunning") private var keepAwakeWhileAgentRunning = true
+    @AppStorage("autoUpdateCheck") private var autoUpdateCheck = true
 
     var body: some View {
         Form {
@@ -102,6 +103,10 @@ struct GeneralSettingsView: View {
                         .textFieldStyle(.roundedBorder)
                         .frame(width: 80)
                 }
+            }
+
+            Section("Updates") {
+                Toggle("Automatically check for updates on launch", isOn: $autoUpdateCheck)
             }
 
             Section("Sleep Prevention") {

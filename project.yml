@@ -8,6 +8,9 @@ options:
 packages:
   SymairaKit:
     path: Packages/SymairaKit
+  SymairaAppKit:
+    url: https://github.com/danieljustus/symaira-appkit.git
+    exactVersion: 0.2.0
 
 targets:
   SymairaTerminal:
@@ -38,6 +41,8 @@ targets:
         product: ControlKit
       - package: SymairaKit
         product: MCPKit
+      - package: SymairaAppKit
+        product: SymairaUpdateCheck
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.symaira.terminal

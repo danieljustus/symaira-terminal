@@ -44,6 +44,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         WorkflowCoordinator(paneManager: paneManager, sidebarViewModel: sidebarViewModel)
     }()
 
+    @AppStorage("autoUpdateCheck") private var autoUpdateCheck = true
+
     // Update checker (GitHub release check, non-blocking)
     private lazy var updateCheckController = AppUpdateCheckController()
 
@@ -56,7 +58,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_: Notification) {
         UserDefaults.standard.register(defaults: [
             "keepAwakeAlways": false,
-            "keepAwakeWhileAgentRunning": true
+            "keepAwakeWhileAgentRunning": true,
+            "autoUpdateCheck": true
         ])
         SleepPreventionManager.shared.updateAssertionState()
 
@@ -232,6 +235,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Update Check
 
     private func triggerUpdateCheck() {
+        guard autoUpdateCheck else { return }
         updateCheckController.checkForUpdate()
     }
 
