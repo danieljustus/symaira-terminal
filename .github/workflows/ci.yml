@@ -22,7 +22,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  PATH: /usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+  # /opt/homebrew = Apple Silicon (macbook runner), /usr/local = Intel (mac-mini runner)
+  PATH: /opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
 
 permissions:
   contents: read
@@ -45,7 +46,13 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode_16.4.app || sudo xcode-select -s "$(ls -d /Applications/Xcode*.app | sort -V | tail -1)"
+        # sudo needs a password on the macbook runner -> fall back to DEVELOPER_DIR,
+        # which xcodebuild/swift respect without root. Works on both runners.
+        run: |
+          if [ -d /Applications/Xcode_16.4.app ]; then XCODE=/Applications/Xcode_16.4.app; else XCODE="$(ls -d /Applications/Xcode*.app | sort -V | tail -1)"; fi
+          sudo -n xcode-select -s "$XCODE" 2>/dev/null || true
+          echo "DEVELOPER_DIR=$XCODE/Contents/Developer" >> "$GITHUB_ENV"
+          DEVELOPER_DIR="$XCODE/Contents/Developer" xcodebuild -version
       - name: Build
         working-directory: Packages/SymairaKit
         run: swift build -j 2
@@ -60,7 +67,13 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode_16.4.app || sudo xcode-select -s "$(ls -d /Applications/Xcode*.app | sort -V | tail -1)"
+        # sudo needs a password on the macbook runner -> fall back to DEVELOPER_DIR,
+        # which xcodebuild/swift respect without root. Works on both runners.
+        run: |
+          if [ -d /Applications/Xcode_16.4.app ]; then XCODE=/Applications/Xcode_16.4.app; else XCODE="$(ls -d /Applications/Xcode*.app | sort -V | tail -1)"; fi
+          sudo -n xcode-select -s "$XCODE" 2>/dev/null || true
+          echo "DEVELOPER_DIR=$XCODE/Contents/Developer" >> "$GITHUB_ENV"
+          DEVELOPER_DIR="$XCODE/Contents/Developer" xcodebuild -version
       - name: Install XcodeGen
         run: brew install xcodegen
       - name: Generate project
