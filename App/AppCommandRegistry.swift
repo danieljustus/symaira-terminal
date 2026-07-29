@@ -234,7 +234,7 @@ enum AppCommandRegistry {
 
     /// Maps a keyEquivalent string to its display glyph for the palette.
     /// Returns the key as-is for characters that don't have a special glyph.
-    private static func keyGlyph(for key: String) -> String {
+    private nonisolated static func keyGlyph(for key: String) -> String {
         switch key {
         case "\r":       return "↩"
         case "\u{7F}":   return "⌫"   // backspace
