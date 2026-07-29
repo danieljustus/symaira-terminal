@@ -34,6 +34,9 @@ jobs:
     runs-on: [self-hosted, macOS, X64, mac-mini]  # Mac Mini runner
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # clean=false: skip Post-Run git cleanup (hangs on self-hosted macOS runners)
+          clean: false
       - name: Install SwiftLint
         run: brew install swiftlint
       - name: Run SwiftLint
@@ -45,6 +48,9 @@ jobs:
     runs-on: [self-hosted, macOS, X64, mac-mini]  # Mac Mini runner
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # clean=false: skip Post-Run git cleanup (hangs on self-hosted macOS runners)
+          clean: false
       - name: Select Xcode
         # sudo needs a password on the macbook runner -> fall back to DEVELOPER_DIR,
         # which xcodebuild/swift respect without root. Works on both runners.
@@ -73,6 +79,9 @@ jobs:
     runs-on: [self-hosted, macOS, X64, mac-mini]  # Mac Mini runner
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # clean=false: skip Post-Run git cleanup (hangs on self-hosted macOS runners)
+          clean: false
       - name: Select Xcode
         # sudo needs a password on the macbook runner -> fall back to DEVELOPER_DIR,
         # which xcodebuild/swift respect without root. Works on both runners.
