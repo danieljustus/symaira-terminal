@@ -55,10 +55,17 @@ jobs:
           DEVELOPER_DIR="$XCODE/Contents/Developer" xcodebuild -version
       - name: Build
         working-directory: Packages/SymairaKit
-        run: swift build -j 2
+        # Scale parallelism by RAM: Mini (8GB) needs -j2, MacBook (24GB) can do more
+        run: |
+          MEM_GB=$(($(sysctl -n hw.memsize) / 1073741824))
+          if [ "$MEM_GB" -le 8 ]; then JOBS=2; elif [ "$MEM_GB" -le 16 ]; then JOBS=4; else JOBS=6; fi
+          swift build -j "$JOBS"
       - name: Test
         working-directory: Packages/SymairaKit
-        run: swift test -j 2
+        run: |
+          MEM_GB=$(($(sysctl -n hw.memsize) / 1073741824))
+          if [ "$MEM_GB" -le 8 ]; then JOBS=2; elif [ "$MEM_GB" -le 16 ]; then JOBS=4; else JOBS=6; fi
+          swift test -j "$JOBS"
 
   app:
     name: Build App (boundary check)
