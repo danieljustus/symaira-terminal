@@ -10,7 +10,7 @@ packages:
     path: Packages/SymairaKit
   SymairaAppKit:
     url: https://github.com/danieljustus/symaira-appkit.git
-    exactVersion: 0.2.0
+    exactVersion: 0.2.2
 
 targets:
   SymairaTerminal:
