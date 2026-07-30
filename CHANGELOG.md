@@ -5,13 +5,15 @@ All notable changes to Symaira Terminal will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.8.3] — 2026-07-30
 
 ### Added
 - #283 Non-blocking update check via inline GitHub release checker
 - #300 Reachable and dismissible welcome flow
 - #278 CodeQL code scanning workflow for Swift and Actions
 - #297, #306 Shared command registry reconciling the app menu and Command Palette; Edit/Window/Help menus; Workflow Canvas window fix
+- #257 Consume shared tool registry from symaira-appkit (Welle 5)
+- #310 Migrate update-check to symaira-appkit SymairaUpdateCheck
 
 ### Fixed
 - #305 Validate worktree task ID before creation; show repo name and app icon
@@ -19,6 +21,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - #267 Show the real request origin in the open-tab confirmation dialog
 - #266 Close bind-to-chmod permission race on the ControlKit control socket
 - #296, #303 Update provider defaults and clean up Providers Settings pane
+- #308 Fix Command Palette over-release crash in windowDidResignKey during teardown
+- #304 Fix Sketchpad button visibility, dictation UX, and command input bar discoverability
+- #258 Move blocking socket I/O off the cooperative pool (ControlKit)
+- #255 Prevent MainActor isolation on speech background callbacks (STTService)
+- #250 Pass Developer ID signing identity to the archive step in the release CI
+- #299 Separate tab model from pane model
+- Fix Self reference in nested Command struct
+- Fix variable shadowing crash in PaneManager.focus(in:)
+- Fix hardcoded version drift in symterm CLI wrapper
 
 ### Changed
 - #301 Run tool version queries off the actor so MCP Stack refreshes stay parallel
@@ -26,14 +37,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - #276 Require Code Owner reviews and admin enforcement on default branch
 - #277 Community contact links in issue template config
 - Routine Dependabot bumps (`actions/checkout`, `github/codeql-action`)
+- ci: fast PR gate — lint only on PRs, build+test on main + weekly schedule
+- ci: route macOS jobs to self-hosted Mac Mini runner
+- ci: auto-scale swift parallelism by available RAM
 
 ### Performance
 - #270 Hoist per-line `ISO8601DateFormatter` allocations out of the usage-reader path
 
-## [0.8.3] — 2026-07-01
-
-### Changed
-- #250 Pass Developer ID signing identity to the archive step in the release CI
+### Chores
+- Bump symaira-appkit to exact v0.2.0
+- Add .worktrees/ to .gitignore
 
 ## [0.8.2] — 2026-06-29
 
