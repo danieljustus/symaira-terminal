@@ -2,6 +2,7 @@ import SwiftUI
 import AgentKit
 import ProviderKit
 import StackKit
+import SymairaTheme
 
 public struct SettingsView: View {
     @ObservedObject var providerStore: ProviderStore
@@ -100,7 +101,7 @@ struct GeneralSettingsView: View {
                     Text("Scrollback Lines")
                     Spacer()
                     TextField("", value: $scrollbackLines, format: .number)
-                        .textFieldStyle(.roundedBorder)
+                        .textFieldStyle(.symaira)
                         .frame(width: 80)
                 }
             }
@@ -203,9 +204,9 @@ struct AgentProfileSettingsView: View {
                     HStack {
                         VStack(alignment: .leading) {
                             Text(profile.name)
-                                .font(.headline)
+                                .font(SymairaTypography.subheading)
                             Text(profile.mode.capitalized)
-                                .font(.caption)
+                                .font(SymairaTypography.caption)
                                 .foregroundColor(.secondary)
                         }
                         Spacer()
@@ -267,7 +268,7 @@ struct AgentProfileEditSheet: View {
                 .pickerStyle(.segmented)
 
                 Text(modeDescription)
-                    .font(.caption)
+                    .font(SymairaTypography.caption)
                     .foregroundColor(.secondary)
             }
 

@@ -2,6 +2,7 @@ import SwiftUI
 import AgentKit
 import ProviderKit
 import TerminalCore
+import SymairaTheme
 
 public struct FixErrorButton: View {
     let exitCode: Int32
@@ -22,9 +23,9 @@ public struct FixErrorButton: View {
         } label: {
             HStack(spacing: 4) {
                 Image(systemName: "wrench.fill")
-                    .font(.caption)
+                    .font(SymairaTypography.caption)
                 Text("Fix Error")
-                    .font(.caption)
+                    .font(SymairaTypography.caption)
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
@@ -74,7 +75,7 @@ public struct FixErrorOverlay: View {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .foregroundColor(.orange)
                 Text("Error Detected")
-                    .font(.headline)
+                    .font(SymairaTypography.subheading)
                 Spacer()
                 Button(action: onDismiss) {
                     Image(systemName: "xmark.circle.fill")
@@ -84,19 +85,19 @@ public struct FixErrorOverlay: View {
             }
 
             Text("Exit code: \(error.exitCode)")
-                .font(.caption)
+                .font(SymairaTypography.caption)
                 .foregroundColor(.secondary)
 
             HStack(spacing: 4) {
                 Image(systemName: "arrow.right.circle.fill")
-                    .font(.caption)
+                    .font(SymairaTypography.caption)
                     .foregroundColor(.secondary)
                 Text("Sending to: \(providerDisplayName)")
-                    .font(.caption)
+                    .font(SymairaTypography.caption)
                     .foregroundColor(.secondary)
                 if let baseURL = providerBaseURL {
                     Text("(\(baseURL))")
-                        .font(.caption)
+                        .font(SymairaTypography.caption)
                         .foregroundColor(.secondary)
                         .lineLimit(1)
                         .truncationMode(.middle)
@@ -107,17 +108,17 @@ public struct FixErrorOverlay: View {
                 if result.redactionCount > 0 {
                     HStack(spacing: 4) {
                         Image(systemName: "shield.checkered")
-                            .font(.caption)
+                            .font(SymairaTypography.caption)
                             .foregroundColor(.green)
                         Text("\(result.redactionCount) secret(s) redacted")
-                            .font(.caption)
+                            .font(SymairaTypography.caption)
                             .foregroundColor(.green)
                     }
                 }
 
                 ScrollView {
                     Text(result.displayText)
-                        .font(.system(.caption, design: .monospaced))
+                        .font(SymairaTypography.monoSmall)
                         .lineLimit(10)
                 }
                 .frame(maxHeight: 150)

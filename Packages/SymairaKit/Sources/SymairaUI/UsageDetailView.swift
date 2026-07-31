@@ -1,5 +1,6 @@
 import SwiftUI
 import UsageKit
+import SymairaTheme
 
 /// Full usage detail panel — per-provider progress bars, badges, quota overlays,
 /// and a time-bucket toggle (Today / This Week / This Month).
@@ -16,7 +17,7 @@ public struct UsageDetailView: View {
             // MARK: Header
             HStack {
                 Text("AI Usage")
-                    .font(.headline)
+                    .font(SymairaTypography.subheading)
                 Spacer()
                 if store.isRefreshing {
                     ProgressView().scaleEffect(0.6)
@@ -25,7 +26,7 @@ public struct UsageDetailView: View {
                         Task { await store.refresh() }
                     } label: {
                         Image(systemName: "arrow.clockwise")
-                            .font(.caption)
+                            .font(SymairaTypography.caption)
                     }
                     .buttonStyle(.plain)
                     .help("Refresh usage data")
@@ -88,7 +89,7 @@ public struct UsageDetailView: View {
             if let date = store.lastRefreshDate {
                 Divider()
                 Text("Updated \(date, style: .relative) ago")
-                    .font(.caption2)
+                    .font(SymairaTypography.micro)
                     .foregroundStyle(.tertiary)
                     .padding(6)
             }
@@ -110,18 +111,18 @@ private struct TotalsBadge: View {
     var body: some View {
         HStack(spacing: 20) {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Tokens").font(.caption2).foregroundStyle(.secondary)
+                Text("Tokens").font(SymairaTypography.micro).foregroundStyle(.secondary)
                 Text(formatTokens(totals.totalTokens)).font(.title3.monospacedDigit().bold())
             }
             if let cost = totals.costUSD {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Cost").font(.caption2).foregroundStyle(.secondary)
+                    Text("Cost").font(SymairaTypography.micro).foregroundStyle(.secondary)
                     Text("$\(formatCost(cost))").font(.title3.monospacedDigit().bold())
                 }
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 2) {
-                Text("Sessions").font(.caption2).foregroundStyle(.secondary)
+                Text("Sessions").font(SymairaTypography.micro).foregroundStyle(.secondary)
                 Text("\(totals.sampleCount)").font(.title3.monospacedDigit().bold())
             }
         }
@@ -156,7 +157,7 @@ private struct BillingWindowRow: View {
                 Spacer()
                 if window.isActive {
                     Text("resets in \(window.end, style: .relative)")
-                        .font(.caption2)
+                        .font(SymairaTypography.micro)
                         .foregroundStyle(.secondary)
                 }
             }
@@ -225,7 +226,7 @@ private struct QuotaProgressRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             HStack {
-                Text(quota.label).font(.caption2).foregroundStyle(.secondary)
+                Text(quota.label).font(SymairaTypography.micro).foregroundStyle(.secondary)
                 Spacer()
                 if let limit = quota.limit {
                     Text("\(quota.used) / \(limit) \(quota.unit.rawValue)")
@@ -241,7 +242,7 @@ private struct QuotaProgressRow: View {
             }
             if let resetsAt = quota.resetsAt {
                 Text("Resets \(resetsAt, style: .relative)")
-                    .font(.caption2)
+                    .font(SymairaTypography.micro)
                     .foregroundStyle(.tertiary)
             }
         }
@@ -254,7 +255,7 @@ private struct TokenBadge: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Text(label).font(.caption2).foregroundStyle(.tertiary)
+            Text(label).font(SymairaTypography.micro).foregroundStyle(.tertiary)
             Text(formatTokens(value)).font(.caption2.monospacedDigit())
         }
     }
@@ -270,13 +271,13 @@ private struct EmptyUsageView: View {
     var body: some View {
         VStack(spacing: 12) {
             Image(systemName: "chart.bar")
-                .font(.largeTitle)
+                .font(SymairaTypography.display)
                 .foregroundStyle(.tertiary)
             Text("No usage data yet")
-                .font(.headline)
+                .font(SymairaTypography.subheading)
                 .foregroundStyle(.secondary)
             Text("Run Claude Code, Codex, or other agents to\nsee token usage and cost here.")
-                .font(.caption)
+                .font(SymairaTypography.caption)
                 .foregroundStyle(.tertiary)
                 .multilineTextAlignment(.center)
         }

@@ -1,5 +1,6 @@
 import SwiftUI
 import WorktreeKit
+import SymairaTheme
 
 // NOTE: The Transcripts tab has been removed because TranscriptStorage.save is not
 // yet called anywhere in production (only in unit tests), so the list was always
@@ -21,11 +22,11 @@ public struct DiffReviewPanel: View {
         VStack(spacing: 0) {
             HStack {
                 Text("Review Panel")
-                    .font(.headline)
+                    .font(SymairaTypography.subheading)
                 Spacer()
                 if let worktree = selectedWorktree {
                     Text(worktree.taskID)
-                        .font(.caption)
+                        .font(SymairaTypography.caption)
                         .foregroundColor(.secondary)
                 }
             }

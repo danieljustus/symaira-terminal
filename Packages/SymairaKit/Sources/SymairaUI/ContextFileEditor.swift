@@ -1,5 +1,6 @@
 import SwiftUI
 import ContextBank
+import SymairaTheme
 
 public struct ContextFileEditor: View {
     let file: ContextFile
@@ -15,10 +16,10 @@ public struct ContextFileEditor: View {
         VStack(spacing: 0) {
             HStack {
                 Text(file.kind.rawValue)
-                    .font(.headline)
+                    .font(SymairaTypography.subheading)
                 Spacer()
                 Text(file.url.path)
-                    .font(.caption)
+                    .font(SymairaTypography.caption)
                     .foregroundColor(.secondary)
                     .lineLimit(1)
             }
@@ -32,7 +33,7 @@ public struct ContextFileEditor: View {
                     .padding()
             } else {
                 TextEditor(text: $content)
-                    .font(.system(.body, design: .monospaced))
+                    .font(SymairaTypography.mono)
                     .scrollContentBackground(.visible)
                     .padding(4)
             }

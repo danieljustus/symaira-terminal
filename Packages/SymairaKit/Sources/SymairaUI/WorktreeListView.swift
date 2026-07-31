@@ -1,5 +1,6 @@
 import SwiftUI
 import WorktreeKit
+import SymairaTheme
 
 public struct WorktreeListView: View {
     @ObservedObject var store: WorktreeStore
@@ -23,7 +24,7 @@ public struct WorktreeListView: View {
         Section {
             if store.worktrees.isEmpty {
                 Text("No active worktrees")
-                    .font(.caption)
+                    .font(SymairaTypography.caption)
                     .foregroundColor(.secondary)
             } else {
                 ForEach(store.worktrees, id: \.taskID) { worktree in
@@ -68,16 +69,16 @@ struct WorktreeRow: View {
                 .frame(width: 8, height: 8)
             VStack(alignment: .leading, spacing: 2) {
                 Text(worktree.taskID)
-                    .font(.system(.body, design: .monospaced))
+                    .font(SymairaTypography.mono)
                     .lineLimit(1)
                 Text(worktree.branch.replacingOccurrences(of: "refs/heads/", with: ""))
-                    .font(.caption)
+                    .font(SymairaTypography.caption)
                     .foregroundColor(.secondary)
                     .lineLimit(1)
             }
             Spacer()
             Text(store.age(worktree))
-                .font(.caption2)
+                .font(SymairaTypography.micro)
                 .foregroundColor(.secondary)
         }
     }
