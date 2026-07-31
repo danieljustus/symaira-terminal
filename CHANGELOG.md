@@ -14,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - #297, #306 Shared command registry reconciling the app menu and Command Palette; Edit/Window/Help menus; Workflow Canvas window fix
 - #257 Consume shared tool registry from symaira-appkit (Welle 5)
 - #310 Migrate update-check to symaira-appkit SymairaUpdateCheck
+- #314 Migrate Keychain access to SymairaKeychain (symaira-appkit), with automatic credential migration
+- #315 Adopt SymairaTheme typography and text field styles; bump symaira-appkit to 0.6.2
+
+### Changed
+- Bump symaira-appkit from 0.2.2 to 0.6.2 (adds Typography, FormComponents, UpdateChecker)
 
 ### Fixed
 - #305 Validate worktree task ID before creation; show repo name and app icon
