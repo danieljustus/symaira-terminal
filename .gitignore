@@ -28,3 +28,6 @@ dist/
 .github/prerelease/
 .omo/
 .worktrees/
+
+# Stale agent worktrees
+.claude/

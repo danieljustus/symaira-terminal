@@ -1,5 +1,5 @@
 import Foundation
-import Security
+import SymairaKeychain
 
 /// AI providers supported by BYOK. `openAICompatible` covers any self-hosted or
 /// third-party endpoint that speaks the OpenAI wire format (LM Studio, vLLM, …).
@@ -86,7 +86,7 @@ public enum KeyStoreError: Error, Equatable {
 }
 
 /// Storage for BYOK API keys. Keys never touch config files, logs, or any
-/// Symaira service — the production implementation is the macOS Keychain.
+/// Symaira service — the implementation uses SymairaKeychain from symaira-appkit.
 /// `profile` separates billing contexts (e.g. "private" vs "business") for
 /// multi-account routing per workspace.
 public protocol KeyStore: Sendable {
@@ -101,56 +101,89 @@ extension KeyStore {
     }
 }
 
-/// Keychain-backed production store (kSecClassGenericPassword, app-scoped service).
+/// SymairaKeychain-backed production store.
+///
+/// Uses `SymairaKeychain` (symaira-appkit) instead of direct Security framework
+/// calls. Credentials stored under the legacy service names
+/// (`com.symaira.terminal.byok` and `com.symaira.terminal.oauth`) are
+/// migrated to the new namespace (`dev.symaira.symaira-terminal`) on first
+/// access per profile so existing provider keys are not lost.
 public struct KeychainKeyStore: KeyStore {
-    public static let service = "com.symaira.terminal.byok"
+    /// Legacy service name for API keys — used during migration only.
+    private static let legacyAPIKeyService = "com.symaira.terminal.byok"
+    /// Legacy service name for OAuth tokens — used during migration only.
+    private static let legacyOAuthService = "com.symaira.terminal.oauth"
+    /// Sentinel key prefix for per-profile migration tracking.
+    private static let migrationSentinelPrefix = "migration_done"
 
-    public init() {}
+    /// Primary keychain for all current credential operations.
+    private let keychain: SymairaKeychain
+    /// Legacy keychain for reading old API-key entries during migration.
+    private let legacyAPIKeychain: SymairaKeychain
+    /// Legacy keychain for reading old OAuth-token entries during migration.
+    private let legacyOAuthKeychain: SymairaKeychain
+
+    public init() {
+        keychain = SymairaKeychain(app: "symaira-terminal")
+        legacyAPIKeychain = SymairaKeychain(service: Self.legacyAPIKeyService)
+        legacyOAuthKeychain = SymairaKeychain(service: Self.legacyOAuthService)
+    }
+
+    // MARK: - Migration
+
+    /// Migrate credentials for `profile` from the legacy service names on first
+    /// access. The migration is idempotent — once a profile is migrated, the
+    /// sentinel prevents redundant work.
+    ///
+    /// Migration path:
+    /// 1. Read each `ProviderID` account from the legacy API-key keychain.
+    /// 2. If found, save it under the new service and delete the legacy entry.
+    /// 3. Repeat for the legacy OAuth-token keychain.
+    /// 4. Write a sentinel so subsequent calls skip the work.
+    private func migrateIfNeeded(profile: String) {
+        let sentinelKey = "\(Self.migrationSentinelPrefix)/\(profile)"
+
+        // Already migrated — sentinel exists.
+        if (try? keychain.read(key: sentinelKey)) != nil { return }
+
+        for provider in ProviderID.allCases {
+            let account = Self.account(provider: provider, profile: profile)
+
+            // API keys
+            if let value = try? legacyAPIKeychain.read(key: account) {
+                _ = try? keychain.save(value, key: account)
+                legacyAPIKeychain.delete(key: account)
+            }
+
+            // OAuth tokens
+            if let value = try? legacyOAuthKeychain.read(key: account) {
+                _ = try? keychain.save(value, key: account)
+                legacyOAuthKeychain.delete(key: account)
+            }
+        }
+
+        // Mark migration complete for this profile.
+        _ = try? keychain.save("1", key: sentinelKey)
+    }
+
+    // MARK: - KeyStore
 
     public func setKey(_ key: String, provider: ProviderID, profile: String) throws {
+        migrateIfNeeded(profile: profile)
         let account = Self.account(provider: provider, profile: profile)
-        let query: [CFString: Any] = [
-            kSecClass: kSecClassGenericPassword,
-            kSecAttrService: Self.service,
-            kSecAttrAccount: account
-        ]
-        let attributes: [CFString: Any] = [kSecValueData: Data(key.utf8)]
-        var status = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
-        if status == errSecItemNotFound {
-            let addQuery = query.merging(attributes) { _, new in new }
-                .merging([kSecAttrAccessible: kSecAttrAccessibleWhenUnlockedThisDeviceOnly]) { _, new in new }
-            status = SecItemAdd(addQuery as CFDictionary, nil)
-        }
-        guard status == errSecSuccess else { throw KeyStoreError.keychainFailure(status) }
+        try keychain.save(key, key: account)
     }
 
     public func key(provider: ProviderID, profile: String) throws -> String? {
-        let query: [CFString: Any] = [
-            kSecClass: kSecClassGenericPassword,
-            kSecAttrService: Self.service,
-            kSecAttrAccount: Self.account(provider: provider, profile: profile),
-            kSecReturnData: true,
-            kSecMatchLimit: kSecMatchLimitOne
-        ]
-        var item: CFTypeRef?
-        let status = SecItemCopyMatching(query as CFDictionary, &item)
-        if status == errSecItemNotFound { return nil }
-        guard status == errSecSuccess, let data = item as? Data else {
-            throw KeyStoreError.keychainFailure(status)
-        }
-        return String(data: data, encoding: .utf8)
+        migrateIfNeeded(profile: profile)
+        let account = Self.account(provider: provider, profile: profile)
+        return try keychain.read(key: account)
     }
 
     public func deleteKey(provider: ProviderID, profile: String) throws {
-        let query: [CFString: Any] = [
-            kSecClass: kSecClassGenericPassword,
-            kSecAttrService: Self.service,
-            kSecAttrAccount: Self.account(provider: provider, profile: profile)
-        ]
-        let status = SecItemDelete(query as CFDictionary)
-        guard status == errSecSuccess || status == errSecItemNotFound else {
-            throw KeyStoreError.keychainFailure(status)
-        }
+        migrateIfNeeded(profile: profile)
+        let account = Self.account(provider: provider, profile: profile)
+        keychain.delete(key: account)
     }
 }
 
