@@ -42,7 +42,10 @@ let package = Package(
 
         .target(name: "AgentKit", dependencies: ["TerminalCore", "ProviderKit"]),
         .target(name: "WorktreeKit", dependencies: ["TerminalCore"]),
-        .target(name: "ProviderKit"),
+        .target(
+            name: "ProviderKit",
+            dependencies: [.product(name: "SymairaKeychain", package: "symaira-appkit")]
+        ),
         .target(name: "ContextBank"),
         .target(name: "StackKit", dependencies: [.product(name: "SymairaToolKit", package: "symaira-appkit")]),
         .target(name: "UsageKit", resources: [.process("Resources")]),
