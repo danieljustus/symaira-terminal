@@ -23,7 +23,7 @@ let package = Package(
         .package(url: "https://github.com/Lakr233/libghostty-spm.git", exact: "1.2.4"),
         // Shared Symaira client foundations (tool registry SSOT). Exact pin
         // per ecosystem convention.
-        .package(url: "https://github.com/danieljustus/symaira-appkit.git", exact: "0.2.2")
+        .package(url: "https://github.com/danieljustus/symaira-appkit.git", exact: "0.6.2")
     ],
     targets: [
         // Engine-neutral terminal primitives: OSC parsing, sessions, env hygiene.
@@ -52,7 +52,7 @@ let package = Package(
 
         .target(
             name: "SymairaUI",
-            dependencies: ["TerminalCore", "AgentKit", "WorktreeKit", "ProviderKit", "ContextBank", "StackKit", "UsageKit"]
+            dependencies: ["TerminalCore", "AgentKit", "WorktreeKit", "ProviderKit", "ContextBank", "StackKit", "UsageKit", .product(name: "SymairaTheme", package: "symaira-appkit")]
         ),
 
         // Local headless control surface — observe and drive orchestration without the GUI.

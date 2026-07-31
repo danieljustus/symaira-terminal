@@ -1,5 +1,6 @@
 import SwiftUI
 import ContextBank
+import SymairaTheme
 
 public struct ContextBankPanel: View {
     let repositoryURL: URL
@@ -17,7 +18,7 @@ public struct ContextBankPanel: View {
         VStack(spacing: 0) {
             HStack {
                 Text("Context Bank")
-                    .font(.headline)
+                    .font(SymairaTypography.subheading)
                 Spacer()
                 Button {
                     refresh()

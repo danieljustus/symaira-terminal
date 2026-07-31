@@ -1,5 +1,6 @@
 import SwiftUI
 import ContextBank
+import SymairaTheme
 
 public struct ContextFileListView: View {
     let files: [ContextFile]
@@ -20,7 +21,7 @@ public struct ContextFileListView: View {
         Section {
             if files.isEmpty {
                 Text("No context files found")
-                    .font(.caption)
+                    .font(SymairaTypography.caption)
                     .foregroundColor(.secondary)
             } else {
                 ForEach(files, id: \.url) { file in
@@ -32,9 +33,9 @@ public struct ContextFileListView: View {
                                 .foregroundColor(.accentColor)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(file.kind.rawValue)
-                                    .font(.system(.body, design: .monospaced))
+                                    .font(SymairaTypography.mono)
                                 Text(file.url.deletingLastPathComponent().lastPathComponent)
-                                    .font(.caption)
+                                    .font(SymairaTypography.caption)
                                     .foregroundColor(.secondary)
                             }
                             Spacer()

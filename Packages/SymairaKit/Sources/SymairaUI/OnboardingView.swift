@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 import ProviderKit
+import SymairaTheme
 
 public struct OnboardingView: View {
     @ObservedObject var providerStore: ProviderStore
@@ -57,12 +58,12 @@ public struct OnboardingView: View {
                         .foregroundColor(.accentColor)
 
                     Text("Welcome to Symaira Terminal")
-                        .font(.largeTitle)
+                        .font(SymairaTypography.display)
                         .fontWeight(.bold)
                         .multilineTextAlignment(.center)
 
                     Text("A native macOS terminal built for the Human-AI era.")
-                        .font(.title3)
+                        .font(SymairaTypography.heading)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
 
@@ -113,7 +114,7 @@ public struct OnboardingView: View {
     private var stepOne: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Step 1: Add an API key (optional)")
-                .font(.headline)
+                .font(SymairaTypography.subheading)
 
             Text("Bring your own key for AI features. Keys stay in your macOS Keychain only — you can also add one later in Settings.")
                 .foregroundColor(.secondary)
@@ -146,7 +147,7 @@ public struct OnboardingView: View {
             if selectedProvider.supportsAPIKey {
                 if selectedProvider.supportsOAuth {
                     Text("Or add an API key instead:")
-                        .font(.caption)
+                        .font(SymairaTypography.caption)
                         .foregroundColor(.secondary)
                 }
                 apiKeyField
@@ -154,11 +155,11 @@ public struct OnboardingView: View {
 
             if keySaved {
                 Label("Saved to Keychain", systemImage: "checkmark.circle.fill")
-                    .font(.caption)
+                    .font(SymairaTypography.caption)
                     .foregroundColor(.green)
             } else if let keyError {
                 Label(keyError, systemImage: "exclamationmark.triangle.fill")
-                    .font(.caption)
+                    .font(SymairaTypography.caption)
                     .foregroundColor(.orange)
             }
         }
@@ -167,7 +168,7 @@ public struct OnboardingView: View {
     private var apiKeyField: some View {
         HStack {
             SecureField("API Key", text: $apiKey)
-                .textFieldStyle(.roundedBorder)
+                .textFieldStyle(.symaira)
                 .onChange(of: apiKey) { _, _ in
                     keySaved = false
                     keyError = nil
@@ -183,7 +184,7 @@ public struct OnboardingView: View {
     private var stepTwo: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Step 2: Shell integration (optional)")
-                .font(.headline)
+                .font(SymairaTypography.subheading)
 
             Text(
                 "Enable OSC 133 shell integration for command blocks, prompt navigation, "
@@ -195,7 +196,7 @@ public struct OnboardingView: View {
                 let line = "source \"\(path)\""
                 HStack(alignment: .top) {
                     Text(line)
-                        .font(.system(.caption, design: .monospaced))
+                        .font(SymairaTypography.monoSmall)
                         .textSelection(.enabled)
                         .padding(8)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -213,7 +214,7 @@ public struct OnboardingView: View {
                 }
             } else {
                 Text("Shell integration script not found in the app bundle. You can skip this step and enable it later from Settings.")
-                    .font(.caption)
+                    .font(SymairaTypography.caption)
                     .foregroundColor(.secondary)
             }
         }
@@ -222,7 +223,7 @@ public struct OnboardingView: View {
     private var stepThree: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Step 3: You're ready")
-                .font(.headline)
+                .font(SymairaTypography.subheading)
 
             Text("Your terminal is ready to use. Press ⌘T to open a new tab, or ⌘D to split the current pane.")
                 .foregroundColor(.secondary)

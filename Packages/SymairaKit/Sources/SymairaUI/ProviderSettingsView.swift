@@ -1,5 +1,6 @@
 import SwiftUI
 import ProviderKit
+import SymairaTheme
 
 public struct ProviderSettingsView: View {
     @ObservedObject var store: ProviderStore
@@ -14,7 +15,7 @@ public struct ProviderSettingsView: View {
         VStack(spacing: 0) {
             HStack {
                 Text("Providers")
-                    .font(.headline)
+                    .font(SymairaTypography.subheading)
                 Spacer()
             }
             .padding()
@@ -58,37 +59,37 @@ struct ProviderRow: View {
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(provider.displayName)
-                        .font(.body)
+                        .font(SymairaTypography.body)
                     if provider.supportsOAuth {
                         if store.hasOAuthToken(for: provider) {
                             Text("Signed in with OAuth")
-                                .font(.caption)
+                                .font(SymairaTypography.caption)
                                 .foregroundColor(.green)
                         } else {
                             Text("Not signed in")
-                                .font(.caption)
+                                .font(SymairaTypography.caption)
                                 .foregroundColor(.secondary)
                         }
                     }
                     if provider.supportsAPIKey {
                         if let key = store.key(for: provider) {
                             Text(isRevealed ? key : maskedKey(key))
-                                .font(.caption)
+                                .font(SymairaTypography.caption)
                                 .foregroundColor(.secondary)
                         } else if !provider.supportsOAuth {
                             Text("No key set")
-                                .font(.caption)
+                                .font(SymairaTypography.caption)
                                 .foregroundColor(.secondary)
                         }
                     }
                     if let defaultModel = ProviderChatClient.defaultModels[provider], !defaultModel.isEmpty {
                         Text("Default model: \(defaultModel)")
-                            .font(.caption2)
+                            .font(SymairaTypography.micro)
                             .foregroundColor(.secondary)
                     }
                     if let error = oauthError {
                         Text(error)
-                            .font(.caption2)
+                            .font(SymairaTypography.micro)
                             .foregroundColor(.red)
                     }
                 }
@@ -101,7 +102,7 @@ struct ProviderRow: View {
                             store.signOutOAuth(for: provider)
                         } label: {
                             Text("Sign Out")
-                                .font(.caption)
+                                .font(SymairaTypography.caption)
                         }
                         .buttonStyle(.plain)
                     } else {
@@ -113,7 +114,7 @@ struct ProviderRow: View {
                                     .controlSize(.small)
                             } else {
                                 Text("Sign In")
-                                    .font(.caption)
+                                    .font(SymairaTypography.caption)
                             }
                         }
                         .buttonStyle(.plain)
@@ -210,15 +211,15 @@ struct APIKeyEditorSheet: View {
     var body: some View {
         VStack(spacing: 16) {
             Text("Add \(provider.displayName) API Key")
-                .font(.headline)
+                .font(SymairaTypography.subheading)
 
             SecureField("API Key", text: $keyValue)
-                .textFieldStyle(.roundedBorder)
+                .textFieldStyle(.symaira)
 
             if let error = error {
                 Text(error)
                     .foregroundColor(.red)
-                    .font(.caption)
+                    .font(SymairaTypography.caption)
             }
 
             HStack {

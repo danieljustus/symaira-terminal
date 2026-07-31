@@ -1,5 +1,6 @@
 import SwiftUI
 import UsageKit
+import SymairaTheme
 
 /// Compact toolbar/status-bar element showing today's cost or token total.
 ///
@@ -19,7 +20,7 @@ public struct UsageSummaryView: View {
         } label: {
             HStack(spacing: 4) {
                 Image(systemName: "chart.bar.fill")
-                    .font(.caption)
+                    .font(SymairaTypography.caption)
                     .foregroundStyle(.secondary)
                 Text(summaryText)
                     .font(.caption.monospacedDigit())

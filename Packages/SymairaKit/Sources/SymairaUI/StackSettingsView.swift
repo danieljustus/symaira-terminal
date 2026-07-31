@@ -50,9 +50,9 @@ public struct StackSettingsView: View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Symaira Stack")
-                    .font(.headline)
+                    .font(SymairaTypography.subheading)
                 Text("\(store.installedCount) of \(store.totalCount) tools detected")
-                    .font(.caption)
+                    .font(SymairaTypography.caption)
                     .foregroundColor(.secondary)
             }
             Spacer()
@@ -104,7 +104,7 @@ public struct StackSettingsView: View {
 
             if let error = store.error {
                 Text(error)
-                    .font(.caption)
+                    .font(SymairaTypography.caption)
                     .foregroundColor(.red)
                     .lineLimit(2)
             }
@@ -129,14 +129,14 @@ struct ToolRow: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(tool.displayName)
-                    .font(.body)
+                    .font(SymairaTypography.body)
                 if let version = tool.version {
                     Text(version)
-                        .font(.caption)
+                        .font(SymairaTypography.caption)
                         .foregroundColor(.secondary)
                 } else if !tool.isInstalled {
                     Text("Not installed")
-                        .font(.caption)
+                        .font(SymairaTypography.caption)
                         .foregroundColor(.secondary)
                 }
             }
@@ -175,7 +175,7 @@ struct ToolRow: View {
     private var installHint: some View {
         HStack(spacing: 4) {
             Text("brew install")
-                .font(.caption2)
+                .font(SymairaTypography.micro)
                 .foregroundColor(.secondary)
             Button {
                 NSPasteboard.general.clearContents()
@@ -185,7 +185,7 @@ struct ToolRow: View {
                 )
             } label: {
                 Image(systemName: "doc.on.clipboard")
-                    .font(.caption2)
+                    .font(SymairaTypography.micro)
             }
             .buttonStyle(.plain)
             .help("Copy install command")
@@ -202,10 +202,10 @@ struct ClaudeCodeCommandsSheet: View {
     var body: some View {
         VStack(spacing: 16) {
             Text("Claude Code MCP Setup")
-                .font(.headline)
+                .font(SymairaTypography.subheading)
 
             Text("Run these commands in your terminal to add Symaira MCP servers to Claude Code:")
-                .font(.subheadline)
+                .font(SymairaTypography.callout)
                 .foregroundColor(.secondary)
 
             ScrollView {
@@ -213,7 +213,7 @@ struct ClaudeCodeCommandsSheet: View {
                     ForEach(commands, id: \.self) { command in
                         HStack {
                             Text(command)
-                                .font(.system(.body, design: .monospaced))
+                                .font(SymairaTypography.mono)
                                 .textSelection(.enabled)
                             Spacer()
                             Button {
@@ -244,6 +244,7 @@ struct ClaudeCodeCommandsSheet: View {
 // MARK: - Document for File Export
 
 import UniformTypeIdentifiers
+import SymairaTheme
 
 struct MCPPresetDocument: FileDocument {
     static var readableContentTypes: [UTType] { [.json] }

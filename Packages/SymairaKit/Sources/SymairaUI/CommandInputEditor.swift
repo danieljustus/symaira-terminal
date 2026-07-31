@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 import TerminalCore
+import SymairaTheme
 
 @MainActor
 public final class CommandInputEditor: NSObject, ObservableObject {
@@ -338,7 +339,7 @@ struct CommandInputEditorPreview: View {
     var body: some View {
         VStack {
             Text("Mode: \(editor.mode == .shell ? "Shell" : "Prompt")")
-                .font(.headline)
+                .font(SymairaTypography.subheading)
             CommandInputEditorView(editor: editor)
                 .frame(height: 100)
                 .border(Color.gray.opacity(0.3))
