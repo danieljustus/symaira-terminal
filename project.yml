@@ -10,7 +10,7 @@ packages:
     path: Packages/SymairaKit
   SymairaAppKit:
     url: https://github.com/danieljustus/symaira-appkit.git
-    exactVersion: 0.2.2
+    exactVersion: 0.7.0
 
 targets:
   SymairaTerminal:
@@ -46,6 +46,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.symaira.terminal
+        DEVELOPMENT_TEAM: M4744F3TAA
         MARKETING_VERSION: "0.8.3"
         CURRENT_PROJECT_VERSION: "1"
         SWIFT_VERSION: "6.0"

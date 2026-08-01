@@ -29,7 +29,7 @@ struct UpdateBannerView: View {
             .overlay(Divider(), alignment: .top)
         case .error:
             EmptyView()
-        case .skipped, .unknown, .upToDate:
+        case .installing, .readyToRelaunch, .skipped, .unknown, .upToDate:
             EmptyView()
         }
     }

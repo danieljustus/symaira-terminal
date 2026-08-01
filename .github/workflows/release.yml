@@ -58,10 +58,9 @@ jobs:
           CERTIFICATE_PASSWORD: ${{ secrets.CERTIFICATE_PASSWORD }}
           KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
         run: |
-          if [ -z "${CERTIFICATE_P12:-}" ]; then
-            echo "::warning::CERTIFICATE_P12 secret is not set. Building unsigned."
-            echo "signed=false" >> "$GITHUB_OUTPUT"
-            exit 0
+          if [ -z "${CERTIFICATE_P12:-}" ] || [ -z "${CERTIFICATE_PASSWORD:-}" ] || [ -z "${KEYCHAIN_PASSWORD:-}" ]; then
+            echo "::error::Signing secrets CERTIFICATE_P12, CERTIFICATE_PASSWORD, and KEYCHAIN_PASSWORD are required for a stable release."
+            exit 1
           fi
           echo "signed=true" >> "$GITHUB_OUTPUT"
           KEYCHAIN_PATH="$RUNNER_TEMP/signing.keychain-db"
@@ -74,7 +73,7 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple:,codesign: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security default-keychain -s "$KEYCHAIN_PATH"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security list-keychain -d user -s "$KEYCHAIN_PATH" $(security list-keychain -d user | tr -d '"')
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
           # Capture the exact certificate identity for the export step.
           CERT_IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" | grep -oE '"Developer ID Application: [^"]+"' | head -1 | tr -d '"')
           if [ -z "$CERT_IDENTITY" ]; then
@@ -87,7 +86,7 @@ jobs:
       - name: Build and archive
         if: steps.signing.outputs.signed == 'true'
         env:
-          DEVELOPMENT_TEAM: ${{ secrets.NOTARY_API_ISSUER }}
+          DEVELOPMENT_TEAM: M4744F3TAA
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           xcodebuild archive \
@@ -100,16 +99,17 @@ jobs:
             CODE_SIGN_IDENTITY="Developer ID Application" \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGNING_ALLOWED=YES \
+            CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO \
             DEVELOPMENT_TEAM="${DEVELOPMENT_TEAM}"
 
       - name: Export archive
         if: steps.signing.outputs.signed == 'true'
         env:
-          DEVELOPMENT_TEAM: ${{ secrets.NOTARY_API_ISSUER }}
+          DEVELOPMENT_TEAM: M4744F3TAA
           KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
         run: |
           security default-keychain -s "$KEYCHAIN_PATH"
-          security list-keychain -d user -s "$KEYCHAIN_PATH" $(security list-keychain -d user | tr -d '"')
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           echo "Available code signing identities:"
           security find-identity -v -p codesigning "$KEYCHAIN_PATH"
@@ -134,52 +134,6 @@ jobs:
             -exportOptionsPlist build/release/ExportOptions.plist \
             -exportPath build/release/export
 
-      - name: Build (unsigned)
-        if: steps.signing.outputs.signed == 'false'
-        run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          xcodebuild build \
-            -project SymairaTerminal.xcodeproj \
-            -scheme SymairaTerminal \
-            -configuration Release \
-            -derivedDataPath build/release/DerivedData \
-            MARKETING_VERSION="${VERSION}" \
-            CURRENT_PROJECT_VERSION="${GITHUB_RUN_NUMBER}" \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO
-          # Find the .app
-          APP_PATH=$(find build/release/DerivedData -name "SymairaTerminal.app" -type d | head -1)
-          mkdir -p build/release/export
-          cp -R "$APP_PATH" build/release/export/
-
-      - name: Notarize and staple
-        if: steps.signing.outputs.signed == 'true'
-        env:
-          NOTARY_API_KEY: ${{ secrets.NOTARY_API_KEY }}
-          NOTARY_API_ISSUER: ${{ secrets.NOTARY_API_ISSUER }}
-          NOTARY_API_KEY_ID: ${{ secrets.NOTARY_API_KEY_ID }}
-        run: |
-          APP_PATH=$(find build/release/export -name "*.app" -type d | head -1)
-          if [ -z "$APP_PATH" ]; then
-            echo "::error::No .app found for notarization."
-            exit 1
-          fi
-          if [ -z "${NOTARY_API_KEY:-}" ]; then
-            echo "::warning::NOTARY_API_KEY secret is not set. Skipping notarization."
-            exit 0
-          fi
-          # notarytool accepts .zip, .pkg, or .dmg, not a raw .app bundle.
-          ZIP_PATH="$RUNNER_TEMP/SymairaTerminal.zip"
-          ditto -c -k --keepParent "$APP_PATH" "$ZIP_PATH"
-          xcrun notarytool submit "$ZIP_PATH" \
-            --apple-id "${NOTARY_API_KEY_ID}" \
-            --team-id "${NOTARY_API_ISSUER}" \
-            --password "${NOTARY_API_KEY}" \
-            --wait
-          xcrun stapler staple "$APP_PATH"
-          rm -f "$ZIP_PATH"
-
       - name: Verify bundle version
         run: |
           VERSION="${{ steps.version.outputs.version }}"
@@ -195,7 +149,7 @@ jobs:
           fi
           echo "Verified bundle version: $BUNDLE_VERSION"
 
-      - name: Create DMG
+      - name: Create branded DMG
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           APP_PATH=$(find build/release/export -name "*.app" -type d | head -1)
@@ -203,11 +157,43 @@ jobs:
             echo "::error::No .app found for DMG creation."
             exit 1
           fi
-          hdiutil create -volname "SymairaTerminal" \
-            -srcfolder "$APP_PATH" \
-            -ov -format UDZO \
-            "build/release/SymairaTerminal-${VERSION}.dmg"
+          ./scripts/create-symaira-dmg.sh \
+            "$APP_PATH" \
+            "build/release/SymairaTerminal-${VERSION}.dmg" \
+            "Symaira Terminal" \
+            "assets/branding/symaira-dmg-background.png"
 
+      - name: Notarize final DMG
+        env:
+          NOTARY_API_KEY: ${{ secrets.NOTARY_API_KEY }}
+          NOTARY_API_ISSUER_ID: ${{ secrets.NOTARY_API_ISSUER_ID }}
+          NOTARY_API_KEY_ID: ${{ secrets.NOTARY_API_KEY_ID }}
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          DMG_PATH="build/release/SymairaTerminal-${VERSION}.dmg"
+          KEY_FILE="$RUNNER_TEMP/notary-api-key.p8"
+          JSON_FILE="$RUNNER_TEMP/notary-result.json"
+          if printf '%s' "$NOTARY_API_KEY" | base64 --decode 2>/dev/null | grep -q -- '-----BEGIN'; then
+            printf '%s' "$NOTARY_API_KEY" | base64 --decode > "$KEY_FILE"
+          else
+            printf '%s' "$NOTARY_API_KEY" > "$KEY_FILE"
+          fi
+          chmod 600 "$KEY_FILE"
+          xcrun notarytool submit "$DMG_PATH" \
+            -k "$KEY_FILE" \
+            -d "$NOTARY_API_KEY_ID" \
+            -i "$NOTARY_API_ISSUER_ID" \
+            --wait \
+            --output-format json > "$JSON_FILE"
+          STATUS=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["status"])' "$JSON_FILE")
+          if [ "$STATUS" != "Accepted" ]; then
+            echo "::error::DMG notarization was not accepted: $STATUS"
+            exit 1
+          fi
+          xcrun stapler staple "$DMG_PATH"
+          xcrun stapler validate "$DMG_PATH"
+          rm -f "$KEY_FILE" "$JSON_FILE"
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

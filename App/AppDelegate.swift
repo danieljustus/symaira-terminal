@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 import Combine
+import SymairaUpdateCheck
 import GhosttyBridge
 import TerminalCore
 import AgentKit
