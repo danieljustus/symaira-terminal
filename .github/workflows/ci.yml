@@ -51,14 +51,17 @@ jobs:
         with:
           # clean=false: skip Post-Run git cleanup (hangs on self-hosted macOS runners)
           clean: false
-      - name: Select Xcode
-        # sudo needs a password on the macbook runner -> fall back to DEVELOPER_DIR,
-        # which xcodebuild/swift respect without root. Works on both runners.
+      - name: Select Xcode 27
+        # DEVELOPER_DIR points the full Xcode toolchain at the runner without requiring sudo.
         run: |
-          if [ -d /Applications/Xcode_16.4.app ]; then XCODE=/Applications/Xcode_16.4.app; else XCODE="$(ls -d /Applications/Xcode*.app | sort -V | tail -1)"; fi
-          sudo -n xcode-select -s "$XCODE" 2>/dev/null || true
+          if [ -d /Applications/Xcode-beta.app/Contents/Developer ]; then
+            XCODE=/Applications/Xcode-beta.app
+          else
+            XCODE="$(printf '%s\n' /Applications/Xcode*.app | sort -V | tail -1)"
+          fi
+          test -d "$XCODE/Contents/Developer"
           echo "DEVELOPER_DIR=$XCODE/Contents/Developer" >> "$GITHUB_ENV"
-          DEVELOPER_DIR="$XCODE/Contents/Developer" xcodebuild -version
+          DEVELOPER_DIR="$XCODE/Contents/Developer" xcodebuild -version | grep -F 'Xcode 27.0'
       - name: Build
         working-directory: Packages/SymairaKit
         # Scale parallelism by RAM: Mini (8GB) needs -j2, MacBook (24GB) can do more
@@ -82,14 +85,17 @@ jobs:
         with:
           # clean=false: skip Post-Run git cleanup (hangs on self-hosted macOS runners)
           clean: false
-      - name: Select Xcode
-        # sudo needs a password on the macbook runner -> fall back to DEVELOPER_DIR,
-        # which xcodebuild/swift respect without root. Works on both runners.
+      - name: Select Xcode 27
+        # DEVELOPER_DIR points the full Xcode toolchain at the runner without requiring sudo.
         run: |
-          if [ -d /Applications/Xcode_16.4.app ]; then XCODE=/Applications/Xcode_16.4.app; else XCODE="$(ls -d /Applications/Xcode*.app | sort -V | tail -1)"; fi
-          sudo -n xcode-select -s "$XCODE" 2>/dev/null || true
+          if [ -d /Applications/Xcode-beta.app/Contents/Developer ]; then
+            XCODE=/Applications/Xcode-beta.app
+          else
+            XCODE="$(printf '%s\n' /Applications/Xcode*.app | sort -V | tail -1)"
+          fi
+          test -d "$XCODE/Contents/Developer"
           echo "DEVELOPER_DIR=$XCODE/Contents/Developer" >> "$GITHUB_ENV"
-          DEVELOPER_DIR="$XCODE/Contents/Developer" xcodebuild -version
+          DEVELOPER_DIR="$XCODE/Contents/Developer" xcodebuild -version | grep -F 'Xcode 27.0'
       - name: Install XcodeGen
         run: brew install xcodegen
       - name: Generate project
