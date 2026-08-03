@@ -107,34 +107,29 @@ public struct ProcessRunner: Sendable {
     }
 
     static func drain(_ fd: Int32) -> Data {
-        let source = DispatchSource.makeReadSource(fileDescriptor: fd, queue: .global(qos: .userInitiated))
-        let dataBox = DataBox()
-        let doneBox = DispatchSemaphore(value: 0)
+        // Do the blocking read directly on the drain worker. The previous
+        // DispatchSource implementation blocked a global-queue worker waiting
+        // for a handler scheduled on that same queue; concurrent Swift Testing
+        // runs could exhaust the pool and leave the test process hanging.
+        var data = Data()
+        var buffer = [UInt8](repeating: 0, count: 16 * 1024)
 
-        source.setEventHandler {
-            let available = source.data
-            guard available > 0 else {
-                source.cancel()
-                doneBox.signal()
-                return
+        while true {
+            let count = buffer.withUnsafeMutableBytes { rawBuffer in
+                read(fd, rawBuffer.baseAddress, rawBuffer.count)
             }
-            var buf = [UInt8](repeating: 0, count: Int(available))
-            let n = buf.withUnsafeMutableBytes { read(fd, $0.baseAddress, $0.count) }
-            if n > 0 {
-                dataBox.append(Data(buf.prefix(n)))
+
+            if count > 0 {
+                data.append(contentsOf: buffer.prefix(Int(count)))
+            } else if count == 0 {
+                break
+            } else if errno == EINTR {
+                continue
             } else {
-                source.cancel()
-                doneBox.signal()
+                break
             }
         }
 
-        source.setCancelHandler {
-            doneBox.signal()
-        }
-
-        source.resume()
-        doneBox.wait()
-        source.cancel()
-        return dataBox.value
+        return data
     }
 }
