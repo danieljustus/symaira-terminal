@@ -13,7 +13,7 @@ permissions:
 jobs:
   analyze-actions:
     name: Analyze (GitHub Actions)
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, macOS, ARM64, macbook-terminal]
     permissions:
       actions: read
       contents: read
