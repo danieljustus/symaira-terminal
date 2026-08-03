@@ -30,7 +30,7 @@ jobs:
 
   analyze-swift:
     name: Analyze (Swift)
-    runs-on: macos-26
+    runs-on: [self-hosted, macOS, ARM64, macbook-terminal]
     permissions:
       actions: read
       contents: read
@@ -38,9 +38,11 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Select Xcode 27
-        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1.7.0
-        with:
-          xcode-version: '27.0'
+        run: |
+          XCODE=/Applications/Xcode-beta.app
+          test -d "$XCODE/Contents/Developer"
+          echo "DEVELOPER_DIR=$XCODE/Contents/Developer" >> "$GITHUB_ENV"
+          DEVELOPER_DIR="$XCODE/Contents/Developer" xcodebuild -version | grep -F 'Xcode 27.0'
       - name: Initialize CodeQL
         uses: github/codeql-action/init@f205ea1c3313d32999d8d6a48b4f6530d4437b38 # v4.37.4
         with:

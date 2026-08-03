@@ -21,13 +21,20 @@ permissions:
 
 jobs:
   release:
-    runs-on: macos-15
+    runs-on: [self-hosted, macOS, ARM64, macbook-terminal]
     # Require a protected environment for signed releases.
     # The 'release' environment must be configured in repo Settings > Environments
     # with the required reviewers before secrets are available.
     environment: release
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Select Xcode 27
+        run: |
+          XCODE=/Applications/Xcode-beta.app
+          test -d "$XCODE/Contents/Developer"
+          echo "DEVELOPER_DIR=$XCODE/Contents/Developer" >> "$GITHUB_ENV"
+          DEVELOPER_DIR="$XCODE/Contents/Developer" xcodebuild -version | grep -F 'Xcode 27.0'
 
       - name: Validate version
         id: version
