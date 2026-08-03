@@ -31,7 +31,7 @@ permissions:
 jobs:
   lint:
     name: Lint & Static Analysis
-    runs-on: [self-hosted, macOS, X64, ARM64, mac-mini]  # Xcode 27 MacBook runner
+    runs-on: [self-hosted, macOS, X64, mac-mini]  # lint-only PR gate; Xcode jobs use the ARM64 runner
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
