@@ -85,13 +85,23 @@ public struct TranscriptStorage: @unchecked Sendable {
     private let fileManager = FileManager.default
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
+    private let _storageDirectory: URL?
 
     public var storageDirectory: URL {
-        fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        _storageDirectory ?? fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("SymairaTerminal/transcripts", isDirectory: true)
     }
 
     public init() {
+        self._storageDirectory = nil
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        decoder.dateDecodingStrategy = .iso8601
+    }
+
+    /// Internal initializer for testing with a custom storage directory.
+    init(storageDirectory: URL) {
+        self._storageDirectory = storageDirectory
         encoder.dateEncodingStrategy = .iso8601
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         decoder.dateDecodingStrategy = .iso8601
