@@ -100,4 +100,57 @@ final class ACPFrameParserTests: XCTestCase {
         XCTAssertNotNil(result)
         XCTAssertEqual(result?["method"] as? String, "partial")
     }
+
+    // MARK: - Buffer bounding
+
+    func testEndlessHeaderWithoutTerminatorResetsBuffer() {
+        var parser = ACPFrameParser(maxContentLength: 100)
+        // 64 KiB stays below the cap (maxContentLength + 64 KiB) — the parser
+        // keeps buffering in the hope of a header terminator.
+        let junk = Data(repeating: 0x61, count: 1024) // 'a'
+        for _ in 0..<64 { parser.feed(junk) }
+        XCTAssertNil(parser.nextMessage())
+
+        // Crossing the cap resets the malformed stream instead of growing
+        // memory without limit.
+        parser.feed(junk)
+        XCTAssertTrue(parser.isEmpty, "buffer must be reset after exceeding the cap")
+        XCTAssertNil(parser.nextMessage())
+    }
+
+    func testResyncAfterBufferReset() {
+        var parser = ACPFrameParser(maxContentLength: 100)
+        let junk = Data(repeating: 0x61, count: 1024)
+        for _ in 0..<65 { parser.feed(junk) } // ~65 KiB crosses the cap; stream dropped
+        XCTAssertTrue(parser.isEmpty)
+
+        // A well-formed frame fed after the reset must parse normally.
+        let msg = #"{"jsonrpc":"2.0","method":"after-reset","id":7}"#
+        parser.feed(frame(msg))
+        let result = parser.nextMessage()
+        XCTAssertNotNil(result)
+        XCTAssertEqual(result?["method"] as? String, "after-reset")
+        XCTAssertTrue(parser.isEmpty)
+    }
+
+    func testLargeFragmentedFrameWithinCapStillParses() {
+        var parser = ACPFrameParser(maxContentLength: 1024 * 1024)
+        let body = #"{"jsonrpc":"2.0","method":"big","data":""# + String(repeating: "x", count: 512 * 1024) + #""}"#
+        let full = frame(body)
+        // Feed in small chunks, staying well below the cap — fragmented delivery
+        // of a legitimate large frame must keep working.
+        var offset = 0
+        while offset < full.count {
+            let chunkEnd = min(offset + 4096, full.count)
+            parser.feed(full[offset..<chunkEnd])
+            offset = chunkEnd
+            if offset < full.count {
+                XCTAssertNil(parser.nextMessage(), "no complete frame before all bytes arrive")
+            }
+        }
+        let result = parser.nextMessage()
+        XCTAssertNotNil(result)
+        XCTAssertEqual(result?["method"] as? String, "big")
+        XCTAssertTrue(parser.isEmpty)
+    }
 }
