@@ -34,15 +34,7 @@ public struct ClaudeCodeReader: UsageReader, Sendable {
     }
 
     public func read(since date: Date) async throws -> [UsageSample] {
-        let jsonlFiles = findJSONLFiles()
-        guard !jsonlFiles.isEmpty else { return [] }
-
-        var samples: [UsageSample] = []
-        for fileURL in jsonlFiles {
-            let fileSamples = parseFile(fileURL, since: date, cache: nil)
-            samples.append(contentsOf: fileSamples)
-        }
-        return samples
+        try await read(since: date, cache: nil)
     }
 
     public func read(since date: Date, cache: IncrementalReadCache?) async throws -> [UsageSample] {
