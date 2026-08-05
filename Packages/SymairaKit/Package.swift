@@ -82,7 +82,7 @@ let package = Package(
         .testTarget(name: "ContextBankTests", dependencies: ["ContextBank"]),
         .testTarget(name: "StackKitTests", dependencies: ["StackKit"]),
         .testTarget(name: "UsageKitTests", dependencies: ["UsageKit"]),
-        .testTarget(name: "SymairaUITests", dependencies: ["SymairaUI"]),
+        .testTarget(name: "SymairaUITests", dependencies: ["SymairaUI", "ProviderKit"]),
         .testTarget(name: "ControlKitTests", dependencies: ["ControlKit"]),
         .testTarget(name: "MCPKitTests", dependencies: ["MCPKit"])
     ]
