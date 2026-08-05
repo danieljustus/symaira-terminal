@@ -3,13 +3,23 @@ import Foundation
 struct ACPFrameParser {
     private var buffer = Data()
     private let maxContentLength: Int
+    private let maxBufferedBytes: Int
 
     init(maxContentLength: Int = 1024 * 1024) {
         self.maxContentLength = maxContentLength
+        // The buffer may legitimately hold one in-flight frame (header + declared
+        // body). Bounding it slightly above maxContentLength keeps fragmented
+        // frames working while a peer that never sends the header terminator
+        // cannot grow memory without limit. Exceeding the bound resets the
+        // stream — resyncing by dropping is safe for a child-process peer.
+        self.maxBufferedBytes = maxContentLength + 64 * 1024
     }
 
     mutating func feed(_ data: Data) {
         buffer.append(data)
+        if buffer.count > maxBufferedBytes {
+            buffer.removeAll()
+        }
     }
 
     mutating func nextMessage() -> [String: Any]? {
