@@ -1,4 +1,5 @@
 import Foundation
+import os.log
 
 /// Handles saving and loading session state to/from disk.
 ///
@@ -17,6 +18,12 @@ public final class SessionPersistence: @unchecked Sendable {
     private var pendingSaveTask: Task<Void, Never>?
     private var pendingState: SessionState?
     private let _storageDirectory: URL?
+    private let stateLock = NSLock()
+
+    /// Invoked when a debounced save fails (e.g. disk full or encoding error).
+    /// Defaults to logging the failure via os_log; tests can replace it to
+    /// observe failures without touching the log.
+    public var saveErrorHandler: ((Error) -> Void)?
 
     public var storageDirectory: URL {
         _storageDirectory ?? fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -47,27 +54,53 @@ public final class SessionPersistence: @unchecked Sendable {
     /// Saves session state with debouncing. Rapid calls within the debounce
     /// interval will coalesce into a single write.
     public func save(_ state: SessionState) throws {
-        pendingSaveTask?.cancel()
-        pendingState = state
+        stateLock.withLock {
+            pendingSaveTask?.cancel()
+            pendingState = state
+        }
 
-        pendingSaveTask = Task { [weak self] in
+        let task = Task { [weak self] in
             guard let self else { return }
             try? await Task.sleep(nanoseconds: UInt64(self.debounceInterval * 1_000_000_000))
             guard !Task.isCancelled else { return }
-            if let state = self.pendingState {
-                try? self.performSave(state)
+
+            let state = self.stateLock.withLock { () -> SessionState? in
+                let state = self.pendingState
                 self.pendingState = nil
+                return state
             }
+
+            guard let state else { return }
+            do {
+                try self.performSave(state)
+            } catch {
+                self.reportSaveError(error)
+            }
+        }
+
+        stateLock.withLock {
+            pendingSaveTask = task
         }
     }
 
     /// Saves session state immediately, bypassing debounce.
     /// Use this for app termination to ensure state is persisted.
     public func saveImmediately(_ state: SessionState) throws {
-        pendingSaveTask?.cancel()
-        pendingSaveTask = nil
-        pendingState = nil
+        stateLock.withLock {
+            pendingSaveTask?.cancel()
+            pendingSaveTask = nil
+            pendingState = nil
+        }
         try performSave(state)
+    }
+
+    private func reportSaveError(_ error: Error) {
+        if let handler = saveErrorHandler {
+            handler(error)
+        } else {
+            os_log("SessionPersistence: debounced session save failed: %{public}@",
+                   log: .default, type: .error, error.localizedDescription)
+        }
     }
 
     private func performSave(_ state: SessionState) throws {

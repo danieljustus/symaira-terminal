@@ -54,4 +54,65 @@ final class SessionPersistenceDebounceTests: XCTestCase {
         XCTAssertNotNil(loaded)
         XCTAssertEqual(loaded?.panes.first?.workingDirectory, "/Users/test")
     }
+
+    func testSaveFailureIsReportedToHandler() async throws {
+        // Storage directory path is occupied by a regular file — the directory
+        // creation inside performSave must fail and surface the error.
+        let tmpDir = FileManager.default.temporaryDirectory.appendingPathComponent("SymairaTest_\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmpDir) }
+
+        let blockerFile = tmpDir.appendingPathComponent("blocked")
+        try Data("not a directory".utf8).write(to: blockerFile)
+
+        let persistence = SessionPersistence(storageDirectory: blockerFile, debounceInterval: 0.05)
+
+        let state = SessionState(
+            panes: [PaneState(workingDirectory: "/Users/test")],
+            layout: .pane(index: 0),
+            windowFrame: CodableRect(x: 0, y: 0, width: 1024, height: 768)
+        )
+
+        let errorReported = expectation(description: "save error reported")
+        persistence.saveErrorHandler = { _ in
+            errorReported.fulfill()
+        }
+
+        try persistence.save(state)
+        await fulfillment(of: [errorReported], timeout: 2.0)
+    }
+
+    func testConcurrentSavesCoalesceWithoutCrash() async throws {
+        let tmpDir = FileManager.default.temporaryDirectory.appendingPathComponent("SymairaTest_\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmpDir) }
+
+        let persistence = SessionPersistence(storageDirectory: tmpDir, debounceInterval: 0.05)
+
+        let states = (0..<20).map { i in
+            SessionState(
+                panes: [PaneState(workingDirectory: "/Users/test\(i)")],
+                layout: .pane(index: 0),
+                windowFrame: CodableRect(x: 0, y: 0, width: 1024, height: 768)
+            )
+        }
+
+        // Fire saves from multiple tasks to exercise the pending-state lock.
+        await withTaskGroup(of: Void.self) { group in
+            for (index, state) in states.enumerated() {
+                group.addTask {
+                    try? persistence.save(state)
+                    if index == states.count - 1 {
+                        try? persistence.saveImmediately(state)
+                    }
+                }
+            }
+        }
+
+        try await Task.sleep(nanoseconds: 200_000_000)
+
+        let loaded = persistence.load()
+        XCTAssertNotNil(loaded)
+        XCTAssertEqual(loaded?.panes.first?.workingDirectory, "/Users/test19")
+    }
 }
