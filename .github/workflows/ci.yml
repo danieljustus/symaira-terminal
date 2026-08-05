@@ -44,7 +44,6 @@ jobs:
 
   test:
     name: Build & Test (SymairaKit)
-    if: github.event_name != 'pull_request'  # PR gate = lint only; full build+test on main/schedule
     runs-on: [self-hosted, macOS, ARM64, macbook-terminal]  # Xcode 27 MacBook runner
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -78,7 +77,6 @@ jobs:
 
   app:
     name: Build App (boundary check)
-    if: github.event_name != 'pull_request'  # PR gate = lint only; app build on main/schedule
     runs-on: [self-hosted, macOS, ARM64, macbook-terminal]  # Xcode 27 MacBook runner
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
