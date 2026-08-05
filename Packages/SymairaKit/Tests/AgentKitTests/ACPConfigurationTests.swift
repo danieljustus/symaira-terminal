@@ -30,7 +30,7 @@ final class ACPConfigurationTests: XCTestCase {
     }
 
     func testExplicitEnvironmentIsUsedAsProvided() {
-        var explicitEnv: [String: String] = ["CUSTOM_VAR": "value"]
+        let explicitEnv: [String: String] = ["CUSTOM_VAR": "value"]
 
         let executable = URL(fileURLWithPath: "/usr/bin/test")
         let config = ACPConfiguration(executable: executable, environment: explicitEnv)

@@ -129,6 +129,65 @@ import Foundation
         #expect(samples.count == 1)
         #expect(samples[0].id == "real")
     }
+
+    @Test func skipsOversizedTranscriptOnFullRead() async throws {
+        let base = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: base) }
+
+        let projectDir = try makeClaudeProjectDir(base: base)
+        let jsonl = """
+        {"type":"assistant","uuid":"big","timestamp":"2026-06-01T00:00:00Z","message":{"model":"claude-opus-4-5","usage":{"input_tokens":10,"output_tokens":4}}}
+        """
+        try jsonl.data(using: .utf8)!.write(to: projectDir.appendingPathComponent("session.jsonl"))
+
+        // Tiny cap: even a small transcript exceeds it, so the full-read path
+        // must skip the file instead of loading it.
+        let reader = ClaudeCodeReader(baseDirectory: base, maxFileSizeBytes: 10)
+        let samples = try await reader.read(since: Date.distantPast)
+        #expect(samples.isEmpty)
+    }
+
+    @Test func skipsFilesBeyondMaxDepth() async throws {
+        let base = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: base) }
+
+        // Session at depth 1 (base/proj/session.jsonl) is found...
+        let projectDir = try makeClaudeProjectDir(base: base)
+        let shallow = """
+        {"type":"assistant","uuid":"shallow","timestamp":"2026-06-01T00:00:00Z","message":{"model":"claude-opus-4-5","usage":{"input_tokens":5,"output_tokens":2}}}
+        """
+        try shallow.data(using: .utf8)!.write(to: projectDir.appendingPathComponent("s.jsonl"))
+
+        // ...but a transcript nested deeper than maxDepth is not enumerated.
+        let deepDir = base.appendingPathComponent("p1/p2/p3/p4/p5")
+        try FileManager.default.createDirectory(at: deepDir, withIntermediateDirectories: true)
+        let deep = """
+        {"type":"assistant","uuid":"deep","timestamp":"2026-06-01T00:00:00Z","message":{"model":"claude-opus-4-5","usage":{"input_tokens":9,"output_tokens":3}}}
+        """
+        try deep.data(using: .utf8)!.write(to: deepDir.appendingPathComponent("deep.jsonl"))
+
+        let reader = ClaudeCodeReader(baseDirectory: base, maxDepth: 3)
+        let samples = try await reader.read(since: Date.distantPast)
+        #expect(samples.count == 1)
+        #expect(samples[0].id == "shallow")
+    }
+
+    @Test func respectsDefaultSizeAndDepthLimits() async throws {
+        let base = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: base) }
+
+        let projectDir = try makeClaudeProjectDir(base: base)
+        let jsonl = """
+        {"type":"assistant","uuid":"ok","timestamp":"2026-06-01T00:00:00Z","message":{"model":"claude-opus-4-5","usage":{"input_tokens":7,"output_tokens":1}}}
+        """
+        try jsonl.data(using: .utf8)!.write(to: projectDir.appendingPathComponent("session.jsonl"))
+
+        // Default limits (64 MiB / depth 4) must not break normal reads.
+        let reader = ClaudeCodeReader(baseDirectory: base)
+        let samples = try await reader.read(since: Date.distantPast)
+        #expect(samples.count == 1)
+        #expect(samples[0].id == "ok")
+    }
 }
 
 // MARK: - CodexReader
