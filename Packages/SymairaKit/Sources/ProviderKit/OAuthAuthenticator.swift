@@ -66,7 +66,11 @@ public enum OAuthError: Error, LocalizedError {
 /// Handles OAuth 2.0 PKCE token exchange and refresh operations.
 /// This is non-isolated and can be called from any context.
 public struct OAuthTokenClient: Sendable {
-    public init() {}
+    private let session: URLSession
+
+    public init(session: URLSession = .shared) {
+        self.session = session
+    }
 
     /// Exchange an authorization code for tokens.
     public func exchangeCode(
@@ -93,7 +97,7 @@ public struct OAuthTokenClient: Sendable {
             .joined(separator: "&")
             .data(using: .utf8)
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await session.data(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse,
               (200...299).contains(httpResponse.statusCode) else {
@@ -143,7 +147,7 @@ public struct OAuthTokenClient: Sendable {
             .joined(separator: "&")
             .data(using: .utf8)
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await session.data(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse,
               (200...299).contains(httpResponse.statusCode) else {
