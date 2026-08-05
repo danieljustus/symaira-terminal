@@ -8,7 +8,7 @@ private final class CallbackBox<Value>: @unchecked Sendable {
 
 final class ACPClientTests: XCTestCase {
     func testRequestCompletesFromChildResponse() throws {
-        let client = makeClient(frames: [responseFrame(result: ["ok": true])])
+        let client = makeClient(frames: [try responseFrame(result: ["ok": true])])
         let resultBox = CallbackBox<Result<Any?, Error>>()
         let completed = expectation(description: "request completed")
 
@@ -88,8 +88,8 @@ final class ACPClientTests: XCTestCase {
         ))
     }
 
-    private func responseFrame(result: [String: Any]) -> String {
-        let data = try! JSONSerialization.data(withJSONObject: [
+    private func responseFrame(result: [String: Any]) throws -> String {
+        let data = try JSONSerialization.data(withJSONObject: [
             "jsonrpc": "2.0",
             "id": 0,
             "result": result
