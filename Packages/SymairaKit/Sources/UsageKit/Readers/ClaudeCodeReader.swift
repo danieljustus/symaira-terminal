@@ -12,15 +12,25 @@ public struct ClaudeCodeReader: UsageReader, Sendable {
     public let provider: UsageProvider = UsageProviders.claudeCode
 
     private let baseDirectory: URL
+    /// Files larger than this are skipped on the full-read path so a stale
+    /// giant transcript cannot stall the refresh scheduler.
+    private let maxFileSizeBytes: Int
+    /// Maximum directory depth below `baseDirectory` to walk when enumerating
+    /// transcript files.
+    private let maxDepth: Int
     nonisolated(unsafe) private let fileManager: FileManager
 
     public init(
         baseDirectory: URL? = nil,
-        fileManager: FileManager = .default
+        fileManager: FileManager = .default,
+        maxFileSizeBytes: Int = 64 * 1024 * 1024,
+        maxDepth: Int = 4
     ) {
         self.baseDirectory = baseDirectory
             ?? URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent(".claude/projects")
         self.fileManager = fileManager
+        self.maxFileSizeBytes = maxFileSizeBytes
+        self.maxDepth = maxDepth
     }
 
     public func read(since date: Date) async throws -> [UsageSample] {
@@ -52,15 +62,25 @@ public struct ClaudeCodeReader: UsageReader, Sendable {
     private func findJSONLFiles() -> [URL] {
         guard fileManager.fileExists(atPath: baseDirectory.path) else { return [] }
         var result: [URL] = []
+        let basePathComponents = baseDirectory.standardizedFileURL.pathComponents.count
         let enumerator = fileManager.enumerator(
             at: baseDirectory,
-            includingPropertiesForKeys: [.isRegularFileKey],
+            includingPropertiesForKeys: [.isRegularFileKey, .fileSizeKey],
             options: [.skipsHiddenFiles]
         )
         while let url = enumerator?.nextObject() as? URL {
-            if url.pathExtension == "jsonl" {
-                result.append(url)
+            // Bound the walk depth so an unexpectedly nested tree cannot stall
+            // the refresh scheduler.
+            let depth = url.standardizedFileURL.pathComponents.count - basePathComponents
+            guard depth <= maxDepth else {
+                enumerator?.skipDescendants()
+                continue
             }
+            guard url.pathExtension == "jsonl" else { continue }
+            // Skip oversized transcripts on the full-read path.
+            let size = (try? url.resourceValues(forKeys: [.fileSizeKey]))?.fileSize ?? 0
+            guard size <= maxFileSizeBytes else { continue }
+            result.append(url)
         }
         return result
     }
@@ -77,7 +97,11 @@ public struct ClaudeCodeReader: UsageReader, Sendable {
     }
 
     private func parseFileFull(_ fileURL: URL, since date: Date) -> [UsageSample] {
-        guard let data = try? Data(contentsOf: fileURL),
+        // Size guard at read time as well — the file may have grown since the
+        // enumeration or be passed in directly.
+        let fileSize = (try? fileManager.attributesOfItem(atPath: fileURL.path)[.size] as? Int) ?? 0
+        guard fileSize <= maxFileSizeBytes,
+              let data = try? Data(contentsOf: fileURL),
               let text = String(data: data, encoding: .utf8) else { return [] }
 
         let projectName = fileURL.deletingLastPathComponent().lastPathComponent
