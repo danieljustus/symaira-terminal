@@ -98,21 +98,27 @@ final class SessionPersistenceDebounceTests: XCTestCase {
         }
 
         // Fire saves from multiple tasks to exercise the pending-state lock.
+        // Execution order is not guaranteed, so the debounced write may land on
+        // any of the states — the invariant is that the store stays consistent.
         await withTaskGroup(of: Void.self) { group in
-            for (index, state) in states.enumerated() {
+            for state in states {
                 group.addTask {
                     try? persistence.save(state)
-                    if index == states.count - 1 {
-                        try? persistence.saveImmediately(state)
-                    }
                 }
             }
         }
 
+        // Let the last debounced write flush, then a termination save must win.
         try await Task.sleep(nanoseconds: 200_000_000)
+        let finalState = SessionState(
+            panes: [PaneState(workingDirectory: "/Users/test-final")],
+            layout: .pane(index: 0),
+            windowFrame: CodableRect(x: 0, y: 0, width: 1024, height: 768)
+        )
+        try persistence.saveImmediately(finalState)
 
         let loaded = persistence.load()
         XCTAssertNotNil(loaded)
-        XCTAssertEqual(loaded?.panes.first?.workingDirectory, "/Users/test19")
+        XCTAssertEqual(loaded?.panes.first?.workingDirectory, "/Users/test-final")
     }
 }
