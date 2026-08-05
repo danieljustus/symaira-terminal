@@ -187,6 +187,11 @@ public final class ACPClient: @unchecked Sendable {
         }
     }
 
+    /// Redacts provider secrets from a raw stderr chunk before it reaches the unified log.
+    static func redactedStderr(_ text: String) -> String {
+        SecretRedactor().redact(text).text
+    }
+
     private func startStderrDrain() {
         lock.lock()
         stderrDrainActive = true
@@ -200,7 +205,7 @@ public final class ACPClient: @unchecked Sendable {
             self.lock.unlock()
             guard active else { return }
             if let text = String(data: data, encoding: .utf8) {
-                os_log("ACP stderr: %{public}@", log: .default, type: .debug, text)
+                os_log("ACP stderr: %{public}@", log: .default, type: .debug, Self.redactedStderr(text))
             }
         }
     }
