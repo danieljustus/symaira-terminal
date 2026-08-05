@@ -50,7 +50,10 @@ public actor MCPStdioServer {
         }
     }
 
-    private func dispatch(line: Data, decoder: JSONDecoder, dispatcher: MCPToolDispatcher) async -> MCPResponse {
+    /// Processes a single newline-delimited request line and produces the
+    /// response. Internal so tests can exercise request/response framing and
+    /// malformed-input handling without touching stdin/stdout.
+    func dispatch(line: Data, decoder: JSONDecoder, dispatcher: MCPToolDispatcher) async -> MCPResponse {
         do {
             let request = try decoder.decode(MCPRequest.self, from: line)
             let result = try await handle(request: request, dispatcher: dispatcher)
