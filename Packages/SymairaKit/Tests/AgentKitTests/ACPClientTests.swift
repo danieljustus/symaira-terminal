@@ -94,7 +94,10 @@ final class ACPClientTests: XCTestCase {
             "id": 0,
             "result": result
         ])
-        return frame(body: String(decoding: data, as: UTF8.self))
+        guard let body = String(data: data, encoding: .utf8) else {
+            throw CocoaError(.fileReadInapplicableStringEncoding)
+        }
+        return frame(body: body)
     }
 
     private func frame(body: String) -> String {
