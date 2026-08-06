@@ -47,7 +47,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.symaira.terminal
         DEVELOPMENT_TEAM: M4744F3TAA
-        MARKETING_VERSION: "0.8.3"
+        MARKETING_VERSION: "0.8.4"
         CURRENT_PROJECT_VERSION: "1"
         SWIFT_VERSION: "6.0"
         SWIFT_STRICT_CONCURRENCY: complete
