@@ -25,7 +25,9 @@ final class SessionPersistenceDebounceTests: XCTestCase {
         try persistence.save(state1)
         try persistence.save(state2)
 
-        try await Task.sleep(nanoseconds: 600_000_000)
+        // Wait for the debounced write to actually complete instead of sleeping
+        // for a fixed wall-clock window — deterministic under load.
+        await persistence.waitForPendingSave()
 
         let loaded = persistence.load()
         XCTAssertNotNil(loaded)
