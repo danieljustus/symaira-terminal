@@ -97,6 +97,15 @@ public struct ControlClient: Sendable, OrchestrationControlProvider {
     /// via GCD (whose worker queues can stall when the runner's dispatch/XPC
     /// environment is degraded — see issue #347: the ControlKit test suite
     /// wedged for ~52 min on the self-hosted runner).
+    ///
+    /// Thread bound (issue #354): exactly one detached thread per in-flight
+    /// request and no more. Each thread runs a single request end-to-end —
+    /// bounded by `ioTimeoutSeconds` on connect/read/write — and exits, so the
+    /// concurrent thread count equals the number of concurrent `send` calls,
+    /// which the caller controls. The server-side read loop, by contrast,
+    /// previously spawned one thread per received chunk; it is bounded by a
+    /// persistent per-connection reader thread (see `BlockingSocketIO` in
+    /// LineDelimitedJSONServer.swift).
     public func send(_ request: ControlRequest) async throws -> ControlResponseBody {
         let path = socketPath
         return try await withCheckedThrowingContinuation { cont in
@@ -132,22 +141,23 @@ public struct ControlClient: Sendable, OrchestrationControlProvider {
             }
         }
         if connectResult != 0 {
+            // Defensive branch (issue #355): on Darwin, AF_UNIX connect()
+            // never reports EINPROGRESS — a full listen backlog is refused
+            // synchronously with ECONNREFUSED (blocking and non-blocking
+            // alike) and a missing path fails with ENOENT, so this branch is
+            // unreachable for the current transport. It is kept so a connect
+            // that genuinely stays in progress (e.g. if the transport ever
+            // gains a TCP path) is still bounded by ioTimeoutSeconds instead
+            // of hanging (issue #347 hang protection). The poll()/getsockopt
+            // machinery is exercised directly by tests via
+            // `finishBoundedConnect`.
             guard errno == EINPROGRESS else {
                 _ = Darwin.fcntl(fd, F_SETFL, flags)
                 throw ControlClientError.connectionRefused
             }
-            var pfd = pollfd(fd: fd, events: Int16(POLLOUT), revents: 0)
-            let pollResult = Darwin.poll(&pfd, 1, Int32(ioTimeoutSeconds) * 1000)
             _ = Darwin.fcntl(fd, F_SETFL, flags)
-            guard pollResult > 0 else { throw ControlClientError.noResponse }
-            // Distinguish "connected" from "refused while in progress".
-            var socketError: Int32 = 0
-            var errorLength = socklen_t(MemoryLayout<Int32>.size)
-            let errResult = Darwin.getsockopt(
-                fd, SOL_SOCKET, SO_ERROR, &socketError, &errorLength)
-            guard errResult == 0, socketError == 0 else {
-                throw ControlClientError.connectionRefused
-            }
+            try Self.finishBoundedConnect(
+                fd: fd, timeoutMilliseconds: Int32(ioTimeoutSeconds) * 1000)
         } else {
             _ = Darwin.fcntl(fd, F_SETFL, flags)
         }
@@ -180,5 +190,28 @@ public struct ControlClient: Sendable, OrchestrationControlProvider {
         if let error = response.error { throw ControlClientError.rpcError(error) }
         guard let body = response.result else { throw ControlClientError.noResponse }
         return body
+    }
+
+    /// Completes a non-blocking connect: waits for writability with poll(),
+    /// then reads SO_ERROR to distinguish "connected" from "refused while in
+    /// progress". Throws `noResponse` on poll timeout and `connectionRefused`
+    /// when the pending connect failed.
+    ///
+    /// Internal (not public) so tests can drive the poll()/getsockopt()
+    /// machinery on real file descriptors (issue #355): the EINPROGRESS
+    /// branch of `sendBlocking` is unreachable on Darwin for AF_UNIX sockets,
+    /// so the seam lets the bounded-connect logic be exercised directly.
+    static func finishBoundedConnect(fd: Int32, timeoutMilliseconds: Int32) throws {
+        var pfd = pollfd(fd: fd, events: Int16(POLLOUT), revents: 0)
+        let pollResult = Darwin.poll(&pfd, 1, timeoutMilliseconds)
+        guard pollResult > 0 else { throw ControlClientError.noResponse }
+        // Distinguish "connected" from "refused while in progress".
+        var socketError: Int32 = 0
+        var errorLength = socklen_t(MemoryLayout<Int32>.size)
+        let errResult = Darwin.getsockopt(
+            fd, SOL_SOCKET, SO_ERROR, &socketError, &errorLength)
+        guard errResult == 0, socketError == 0 else {
+            throw ControlClientError.connectionRefused
+        }
     }
 }
