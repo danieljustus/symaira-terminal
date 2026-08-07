@@ -51,7 +51,7 @@ actor MockControlProvider: OrchestrationControlProvider {
 
 // MARK: - Test suite
 
-@Suite("ControlServer + ControlClient integration")
+@Suite("ControlServer + ControlClient integration", .timeLimit(.minutes(2)))
 struct ControlServerClientTests {
 
     /// Round-trip a snapshot through the Unix socket transport.
