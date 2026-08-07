@@ -20,7 +20,7 @@ let package = Package(
     dependencies: [
         // Engine pin — exact version on purpose, libghostty's API is not stable
         // yet (ADR-001). Upgrades are deliberate, tested steps.
-        .package(url: "https://github.com/Lakr233/libghostty-spm.git", exact: "1.2.4"),
+        .package(url: "https://github.com/Lakr233/libghostty-spm.git", exact: "1.3.2"),
         // Shared Symaira client foundations (tool registry SSOT). Exact pin
         // per ecosystem convention.
         .package(url: "https://github.com/danieljustus/symaira-appkit.git", exact: "0.7.0")
