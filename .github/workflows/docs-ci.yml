@@ -1,0 +1,44 @@
+name: Docs CI
+
+on:
+  pull_request:
+    paths:
+      - 'docs/**'
+      - '**.md'
+      - 'README.md'
+      - 'LICENSE'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+# Lightweight companion to ci.yml: ci.yml skips docs-only PRs via paths-ignore,
+# which left the 'main protection' ruleset's required status checks permanently
+# at 'Expected' for PRs touching only docs (no check runs were associated with
+# the PR). This workflow reports the same three required job names as ci.yml so
+# docs-only PRs produce real, passing check runs and the merge gate resolves
+# green. Job names MUST stay in sync with ci.yml.
+jobs:
+  lint:
+    name: Lint & Static Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Docs-only change — required check satisfied
+        run: 'echo Docs-only PR: no source changes to lint.'
+
+  test:
+    name: Build & Test (SymairaKit)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Docs-only change — required check satisfied
+        run: 'echo Docs-only PR: no source changes to build or test.'
+
+  app:
+    name: Build App (boundary check)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Docs-only change — required check satisfied
+        run: 'echo Docs-only PR: no source changes to build the app.'
