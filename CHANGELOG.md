@@ -10,7 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - #334 CI runs build & test jobs on pull requests
 - #352 App screenshot in the README
-- Coverage for the agent protocol layer (#338), MCPStdioServer and StackStore (#339), SymairaUI logic classes (#340), ACP client and Claude reader bounds (#341), palette/status-ring/theme logic (#363)
+- Coverage for the OAuth authenticator and token refresh path (#337), the agent protocol layer (#338), MCPStdioServer and StackStore (#339), SymairaUI logic classes (#340), ACP client and Claude reader bounds (#341), palette/status-ring/theme logic (#363)
+- #342 Record cycle 08 coverage results
 
 ### Fixed
 - #351, #361 ControlKit: prevent socket I/O hangs when runner dispatch is degraded; bound per-connection socket I/O
