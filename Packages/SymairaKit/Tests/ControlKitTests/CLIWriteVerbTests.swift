@@ -2,7 +2,7 @@ import ControlKit
 import Foundation
 import Testing
 
-@Suite("CLI write verbs — spawn, blocked, focus")
+@Suite("CLI write verbs — spawn, blocked, focus", .timeLimit(.minutes(2)))
 struct CLIWriteVerbTests {
 
     // MARK: - Spawn argument parsing

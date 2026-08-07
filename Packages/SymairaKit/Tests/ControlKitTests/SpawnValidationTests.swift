@@ -71,7 +71,7 @@ private var anyResolvableAgentID: String? {
     }?.id
 }
 
-@Suite("Spawn validation")
+@Suite("Spawn validation", .timeLimit(.minutes(2)))
 struct SpawnValidationTests {
 
     @Test func knownAgentIDAccepted() async throws {

@@ -92,12 +92,15 @@ public struct ControlClient: Sendable, OrchestrationControlProvider {
 
     /// Opens a connection, writes the request, reads the response, closes.
     ///
-    /// The blocking syscalls run on a GCD worker thread — never on the
-    /// cooperative Swift Concurrency pool, which they would starve.
+    /// The blocking syscalls run on a dedicated detached thread — never on the
+    /// cooperative Swift Concurrency pool (which they would starve) and never
+    /// via GCD (whose worker queues can stall when the runner's dispatch/XPC
+    /// environment is degraded — see issue #347: the ControlKit test suite
+    /// wedged for ~52 min on the self-hosted runner).
     public func send(_ request: ControlRequest) async throws -> ControlResponseBody {
         let path = socketPath
         return try await withCheckedThrowingContinuation { cont in
-            DispatchQueue.global().async {
+            Thread.detachNewThread {
                 cont.resume(with: Result { try Self.sendBlocking(request, socketPath: path) })
             }
         }
@@ -118,12 +121,36 @@ public struct ControlClient: Sendable, OrchestrationControlProvider {
                 ptr[i] = UInt8(bitPattern: b)
             }
         }
+        // Bounded connect: AF_UNIX connect() to a wedged listener can block
+        // indefinitely (backlog full). Non-blocking connect + poll() bounds it
+        // by the same ioTimeout as read/write (issue #347 hang protection).
+        let flags = Darwin.fcntl(fd, F_GETFL, 0)
+        _ = Darwin.fcntl(fd, F_SETFL, flags | O_NONBLOCK)
         let connectResult = withUnsafePointer(to: &addr) { addrPtr in
             addrPtr.withMemoryRebound(to: sockaddr.self, capacity: 1) {
                 Darwin.connect(fd, $0, socklen_t(MemoryLayout<sockaddr_un>.size))
             }
         }
-        guard connectResult == 0 else { throw ControlClientError.connectionRefused }
+        if connectResult != 0 {
+            guard errno == EINPROGRESS else {
+                _ = Darwin.fcntl(fd, F_SETFL, flags)
+                throw ControlClientError.connectionRefused
+            }
+            var pfd = pollfd(fd: fd, events: Int16(POLLOUT), revents: 0)
+            let pollResult = Darwin.poll(&pfd, 1, Int32(ioTimeoutSeconds) * 1000)
+            _ = Darwin.fcntl(fd, F_SETFL, flags)
+            guard pollResult > 0 else { throw ControlClientError.noResponse }
+            // Distinguish "connected" from "refused while in progress".
+            var socketError: Int32 = 0
+            var errorLength = socklen_t(MemoryLayout<Int32>.size)
+            let errResult = Darwin.getsockopt(
+                fd, SOL_SOCKET, SO_ERROR, &socketError, &errorLength)
+            guard errResult == 0, socketError == 0 else {
+                throw ControlClientError.connectionRefused
+            }
+        } else {
+            _ = Darwin.fcntl(fd, F_SETFL, flags)
+        }
 
         var timeout = timeval(tv_sec: ioTimeoutSeconds, tv_usec: 0)
         setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))

@@ -6,7 +6,7 @@ import Testing
 /// - Socket is created with 0600 (owner-only) permissions.
 /// - ControlMethod has no approve/deny verbs (structural capability check).
 /// - Stopped server cleans up the socket path.
-@Suite("Control surface security boundary")
+@Suite("Control surface security boundary", .timeLimit(.minutes(2)))
 struct ControlSecurityTests {
 
     // MARK: - Socket permissions

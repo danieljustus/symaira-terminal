@@ -11,12 +11,14 @@ import Foundation
 ///
 /// Conforming types only need to implement `dispatch(line:decoder:)` and
 /// `makeErrorResponse(message:)`.
-/// Runs blocking socket syscalls on GCD worker threads so they never occupy
-/// the cooperative Swift Concurrency pool (which would starve it and deadlock).
+/// Runs blocking socket syscalls on dedicated detached threads so they never
+/// occupy the cooperative Swift Concurrency pool (which would starve it and
+/// deadlock) and never depend on GCD worker queues (which can stall when the
+/// runner's dispatch/XPC environment is degraded — see issue #347).
 enum BlockingSocketIO {
     static func read(fd: Int32, maxBytes: Int) async -> Data? {
         await withCheckedContinuation { cont in
-            DispatchQueue.global().async {
+            Thread.detachNewThread {
                 var buf = [UInt8](repeating: 0, count: maxBytes)
                 let n = buf.withUnsafeMutableBytes { Darwin.read(fd, $0.baseAddress!, $0.count) }
                 cont.resume(returning: n > 0 ? Data(buf.prefix(n)) : nil)
