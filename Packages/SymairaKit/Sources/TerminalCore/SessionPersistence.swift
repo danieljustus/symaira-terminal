@@ -94,6 +94,14 @@ public final class SessionPersistence: @unchecked Sendable {
         try performSave(state)
     }
 
+    /// Test hook: awaits the most recent debounced save, if any, until it has
+    /// completed. Lets tests observe debounced persistence deterministically
+    /// instead of sleeping for a fixed wall-clock window.
+    func waitForPendingSave() async {
+        let task = stateLock.withLock { pendingSaveTask }
+        await task?.value
+    }
+
     private func reportSaveError(_ error: Error) {
         if let handler = saveErrorHandler {
             handler(error)
