@@ -4,9 +4,9 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Release](https://img.shields.io/github/v/release/danieljustus/symaira-terminal)](https://github.com/danieljustus/symaira-terminal/releases)
 
-A native macOS terminal built for the Human-AI era — designed for running multiple
-CLI coding agents (Claude Code, OpenCode, Aider, Gemini CLI, …) in parallel without
-losing track of what they are doing.
+> A native macOS terminal built for the Human-AI era — designed for running multiple
+> CLI coding agents (Claude Code, OpenCode, Aider, Gemini CLI, …) in parallel without
+> losing track of what they are doing.
 
 **Status: beta (v0.8.4).** Core terminal rendering works; multi-pane,
 session persistence, agent status rings, worktree isolation, BYOK, ACP integration,
