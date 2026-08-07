@@ -16,6 +16,7 @@ on:
       - '.github/ISSUE_TEMPLATE/**'
   schedule:
     - cron: '41 5 * * 1'  # weekly Monday 05:41 UTC — full suite incl. macOS builds
+  workflow_dispatch: {}  # manual trigger (e.g. to verify docs-only PRs that skip CI by path filter)
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
