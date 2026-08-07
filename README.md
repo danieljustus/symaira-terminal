@@ -33,7 +33,7 @@ scrollback are not enough. Symaira Terminal is agent-aware by design:
 - **Local-first** — configuration, prompt history, and transcripts stay on your Mac.
 
 <!-- TODO: Add screenshot showing multi-pane layout with agent status rings -->
-<!-- ![Symaira Terminal Screenshot](docs/screenshot.png) -->
+![Symaira Terminal Screenshot](docs/screenshot.png)
 
 ## Installation
 
