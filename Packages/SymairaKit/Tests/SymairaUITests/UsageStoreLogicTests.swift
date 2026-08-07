@@ -69,7 +69,7 @@ import UsageKit
         let todayStart = TimeBucket.today.startDate
         store.snapshot = UsageSnapshot(samples: [
             sample("in-today", provider: UsageProviders.claudeCode, timestamp: todayStart.addingTimeInterval(1)),
-            sample("before-today", provider: UsageProviders.claudeCode, timestamp: todayStart.addingTimeInterval(-1)),
+            sample("before-today", provider: UsageProviders.claudeCode, timestamp: todayStart.addingTimeInterval(-1))
         ], generatedAt: now)
         store.selectedBucket = .today
 
@@ -86,7 +86,7 @@ import UsageKit
         let weekStart = TimeBucket.week.startDate
         store.snapshot = UsageSnapshot(samples: [
             sample("in-week", provider: UsageProviders.claudeCode, timestamp: weekStart.addingTimeInterval(1)),
-            sample("before-week", provider: UsageProviders.claudeCode, timestamp: weekStart.addingTimeInterval(-1)),
+            sample("before-week", provider: UsageProviders.claudeCode, timestamp: weekStart.addingTimeInterval(-1))
         ], generatedAt: now)
         store.selectedBucket = .week
 
@@ -99,7 +99,7 @@ import UsageKit
         let monthStart = TimeBucket.month.startDate
         store.snapshot = UsageSnapshot(samples: [
             sample("in-month", provider: UsageProviders.claudeCode, timestamp: monthStart.addingTimeInterval(1)),
-            sample("before-month", provider: UsageProviders.claudeCode, timestamp: monthStart.addingTimeInterval(-1)),
+            sample("before-month", provider: UsageProviders.claudeCode, timestamp: monthStart.addingTimeInterval(-1))
         ], generatedAt: now)
         store.selectedBucket = .month
 
@@ -114,7 +114,7 @@ import UsageKit
         store.snapshot = UsageSnapshot(samples: [
             sample("c1", provider: UsageProviders.claudeCode, timestamp: now, input: 100, output: 10),
             sample("c2", provider: UsageProviders.claudeCode, timestamp: now, input: 200, output: 20),
-            sample("x1", provider: UsageProviders.codex, timestamp: now, input: 5, output: 5),
+            sample("x1", provider: UsageProviders.codex, timestamp: now, input: 5, output: 5)
         ], generatedAt: now)
         store.selectedBucket = .today
 
@@ -131,7 +131,7 @@ import UsageKit
         let store = makeStore()
         let now = Date()
         store.snapshot = UsageSnapshot(samples: [
-            sample("recent", provider: UsageProviders.claudeCode, timestamp: now),
+            sample("recent", provider: UsageProviders.claudeCode, timestamp: now)
         ], generatedAt: now)
 
         let window = store.currentBillingWindow

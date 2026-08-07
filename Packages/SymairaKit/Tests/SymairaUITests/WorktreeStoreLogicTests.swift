@@ -86,7 +86,7 @@ import Testing
         let cases: [(TimeInterval, String)] = [
             (5 * 60, "5m ago"),
             (2 * 3600, "2h ago"),
-            (3 * 86400, "3d ago"),
+            (3 * 86400, "3d ago")
         ]
         for (ageInterval, expected) in cases {
             let old = Date().addingTimeInterval(-ageInterval)
