@@ -5,6 +5,33 @@ All notable changes to Symaira Terminal will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.4] — 2026-08-07
+
+### Added
+- #334 CI runs build & test jobs on pull requests
+- #352 App screenshot in the README
+- Coverage for the agent protocol layer (#338), MCPStdioServer and StackStore (#339), SymairaUI logic classes (#340), ACP client and Claude reader bounds (#341), palette/status-ring/theme logic (#363)
+
+### Fixed
+- #351, #361 ControlKit: prevent socket I/O hangs when runner dispatch is degraded; bound per-connection socket I/O
+- #333 Cap the ACP frame parser buffer to bound memory usage
+- #336 Bound the Claude usage transcript reader on the full-read path
+- #335 Surface session persistence write failures instead of swallowing them
+- #332 Redact agent stderr before logging to the unified log
+- #362 Make the debounced-save test deterministic under load
+- Avoid process pipe drain deadlock in the child-process handling
+
+### Changed
+- #345 Bump version to 0.8.4 and update cask to v0.8.3
+- #346 Point the Dependabot Swift ecosystem at Packages/SymairaKit
+- #348 Bump github.com/lakr233/libghostty-spm
+- Routine Dependabot bumps (`github/codeql-action` init/analyze, #349, #350)
+
+### CI
+- #319 Select Xcode 27 on macOS runners
+- #360 Make docs-only PRs satisfy required status checks
+- #331 Ignore llvm profraw coverage artifacts
+
 ## [0.8.3] — 2026-07-30
 
 ### Added
@@ -256,7 +283,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 26 unit tests across all modules
 - ADR-001: Terminal engine choice + pin strategy
 
-[Unreleased]: https://github.com/danieljustus/symaira-terminal/compare/v0.8.3...HEAD
+[Unreleased]: https://github.com/danieljustus/symaira-terminal/compare/v0.8.4...HEAD
+[0.8.4]: https://github.com/danieljustus/symaira-terminal/compare/v0.8.3...v0.8.4
 [0.8.3]: https://github.com/danieljustus/symaira-terminal/compare/v0.8.2...v0.8.3
 [0.8.2]: https://github.com/danieljustus/symaira-terminal/compare/v0.8.1...v0.8.2
 [0.8.1]: https://github.com/danieljustus/symaira-terminal/compare/v0.8.0...v0.8.1
